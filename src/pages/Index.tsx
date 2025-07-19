@@ -12,7 +12,7 @@ import {
   BarChart3,
   Star 
 } from "lucide-react";
-import heroImage from "@/assets/hero-banner.jpg";
+import heroImage from "@/assets/mma-fighter-hero.jpg";
 
 const Index = () => {
   const isPremium = true; // Simulation premium user
@@ -27,32 +27,32 @@ const Index = () => {
         <div className="absolute inset-0 bg-black/20" />
         <img 
           src={heroImage} 
-          alt="Coach Sportif IA" 
+          alt="MMA Fighter Training" 
           className="absolute inset-0 w-full h-64 object-cover mix-blend-overlay"
         />
         <div className="relative container px-4 py-16">
           <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Votre Coach Sportif IA
-              {isPremium && <Crown className="inline h-8 w-8 ml-2 text-yellow-400" />}
+            <h1 className="text-4xl font-bold text-primary mb-4">
+              MMA Performance Center
+              {isPremium && <Crown className="inline h-8 w-8 ml-2 text-primary" />}
             </h1>
-            <p className="text-xl text-white/90 mb-8">
-              Transformation complète : nutrition, musculation, arts martiaux.
-              Analyse vidéo IA, programmes personnalisés, suivi premium.
+            <p className="text-xl text-foreground/90 mb-8">
+              Préparation competition MMA, analyse vidéo IA, programmes personnalisés.
+              Boxe • Kickboxing • Grappling • Nutrition de combat
             </p>
             <div className="flex flex-wrap gap-3">
               <Button variant="hero" size="lg">
                 <Brain className="h-5 w-5 mr-2" />
-                Assistant IA
+                Coach IA MMA
               </Button>
               <Button variant="secondary" size="lg">
                 <BarChart3 className="h-5 w-5 mr-2" />
-                Mes Progrès
+                Analyse Combat
               </Button>
               {!isPremium && (
-                <Button className="bg-yellow-600 hover:bg-yellow-700 text-white" size="lg">
+                <Button className="bg-primary hover:bg-primary/80 text-primary-foreground" size="lg">
                   <Star className="h-5 w-5 mr-2" />
-                  Débloquer Premium
+                  Champion Access
                 </Button>
               )}
             </div>
@@ -105,9 +105,9 @@ const Index = () => {
           <div className="lg:col-span-2">
             <Tabs defaultValue="nutrition" className="space-y-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
-                <TabsTrigger value="workout">Workout</TabsTrigger>
-                <TabsTrigger value="combat">Arts Martiaux</TabsTrigger>
+                <TabsTrigger value="nutrition">Nutrition Combat</TabsTrigger>
+                <TabsTrigger value="workout">Préparation Physique</TabsTrigger>
+                <TabsTrigger value="combat">Technique MMA</TabsTrigger>
               </TabsList>
               
               <TabsContent value="nutrition" className="space-y-6">
@@ -120,13 +120,13 @@ const Index = () => {
               
               <TabsContent value="combat" className="space-y-6">
                 <div className="text-center py-12 bg-gradient-card rounded-lg border-0 shadow-card">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Section Arts Martiaux</h3>
+                  <Users className="h-12 w-12 mx-auto text-primary mb-4" />
+                  <h3 className="text-lg font-semibold mb-2 text-primary">Technique MMA & Combat</h3>
                   <p className="text-muted-foreground mb-6">
-                    Boxe, Kickboxing, MMA, Grappling - Suivi technique et sparring
+                    Striking • Grappling • Wrestling • BJJ • Analyse vidéo IA des combats
                   </p>
                   <Button variant="hero">
-                    Commencer Entraînement Combat
+                    Démarrer Session Combat
                   </Button>
                 </div>
               </TabsContent>
