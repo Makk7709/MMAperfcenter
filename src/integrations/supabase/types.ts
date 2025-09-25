@@ -50,6 +50,48 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          fitness_level: string | null
+          full_name: string | null
+          goals: string[] | null
+          height: number | null
+          id: string
+          martial_arts_discipline: string | null
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          goals?: string[] | null
+          height?: number | null
+          id: string
+          martial_arts_discipline?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          goals?: string[] | null
+          height?: number | null
+          id?: string
+          martial_arts_discipline?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
