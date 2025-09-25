@@ -5,22 +5,30 @@ import { NutritionTracker } from "@/components/NutritionTracker";
 import { WorkoutLogger } from "@/components/WorkoutLogger";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Brain, 
   Crown, 
   Users, 
   BarChart3,
-  Star 
+  Star
 } from "lucide-react";
 import heroImage from "@/assets/mma-fighter-hero.jpg";
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const isPremium = true; // Simulation premium user
+  
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <DashboardHeader userName="Alex" isPremium={isPremium} />
+      <DashboardHeader userName={userName} isPremium={isPremium} onSignOut={handleSignOut} />
       
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-hero">

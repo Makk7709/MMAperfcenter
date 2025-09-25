@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, Search, User, Menu, Dumbbell } from "lucide-react";
+import { Bell, Search, User, Menu, Dumbbell, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface DashboardHeaderProps {
   userName?: string;
   isPremium?: boolean;
+  onSignOut?: () => void;
 }
 
-export const DashboardHeader = ({ userName = "Coach", isPremium = false }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignOut }: DashboardHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -74,6 +75,14 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false }: Dashb
             <User className="h-4 w-4" />
             <span className="hidden md:inline">Profil</span>
           </Button>
+
+          {/* Sign Out */}
+          {onSignOut && (
+            <Button variant="ghost" size="sm" onClick={onSignOut} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              <span className="hidden lg:inline">Sortir</span>
+            </Button>
+          )}
 
           {/* Mobile Menu */}
           <Button variant="ghost" size="sm" className="md:hidden">
