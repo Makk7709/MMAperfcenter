@@ -13,42 +13,67 @@ import {
   Pause,
   RotateCcw
 } from "lucide-react";
+import { useWorkouts } from "@/hooks/useWorkouts";
+import { StartWorkoutDialog } from "./StartWorkoutDialog";
+import { AddExerciseDialog } from "./AddExerciseDialog";
 
 export const WorkoutLogger = () => {
+  const { 
+    currentWorkout, 
+    exercises, 
+    loading, 
+    startWorkout, 
+    addExerciseToWorkout, 
+    addSet, 
+    completeSet, 
+    updateSet, 
+    completeWorkout 
+  } = useWorkouts();
+  
   const [activeTimer, setActiveTimer] = useState(false);
   const [restTime, setRestTime] = useState(60);
 
-  const currentWorkout = {
-    name: "Haut du corps - Force",
-    exercises: [
-      {
-        name: "Développé couché",
-        sets: [
-          { weight: 80, reps: 8, completed: true },
-          { weight: 85, reps: 6, completed: true },
-          { weight: 90, reps: 4, completed: false }
-        ],
-        restTime: 120
-      },
-      {
-        name: "Tractions",
-        sets: [
-          { weight: 0, reps: 10, completed: true },
-          { weight: 5, reps: 8, completed: false },
-          { weight: 5, reps: 8, completed: false }
-        ],
-        restTime: 90
-      }
-    ]
-  };
+  // Calculate workout stats
+  const workoutStats = currentWorkout ? {
+    duration: currentWorkout.started_at 
+      ? Math.round((new Date().getTime() - new Date(currentWorkout.started_at).getTime()) / (1000 * 60)) + " min"
+      : "0 min",
+    setsCompleted: currentWorkout.workout_exercises.reduce((total, we) => 
+      total + we.sets.filter(set => set.completed).length, 0
+    ),
+    totalSets: currentWorkout.workout_exercises.reduce((total, we) => total + we.sets.length, 0),
+    volume: currentWorkout.workout_exercises.reduce((total, we) => 
+      total + we.sets.reduce((setTotal, set) => 
+        set.completed ? setTotal + (set.weight_kg * set.reps) : setTotal, 0
+      ), 0
+    ).toFixed(0) + " kg",
+    avgRestTime: Math.round(
+      currentWorkout.workout_exercises.reduce((total, we) => total + we.rest_seconds, 0) / 
+      Math.max(currentWorkout.workout_exercises.length, 1)
+    ) + "s"
+  } : null;
 
-  const workoutStats = {
-    duration: "38 min",
-    setsCompleted: 5,
-    totalSets: 8,
-    volume: "2,450 kg",
-    avgRestTime: "105s"
-  };
+  // If no current workout, show start workout button
+  if (!currentWorkout) {
+    return (
+      <div className="space-y-4">
+        <Card className="bg-gradient-card border-0 shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-primary" />
+              Aucun entraînement actif
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Commencez un nouvel entraînement pour suivre vos performances.
+            </p>
+            <StartWorkoutDialog onStartWorkout={startWorkout} loading={loading} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -67,26 +92,28 @@ export const WorkoutLogger = () => {
         </CardHeader>
         <CardContent>
           {/* Stats rapides */}
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Temps</p>
-              <p className="font-bold text-primary">{workoutStats.duration}</p>
+          {workoutStats && (
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Temps</p>
+                <p className="font-bold text-primary">{workoutStats.duration}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Séries</p>
+                <p className="font-bold text-secondary">
+                  {workoutStats.setsCompleted}/{workoutStats.totalSets}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Volume</p>
+                <p className="font-bold text-accent">{workoutStats.volume}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Repos moy</p>
+                <p className="font-bold text-foreground">{workoutStats.avgRestTime}</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Séries</p>
-              <p className="font-bold text-secondary">
-                {workoutStats.setsCompleted}/{workoutStats.totalSets}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Volume</p>
-              <p className="font-bold text-accent">{workoutStats.volume}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Repos moy</p>
-              <p className="font-bold text-foreground">{workoutStats.avgRestTime}</p>
-            </div>
-          </div>
+          )}
 
           {/* Timer de repos */}
           <div className="bg-secondary/10 rounded-lg p-4 mb-4">
@@ -117,21 +144,21 @@ export const WorkoutLogger = () => {
       </Card>
 
       {/* Exercices */}
-      {currentWorkout.exercises.map((exercise, exerciseIndex) => (
-        <Card key={exerciseIndex} className="bg-gradient-card border-0 shadow-card">
+      {currentWorkout.workout_exercises.map((workoutExercise) => (
+        <Card key={workoutExercise.id} className="bg-gradient-card border-0 shadow-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
-              {exercise.name}
+              {workoutExercise.exercise.name}
               <Badge variant="outline">
-                {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}
+                {workoutExercise.sets.filter(s => s.completed).length}/{workoutExercise.sets.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Séries */}
-            {exercise.sets.map((set, setIndex) => (
+            {workoutExercise.sets.map((set) => (
               <div 
-                key={setIndex}
+                key={set.id}
                 className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-200 ${
                   set.completed 
                     ? 'bg-accent/10 border-accent border-dashed' 
@@ -139,16 +166,17 @@ export const WorkoutLogger = () => {
                 }`}
               >
                 <div className="text-sm font-medium w-8">
-                  {setIndex + 1}
+                  {set.set_number}
                 </div>
                 
                 <div className="flex items-center gap-2 flex-1">
                   <div className="flex items-center gap-1">
                     <Input
                       type="number"
-                      value={set.weight}
+                      value={set.weight_kg}
+                      onChange={(e) => updateSet(set.id, Number(e.target.value), set.reps)}
                       className="w-16 h-8 text-sm"
-                      disabled={set.completed}
+                      disabled={set.completed || loading}
                     />
                     <span className="text-xs text-muted-foreground">kg</span>
                   </div>
@@ -159,8 +187,9 @@ export const WorkoutLogger = () => {
                     <Input
                       type="number"
                       value={set.reps}
+                      onChange={(e) => updateSet(set.id, set.weight_kg, Number(e.target.value))}
                       className="w-16 h-8 text-sm"
-                      disabled={set.completed}
+                      disabled={set.completed || loading}
                     />
                     <span className="text-xs text-muted-foreground">reps</span>
                   </div>
@@ -170,6 +199,8 @@ export const WorkoutLogger = () => {
                   size="sm"
                   variant={set.completed ? "fitness" : "default"}
                   className="w-16"
+                  onClick={() => !set.completed && completeSet(set.id)}
+                  disabled={loading}
                 >
                   {set.completed ? "✓" : "Log"}
                 </Button>
@@ -180,6 +211,8 @@ export const WorkoutLogger = () => {
             <Button 
               variant="outline" 
               className="w-full border-dashed"
+              onClick={() => addSet(workoutExercise.id, 0, 1)}
+              disabled={loading}
             >
               <Plus className="h-4 w-4 mr-2" />
               Ajouter une série
@@ -190,11 +223,17 @@ export const WorkoutLogger = () => {
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Button className="flex-1" variant="hero">
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter Exercice
-        </Button>
-        <Button className="flex-1" variant="secondary">
+        <AddExerciseDialog 
+          exercises={exercises}
+          onAddExercise={addExerciseToWorkout}
+          loading={loading}
+        />
+        <Button 
+          className="flex-1" 
+          variant="secondary"
+          onClick={completeWorkout}
+          disabled={loading}
+        >
           <Target className="h-4 w-4 mr-2" />
           Terminer
         </Button>
