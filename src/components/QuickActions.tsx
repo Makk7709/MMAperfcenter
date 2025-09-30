@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { 
   Camera, 
   ScanLine, 
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 
 export const QuickActions = () => {
+  const navigate = useNavigate();
+  
   const actions = [
     {
       title: "Scanner Aliment",
@@ -54,7 +57,8 @@ export const QuickActions = () => {
       description: "Programme personnalisé",
       icon: Calendar,
       variant: "ghost" as const,
-      color: "hover:bg-accent/10"
+      color: "hover:bg-accent/10",
+      onClick: () => navigate("/history")
     }
   ];
 
@@ -75,6 +79,7 @@ export const QuickActions = () => {
                 key={index}
                 variant={action.variant}
                 className="h-20 flex-col gap-2 p-4 group"
+                onClick={action.onClick}
               >
                 <Icon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
                 <div className="text-center">

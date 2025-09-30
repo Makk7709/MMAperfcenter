@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import WorkoutHistory from "./pages/WorkoutHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,14 @@ const App = () => (
                 <PublicRoute>
                   <Auth />
                 </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/history" 
+              element={
+                <ProtectedRoute>
+                  <WorkoutHistory />
+                </ProtectedRoute>
               } 
             />
             <Route path="*" element={<NotFound />} />
