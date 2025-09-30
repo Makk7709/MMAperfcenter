@@ -1,15 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { 
   CalendarDays, 
   Flame, 
   Target, 
   TrendingUp, 
   Zap, 
-  Trophy 
+  Trophy,
+  BarChart3
 } from "lucide-react";
 
 export const QuickStatsCards = () => {
+  const navigate = useNavigate();
+  
   const stats = [
     {
       title: "Calories Brûlées",
@@ -54,8 +59,22 @@ export const QuickStatsCards = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat, index) => {
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Statistiques Rapides</h2>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate("/statistics")}
+          className="gap-2"
+        >
+          <BarChart3 className="h-4 w-4" />
+          Voir Détails
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
           <Card 
@@ -96,7 +115,8 @@ export const QuickStatsCards = () => {
             </CardContent>
           </Card>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 };
