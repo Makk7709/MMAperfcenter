@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, TrendingUp, Calendar, Target, Flame } from "lucide-react";
-import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
+import { TrendingUp, Flame } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   LineChart,
@@ -21,11 +22,17 @@ import {
 } from "recharts";
 
 export default function Statistics() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [workoutStats, setWorkoutStats] = useState<any[]>([]);
   const [nutritionStats, setNutritionStats] = useState<any[]>([]);
+  
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   useEffect(() => {
     if (!user) {
@@ -97,8 +104,9 @@ export default function Statistics() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-background">
+        <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+        <div className="max-w-4xl mx-auto p-4">
           <p className="text-center text-muted-foreground">Chargement...</p>
         </div>
       </div>
@@ -119,14 +127,14 @@ export default function Statistics() {
   );
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-3xl font-bold">Statistiques</h1>
+    <div className="min-h-screen bg-background">
+      <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+      
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Title */}
+        <div>
+          <h1 className="text-3xl font-bold">Statistiques & Progression</h1>
+          <p className="text-muted-foreground mt-2">Analyse de vos performances sur 7 jours</p>
         </div>
 
         {/* Weekly Summary */}

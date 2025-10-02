@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Calendar, Clock, TrendingUp, Dumbbell } from "lucide-react";
+import { Calendar, Clock, Dumbbell } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -30,10 +31,16 @@ interface HistoricalWorkout {
 }
 
 export default function WorkoutHistory() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<HistoricalWorkout[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   useEffect(() => {
     if (!user) {
@@ -81,8 +88,9 @@ export default function WorkoutHistory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-background">
+        <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+        <div className="max-w-4xl mx-auto p-4">
           <p className="text-center text-muted-foreground">Chargement...</p>
         </div>
       </div>
@@ -90,14 +98,14 @@ export default function WorkoutHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-3xl font-bold">Historique</h1>
+    <div className="min-h-screen bg-background">
+      <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+      
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Title */}
+        <div>
+          <h1 className="text-3xl font-bold">Historique des Entraînements</h1>
+          <p className="text-muted-foreground mt-2">Suivez vos progrès et performances</p>
         </div>
 
         {/* Stats Overview */}

@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, Search, User, Menu, Dumbbell, LogOut } from "lucide-react";
+import { Bell, Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -12,15 +19,23 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignOut }: DashboardHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-gradient-card backdrop-blur-md border-b border-border/50 shadow-card">
       <div className="container flex items-center justify-between h-16 px-4">
         {/* Logo & Brand */}
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-primary rounded-xl shadow-primary">
-            <Dumbbell className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <Button 
+            variant="ghost" 
+            className="p-2 hover:bg-transparent"
+            onClick={() => navigate("/")}
+          >
+            <div className="p-2 bg-gradient-primary rounded-xl shadow-primary">
+              <Dumbbell className="h-6 w-6 text-primary-foreground" />
+            </div>
+          </Button>
           <div className="flex flex-col">
             <h1 className="text-lg font-bold bg-gradient-hero bg-clip-text text-transparent">
               Coach Sportif IA
@@ -30,6 +45,37 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
             </p>
           </div>
         </div>
+        
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center gap-2">
+          <Button 
+            variant={location.pathname === "/" ? "default" : "ghost"} 
+            size="sm"
+            onClick={() => navigate("/")}
+            className="gap-2"
+          >
+            <Home className="h-4 w-4" />
+            Accueil
+          </Button>
+          <Button 
+            variant={location.pathname === "/history" ? "default" : "ghost"} 
+            size="sm"
+            onClick={() => navigate("/history")}
+            className="gap-2"
+          >
+            <History className="h-4 w-4" />
+            Historique
+          </Button>
+          <Button 
+            variant={location.pathname === "/statistics" ? "default" : "ghost"} 
+            size="sm"
+            onClick={() => navigate("/statistics")}
+            className="gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Stats
+          </Button>
+        </nav>
 
         {/* Search & Actions */}
         <div className="flex items-center gap-2">
@@ -85,9 +131,27 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
           )}
 
           {/* Mobile Menu */}
-          <Button variant="ghost" size="sm" className="md:hidden">
-            <Menu className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="md:hidden">
+                <Menu className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate("/")}>
+                <Home className="h-4 w-4 mr-2" />
+                Accueil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/history")}>
+                <History className="h-4 w-4 mr-2" />
+                Historique
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/statistics")}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Statistiques
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
