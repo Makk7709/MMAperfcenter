@@ -1,120 +1,161 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TrendingUp, Target, Flame, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { 
-  CalendarDays, 
-  Flame, 
-  Target, 
-  TrendingUp, 
-  Zap, 
-  Trophy,
-  BarChart3
-} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { subDays } from "date-fns";
 
 export const QuickStatsCards = () => {
   const navigate = useNavigate();
-  
-  const stats = [
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    workoutsThisWeek: 0,
+    totalVolume: 0,
+    caloriesConsumed: 0,
+    avgWorkoutTime: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadStats = async () => {
+      const weekAgo = subDays(new Date(), 7).toISOString();
+
+      // Load workout stats
+      const { data: workouts } = await supabase
+        .from('workouts')
+        .select('duration_minutes, total_volume_kg')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', weekAgo);
+
+      // Load nutrition stats
+      const { data: nutrition } = await supabase
+        .from('nutrition_logs')
+        .select('calories')
+        .eq('user_id', user.id)
+        .gte('date', subDays(new Date(), 7).toISOString().split('T')[0]);
+
+      const workoutCount = workouts?.length || 0;
+      const totalVolume = workouts?.reduce((sum, w) => sum + (w.total_volume_kg || 0), 0) || 0;
+      const totalTime = workouts?.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) || 0;
+      const avgTime = workoutCount > 0 ? Math.round(totalTime / workoutCount) : 0;
+      const totalCalories = nutrition?.reduce((sum, n) => sum + (n.calories || 0), 0) || 0;
+
+      setStats({
+        workoutsThisWeek: workoutCount,
+        totalVolume: Math.round(totalVolume),
+        caloriesConsumed: totalCalories,
+        avgWorkoutTime: avgTime
+      });
+      setLoading(false);
+    };
+
+    loadStats();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Vue d'ensemble</h2>
+          <Button variant="outline" size="sm" onClick={() => navigate("/statistics")}>
+            Voir Détails
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i} className="bg-gradient-card border-0 shadow-card animate-pulse">
+              <CardContent className="p-4">
+                <div className="h-20 bg-muted rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const statsData = [
     {
-      title: "Calories Brûlées",
-      value: "847",
-      unit: "kcal",
-      target: 1200,
-      progress: 70,
-      icon: Flame,
-      trend: "+12%",
-      color: "text-accent"
+      title: "Cette Semaine",
+      value: stats.workoutsThisWeek.toString(),
+      unit: "workouts",
+      icon: TrendingUp,
+      color: "text-primary",
+      bgColor: "bg-gradient-primary",
+      trend: "7 derniers jours"
     },
     {
-      title: "Objectif Journalier",
-      value: "75",
-      unit: "%",
-      target: 100,
-      progress: 75,
+      title: "Volume Total",
+      value: stats.totalVolume.toString(),
+      unit: "kg",
       icon: Target,
-      trend: "+5%",
-      color: "text-secondary"
+      color: "text-secondary",
+      bgColor: "bg-gradient-secondary",
+      trend: "Cette semaine"
     },
     {
-      title: "Séances Semaine",
-      value: "4",
-      unit: "/6",
-      target: 6,
-      progress: 67,
-      icon: CalendarDays,
-      trend: "+1",
-      color: "text-primary"
+      title: "Calories",
+      value: stats.caloriesConsumed.toString(),
+      unit: "kcal",
+      icon: Flame,
+      color: "text-accent",
+      bgColor: "bg-accent/10",
+      trend: "7 derniers jours"
     },
     {
-      title: "Streak Actuel",
-      value: "12",
-      unit: "jours",
-      target: 30,
-      progress: 40,
-      icon: Trophy,
-      trend: "+1",
-      color: "text-accent"
+      title: "Durée Moy.",
+      value: stats.avgWorkoutTime.toString(),
+      unit: "min",
+      icon: Clock,
+      color: "text-foreground",
+      bgColor: "bg-muted",
+      trend: "Par session"
     }
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Statistiques Rapides</h2>
+        <h2 className="text-2xl font-bold">Vue d'ensemble</h2>
         <Button 
           variant="outline" 
-          size="sm" 
+          size="sm"
           onClick={() => navigate("/statistics")}
-          className="gap-2"
         >
-          <BarChart3 className="h-4 w-4" />
           Voir Détails
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        return (
-          <Card 
-            key={index}
-            className="bg-gradient-card hover:shadow-card transition-all duration-300 hover:scale-105 border-0"
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className={`p-2 rounded-lg bg-gradient-primary/10 ${stat.color}`}>
-                <Icon className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-foreground">
-                  {stat.value}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {stat.unit}
-                </span>
-                <div className="ml-auto flex items-center gap-1 text-xs">
-                  <TrendingUp className="h-3 w-3 text-accent" />
-                  <span className="text-accent font-medium">{stat.trend}</span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {statsData.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card
+              key={index}
+              className="bg-gradient-card border-0 shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className={`p-2 ${stat.bgColor} rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className={`h-4 w-4 ${stat.color}`} />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Progress 
-                  value={stat.progress} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {stat.progress}% de l'objectif
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        );
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">{stat.title}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{stat.value}</span>
+                    <span className="text-xs text-muted-foreground">{stat.unit}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{stat.trend}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
         })}
       </div>
     </div>
