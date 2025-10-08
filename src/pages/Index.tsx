@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { QuickStatsCards } from "@/components/QuickStatsCards";
 import { QuickActions } from "@/components/QuickActions";
@@ -18,6 +19,7 @@ import heroImage from "@/assets/mma-fighter-hero.jpg";
 const Index = () => {
   const { user, signOut } = useAuth();
   const isPremium = true; // Simulation premium user
+  const [activeTab, setActiveTab] = useState("nutrition");
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
 
@@ -79,7 +81,7 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Actions & Tools */}
           <div className="lg:col-span-1 space-y-6">
-            <QuickActions />
+            <QuickActions onSwitchTab={setActiveTab} />
             
             {/* Community Preview */}
             <div className="bg-gradient-card rounded-lg p-6 border-0 shadow-card">
@@ -111,7 +113,7 @@ const Index = () => {
 
           {/* Center/Right Columns - Main Tracking */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="nutrition" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="nutrition">Nutrition Combat</TabsTrigger>
                 <TabsTrigger value="workout">Préparation Physique</TabsTrigger>

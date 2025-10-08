@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { 
   Camera, 
   ScanLine, 
@@ -13,7 +14,11 @@ import {
   Zap
 } from "lucide-react";
 
-export const QuickActions = () => {
+interface QuickActionsProps {
+  onSwitchTab?: (tab: string) => void;
+}
+
+export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
   const navigate = useNavigate();
   
   const actions = [
@@ -22,35 +27,53 @@ export const QuickActions = () => {
       description: "Code-barres nutrition",
       icon: ScanLine,
       variant: "default" as const,
-      color: "bg-gradient-primary"
+      color: "bg-gradient-primary",
+      onClick: () => {
+        onSwitchTab?.("nutrition");
+        toast.info("Scanner nutrition", { description: "Fonctionnalité à venir - utilisez l'ajout manuel pour le moment" });
+      }
     },
     {
       title: "Upload Vidéo",
       description: "Analyse technique IA",
       icon: Camera,
       variant: "secondary" as const,
-      color: "bg-gradient-secondary"
+      color: "bg-gradient-secondary",
+      onClick: () => {
+        toast.info("Analyse vidéo IA", { description: "Fonctionnalité à venir - analyse des techniques de combat" });
+      }
     },
     {
       title: "Nouveau Workout",
       description: "Démarrer séance",
       icon: Dumbbell,
       variant: "fitness" as const,
-      color: "bg-accent"
+      color: "bg-accent",
+      onClick: () => {
+        onSwitchTab?.("workout");
+        toast.success("Prêt à s'entraîner !", { description: "Démarrez votre workout dans l'onglet Préparation Physique" });
+      }
     },
     {
       title: "Coach IA",
       description: "Assistant intelligent",
       icon: Brain,
       variant: "hero" as const,
-      color: "bg-gradient-hero"
+      color: "bg-gradient-hero",
+      onClick: () => {
+        toast.info("Coach IA MMA", { description: "Votre assistant intelligent arrive bientôt" });
+      }
     },
     {
       title: "Arts Martiaux",
       description: "Boxe, MMA, Grappling",
       icon: Users,
       variant: "outline" as const,
-      color: "border-primary"
+      color: "border-primary",
+      onClick: () => {
+        onSwitchTab?.("combat");
+        toast.success("Technique MMA", { description: "Section combat activée" });
+      }
     },
     {
       title: "Planifier",
@@ -102,7 +125,14 @@ export const QuickActions = () => {
                 Workout du jour : Haut du corps
               </p>
             </div>
-            <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
+            <Button 
+              size="sm" 
+              className="bg-white/20 hover:bg-white/30 text-white border-0"
+              onClick={() => {
+                onSwitchTab?.("workout");
+                toast.success("C'est parti !", { description: "Démarrez votre entraînement maintenant" });
+              }}
+            >
               <Play className="h-4 w-4 mr-2" />
               Commencer
             </Button>
