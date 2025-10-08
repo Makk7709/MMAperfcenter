@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { StartWorkoutDialog } from "@/components/StartWorkoutDialog";
+import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
 import { useState } from "react";
 import { useWorkouts } from "@/hooks/useWorkouts";
+import { useNutrition } from "@/hooks/useNutrition";
 import { 
   Camera, 
   ScanLine, 
@@ -23,7 +25,9 @@ interface QuickActionsProps {
 
 export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
   const [startWorkoutOpen, setStartWorkoutOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const { startWorkout } = useWorkouts();
+  const { addNutritionLog } = useNutrition();
   const navigate = useNavigate();
   
   const actions = [
@@ -34,8 +38,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       variant: "default" as const,
       color: "bg-gradient-primary",
       onClick: () => {
-        onSwitchTab?.("nutrition");
-        toast.info("Scanner nutrition", { description: "Fonctionnalité à venir - utilisez l'ajout manuel pour le moment" });
+        setScannerOpen(true);
       }
     },
     {
@@ -147,6 +150,15 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
         onStartWorkout={(name) => {
           startWorkout(name);
           onSwitchTab?.("workout");
+        }}
+      />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onFoodScanned={(food) => {
+          addNutritionLog(food);
+          onSwitchTab?.("nutrition");
         }}
       />
     </Card>
