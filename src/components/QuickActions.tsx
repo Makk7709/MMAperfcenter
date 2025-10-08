@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { StartWorkoutDialog } from "@/components/StartWorkoutDialog";
+import { useState } from "react";
+import { useWorkouts } from "@/hooks/useWorkouts";
 import { 
   Camera, 
   ScanLine, 
@@ -19,6 +22,8 @@ interface QuickActionsProps {
 }
 
 export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
+  const [startWorkoutOpen, setStartWorkoutOpen] = useState(false);
+  const { startWorkout } = useWorkouts();
   const navigate = useNavigate();
   
   const actions = [
@@ -50,8 +55,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       variant: "fitness" as const,
       color: "bg-accent",
       onClick: () => {
-        onSwitchTab?.("workout");
-        toast.success("Prêt à s'entraîner !", { description: "Démarrez votre workout dans l'onglet Préparation Physique" });
+        setStartWorkoutOpen(true);
       }
     },
     {
@@ -128,10 +132,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
             <Button 
               size="sm" 
               className="bg-white/20 hover:bg-white/30 text-white border-0"
-              onClick={() => {
-                onSwitchTab?.("workout");
-                toast.success("C'est parti !", { description: "Démarrez votre entraînement maintenant" });
-              }}
+              onClick={() => setStartWorkoutOpen(true)}
             >
               <Play className="h-4 w-4 mr-2" />
               Commencer
@@ -139,6 +140,15 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
           </div>
         </div>
       </CardContent>
+      
+      <StartWorkoutDialog 
+        open={startWorkoutOpen} 
+        onOpenChange={setStartWorkoutOpen}
+        onStartWorkout={(name) => {
+          startWorkout(name);
+          onSwitchTab?.("workout");
+        }}
+      />
     </Card>
   );
 };

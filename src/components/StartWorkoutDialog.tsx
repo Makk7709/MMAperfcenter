@@ -6,18 +6,30 @@ import { Label } from "@/components/ui/label";
 import { Play } from "lucide-react";
 
 interface StartWorkoutDialogProps {
-  onStartWorkout: (name: string) => void;
+  onStartWorkout?: (name: string) => void;
   loading?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: React.ReactNode;
 }
 
-export const StartWorkoutDialog = ({ onStartWorkout, loading }: StartWorkoutDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const StartWorkoutDialog = ({ 
+  onStartWorkout, 
+  loading,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  trigger
+}: StartWorkoutDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [workoutName, setWorkoutName] = useState("");
+  
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (workoutName.trim()) {
-      onStartWorkout(workoutName.trim());
+      onStartWorkout?.(workoutName.trim());
       setWorkoutName("");
       setOpen(false);
     }
@@ -35,12 +47,18 @@ export const StartWorkoutDialog = ({ onStartWorkout, loading }: StartWorkoutDial
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="hero" className="w-full">
-          <Play className="h-4 w-4 mr-2" />
-          Démarrer Entraînement
-        </Button>
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button variant="hero" className="w-full">
+            <Play className="h-4 w-4 mr-2" />
+            Démarrer Entraînement
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nouveau Entraînement</DialogTitle>
