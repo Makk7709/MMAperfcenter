@@ -4,6 +4,7 @@ import { QuickStatsCards } from "@/components/QuickStatsCards";
 import { QuickActions } from "@/components/QuickActions";
 import { NutritionTracker } from "@/components/NutritionTracker";
 import { WorkoutLogger } from "@/components/WorkoutLogger";
+import { RoundTimer } from "@/components/RoundTimer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -129,7 +130,8 @@ const Index = () => {
               </TabsContent>
               
               <TabsContent value="combat" className="space-y-6">
-                <div className="text-center py-12 bg-gradient-card rounded-lg border-0 shadow-card">
+                <RoundTimer />
+                <div className="text-center py-12 bg-gradient-card rounded-lg border-0 shadow-card mt-6">
                   <Users className="h-12 w-12 mx-auto text-primary mb-4" />
                   <h3 className="text-lg font-semibold mb-2 text-primary">Technique MMA & Combat</h3>
                   <p className="text-muted-foreground mb-6">

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import WorkoutHistory from "./pages/WorkoutHistory";
+import WorkoutJournal from "./pages/WorkoutJournal";
 import Statistics from "./pages/Statistics";
 import NotFound from "./pages/NotFound";
 
@@ -77,6 +78,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <WorkoutHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/journal" 
+              element={
+                <ProtectedRoute>
+                  <WorkoutJournal />
                 </ProtectedRoute>
               } 
             />
