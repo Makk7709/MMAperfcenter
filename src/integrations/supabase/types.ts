@@ -286,6 +286,45 @@ export type Database = {
           },
         ]
       }
+      workout_journal: {
+        Row: {
+          created_at: string
+          date: string
+          energy_level: number
+          id: string
+          mood: string
+          notes: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          energy_level?: number
+          id?: string
+          mood?: string
+          notes?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          energy_level?: number
+          id?: string
+          mood?: string
+          notes?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       workouts: {
         Row: {
           calories_burned: number | null
@@ -387,7 +426,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
+        Returns: string
       }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }

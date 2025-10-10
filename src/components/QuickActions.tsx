@@ -16,7 +16,8 @@ import {
   Calendar,
   Plus,
   Play,
-  Zap
+  Zap,
+  BookOpen
 } from "lucide-react";
 
 interface QuickActionsProps {
@@ -81,6 +82,14 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
         onSwitchTab?.("combat");
         toast.success("Technique MMA", { description: "Section combat activée" });
       }
+    },
+    {
+      title: "Carnet",
+      description: "Notes & progrès",
+      icon: BookOpen,
+      variant: "outline" as const,
+      color: "border-accent",
+      onClick: () => navigate("/journal")
     },
     {
       title: "Planifier",
