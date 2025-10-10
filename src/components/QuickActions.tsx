@@ -92,8 +92,8 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       onClick: () => navigate("/journal")
     },
     {
-      title: "Planifier",
-      description: "Programme personnalisé",
+      title: "Historique",
+      description: "Séances passées",
       icon: Calendar,
       variant: "ghost" as const,
       color: "hover:bg-accent/10",
