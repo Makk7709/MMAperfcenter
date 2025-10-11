@@ -5,6 +5,7 @@ import { QuickActions } from "@/components/QuickActions";
 import { NutritionTracker } from "@/components/NutritionTracker";
 import { WorkoutLogger } from "@/components/WorkoutLogger";
 import { RoundTimer } from "@/components/RoundTimer";
+import { CommunityActivity } from "@/components/CommunityActivity";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,32 +85,8 @@ const Index = () => {
           <div className="lg:col-span-1 space-y-6">
             <QuickActions onSwitchTab={setActiveTab} />
             
-            {/* Community Preview */}
-            <div className="bg-gradient-card rounded-lg p-6 border-0 shadow-card">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="h-5 w-5 text-accent" />
-                <h3 className="font-semibold">Communauté</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-primary rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Mike a terminé son workout</p>
-                    <p className="text-xs text-muted-foreground">il y a 5 min</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-secondary rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Sarah a battu son PR!</p>
-                    <p className="text-xs text-muted-foreground">il y a 12 min</p>
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full mt-4">
-                Voir toute l'activité
-              </Button>
-            </div>
+            {/* Community Activity */}
+            <CommunityActivity />
           </div>
 
           {/* Center/Right Columns - Main Tracking */}
