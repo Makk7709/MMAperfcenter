@@ -35,12 +35,12 @@ const Index = () => {
       <DashboardHeader userName={userName} isPremium={isPremium} onSignOut={handleSignOut} />
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-hero">
-        <div className="absolute inset-0 bg-black/20" />
+      <section className="relative overflow-hidden bg-background">
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/90" />
         <img 
           src={heroImage} 
           alt="MMA Fighter Training" 
-          className="absolute inset-0 w-full h-64 object-cover mix-blend-overlay"
+          className="absolute inset-0 w-full h-64 object-cover opacity-30"
         />
         <div className="relative container px-4 py-16">
           <div className="max-w-2xl">

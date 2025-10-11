@@ -33,51 +33,46 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
   
   const actions = [
     {
-      title: "Scanner Aliment",
-      description: "Code-barres nutrition",
+      title: "Scanner",
+      description: "Nutrition",
       icon: ScanLine,
       variant: "default" as const,
-      color: "bg-gradient-primary",
       onClick: () => {
         setScannerOpen(true);
       }
     },
     {
-      title: "Upload Vidéo",
-      description: "Analyse technique IA",
+      title: "Vidéo IA",
+      description: "Analyse",
       icon: Camera,
       variant: "secondary" as const,
-      color: "bg-gradient-secondary",
       onClick: () => {
         toast.info("Analyse vidéo IA", { description: "Fonctionnalité à venir - analyse des techniques de combat" });
       }
     },
     {
-      title: "Nouveau Workout",
-      description: "Démarrer séance",
+      title: "Workout",
+      description: "Démarrer",
       icon: Dumbbell,
-      variant: "fitness" as const,
-      color: "bg-accent",
+      variant: "default" as const,
       onClick: () => {
         setStartWorkoutOpen(true);
       }
     },
     {
       title: "Coach IA",
-      description: "Assistant intelligent",
+      description: "Assistant",
       icon: Brain,
       variant: "hero" as const,
-      color: "bg-gradient-hero",
       onClick: () => {
         toast.info("Coach IA MMA", { description: "Votre assistant intelligent arrive bientôt" });
       }
     },
     {
-      title: "Arts Martiaux",
-      description: "Boxe, MMA, Grappling",
+      title: "Combat",
+      description: "Techniques",
       icon: Users,
       variant: "outline" as const,
-      color: "border-primary",
       onClick: () => {
         onSwitchTab?.("combat");
         toast.success("Technique MMA", { description: "Section combat activée" });
@@ -85,18 +80,16 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
     },
     {
       title: "Carnet",
-      description: "Notes & progrès",
+      description: "Notes",
       icon: BookOpen,
       variant: "outline" as const,
-      color: "border-accent",
       onClick: () => navigate("/journal")
     },
     {
       title: "Historique",
-      description: "Séances passées",
+      description: "Séances",
       icon: Calendar,
       variant: "ghost" as const,
-      color: "hover:bg-accent/10",
       onClick: () => navigate("/history")
     }
   ];
@@ -117,13 +110,13 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
               <Button
                 key={index}
                 variant={action.variant}
-                className="h-20 flex-col gap-2 p-4 group"
+                className="h-24 flex-col gap-1.5 p-3 group justify-center"
                 onClick={action.onClick}
               >
-                <Icon className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
-                <div className="text-center">
-                  <p className="text-xs font-semibold">{action.title}</p>
-                  <p className="text-xs opacity-80">{action.description}</p>
+                <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+                <div className="text-center space-y-0.5">
+                  <p className="text-xs font-semibold leading-tight">{action.title}</p>
+                  <p className="text-[10px] opacity-70 leading-tight">{action.description}</p>
                 </div>
               </Button>
             );
