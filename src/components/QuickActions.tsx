@@ -45,7 +45,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Vidéo IA",
       description: "Analyse",
       icon: Camera,
-      variant: "secondary" as const,
+      variant: "fitness" as const,
       onClick: () => {
         toast.info("Analyse vidéo IA", { description: "Fonctionnalité à venir - analyse des techniques de combat" });
       }
@@ -54,7 +54,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Workout",
       description: "Démarrer",
       icon: Dumbbell,
-      variant: "fitness" as const,
+      variant: "default" as const,
       onClick: () => {
         setStartWorkoutOpen(true);
       }
@@ -72,7 +72,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Combat",
       description: "Techniques",
       icon: Users,
-      variant: "combat" as const,
+      variant: "secondary" as const,
       onClick: () => {
         onSwitchTab?.("combat");
         toast.success("Technique MMA", { description: "Section combat activée" });
