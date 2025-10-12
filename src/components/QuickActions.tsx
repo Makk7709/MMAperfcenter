@@ -54,7 +54,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Workout",
       description: "Démarrer",
       icon: Dumbbell,
-      variant: "default" as const,
+      variant: "fitness" as const,
       onClick: () => {
         setStartWorkoutOpen(true);
       }
@@ -82,7 +82,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Carnet",
       description: "Notes",
       icon: BookOpen,
-      variant: "outline" as const,
+      variant: "ghost" as const,
       onClick: () => navigate("/journal")
     },
     {
