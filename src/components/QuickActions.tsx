@@ -72,7 +72,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Combat",
       description: "Techniques",
       icon: Users,
-      variant: "outline" as const,
+      variant: "combat" as const,
       onClick: () => {
         onSwitchTab?.("combat");
         toast.success("Technique MMA", { description: "Section combat activée" });
@@ -82,7 +82,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       title: "Carnet",
       description: "Notes",
       icon: BookOpen,
-      variant: "ghost" as const,
+      variant: "outline" as const,
       onClick: () => navigate("/journal")
     },
     {

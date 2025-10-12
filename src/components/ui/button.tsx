@@ -13,13 +13,14 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border-2 border-border bg-card/50 hover:bg-card hover:border-primary/50 text-card-foreground hover:scale-105 transform transition-all duration-300",
         secondary:
           "bg-gradient-secondary text-secondary-foreground hover:scale-105 hover:shadow-secondary transform transition-all duration-300",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground hover:scale-105 transform transition-all duration-300",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-hero text-primary-foreground hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold",
-        fitness: "bg-accent text-accent-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
+        hero: "bg-gradient-hero text-white hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold",
+        fitness: "bg-gradient-fitness text-fitness-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
+        combat: "bg-gradient-combat text-combat-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
       },
       size: {
         default: "h-10 px-4 py-2",
