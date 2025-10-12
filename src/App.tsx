@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import WorkoutJournal from "./pages/WorkoutJournal";
 import Statistics from "./pages/Statistics";
@@ -94,6 +95,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Statistics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } 
             />

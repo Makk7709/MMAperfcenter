@@ -227,6 +227,7 @@ export type Database = {
           email: string | null
           fitness_level: string | null
           full_name: string | null
+          gender: string | null
           goals: string[] | null
           height: number | null
           id: string
@@ -240,6 +241,7 @@ export type Database = {
           email?: string | null
           fitness_level?: string | null
           full_name?: string | null
+          gender?: string | null
           goals?: string[] | null
           height?: number | null
           id: string
@@ -253,6 +255,7 @@ export type Database = {
           email?: string | null
           fitness_level?: string | null
           full_name?: string | null
+          gender?: string | null
           goals?: string[] | null
           height?: number | null
           id?: string
