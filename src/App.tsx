@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import WorkoutJournal from "./pages/WorkoutJournal";
 import Statistics from "./pages/Statistics";
+import TrainingVideos from "./pages/TrainingVideos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -103,6 +104,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/training-videos" 
+              element={
+                <ProtectedRoute>
+                  <TrainingVideos />
                 </ProtectedRoute>
               } 
             />

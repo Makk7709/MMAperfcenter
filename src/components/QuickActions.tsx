@@ -42,13 +42,11 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       }
     },
     {
-      title: "Vidéo IA",
-      description: "Analyse",
+      title: "Vidéos",
+      description: "Entraînements",
       icon: Camera,
       variant: "fitness" as const,
-      onClick: () => {
-        toast.info("Analyse vidéo IA", { description: "Fonctionnalité à venir - analyse des techniques de combat" });
-      }
+      onClick: () => navigate("/training-videos")
     },
     {
       title: "Workout",
