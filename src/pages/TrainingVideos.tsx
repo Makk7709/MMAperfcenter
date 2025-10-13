@@ -1,22 +1,36 @@
 import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Video } from "lucide-react";
+import { Plus, Loader2, Video, Lock } from "lucide-react";
 import { AddVideoDialog } from "@/components/AddVideoDialog";
 import { VideoCard } from "@/components/VideoCard";
 import { useTrainingVideos } from "@/hooks/useTrainingVideos";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function TrainingVideos() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const { videos, isLoading, deleteVideo } = useTrainingVideos();
   const { user } = useAuth();
+  const { isAdmin, isLoading: isLoadingRole } = useUserRole();
 
   const filteredVideos = videos?.filter(video => 
     categoryFilter === "all" || video.category === categoryFilter
   );
+
+  if (isLoadingRole) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,16 +42,32 @@ export default function TrainingVideos() {
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Video className="h-8 w-8" />
               Vidéos d'Entraînement
+              {!isAdmin && <Lock className="h-5 w-5 text-muted-foreground" />}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Gérez votre bibliothèque de vidéos d'entraînement
+              {isAdmin 
+                ? "Gérez votre bibliothèque de vidéos d'entraînement"
+                : "Consultez les vidéos d'entraînement disponibles"
+              }
             </p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Ajouter une vidéo
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter une vidéo
+            </Button>
+          )}
         </div>
+
+        {!isAdmin && (
+          <Alert className="mb-6">
+            <Lock className="h-4 w-4" />
+            <AlertTitle>Accès restreint</AlertTitle>
+            <AlertDescription>
+              Seuls les administrateurs peuvent ajouter ou supprimer des vidéos. Vous pouvez consulter toutes les vidéos disponibles.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="mb-6">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -67,7 +97,7 @@ export default function TrainingVideos() {
                 key={video.id}
                 video={video}
                 onDelete={deleteVideo}
-                canDelete={video.user_id === user?.id}
+                canDelete={isAdmin}
               />
             ))}
           </div>
@@ -77,18 +107,24 @@ export default function TrainingVideos() {
             <h3 className="text-lg font-semibold mb-2">Aucune vidéo trouvée</h3>
             <p className="text-muted-foreground mb-4">
               {categoryFilter === "all" 
-                ? "Commencez par ajouter votre première vidéo d'entraînement"
+                ? isAdmin 
+                  ? "Commencez par ajouter votre première vidéo d'entraînement"
+                  : "Aucune vidéo disponible pour le moment"
                 : "Aucune vidéo dans cette catégorie"}
             </p>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter une vidéo
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter une vidéo
+              </Button>
+            )}
           </div>
         )}
       </main>
 
-      <AddVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      {isAdmin && (
+        <AddVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      )}
     </div>
   );
 }
