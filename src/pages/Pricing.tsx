@@ -1,182 +1,242 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PricingCard } from "@/components/PricingCard";
-import { useSubscription } from "@/hooks/useSubscription";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Check, Crown, Flame, Shield, Users } from 'lucide-react';
+import { useSubscription, PLAN_FEATURES, PLAN_PRICES } from '@/hooks/useSubscription';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-const pricingPlans = [
-  {
-    id: 'free',
-    name: 'Free',
-    description: 'Pour découvrir l\'application',
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    features: [
-      '3 plannings IA par mois',
-      'Scan codes-barres limité',
-      'Journal d\'hydratation simple',
-      'Accès aux exercices de base'
-    ]
-  },
-  {
-    id: 'pro',
-    name: 'Pro (Guerrier)',
-    description: 'Pour les pratiquants réguliers',
-    monthlyPrice: 14.90,
-    yearlyPrice: 119,
-    isPopular: true,
-    features: [
-      'Plannings IA illimités',
-      'Calcul macros & suggestions repas',
-      'Scan codes-barres illimité',
-      'Journal d\'entraînement complet',
-      'Statistiques avancées',
-      'Support standard'
-    ]
-  },
-  {
-    id: 'elite',
-    name: 'Elite (Compétiteur)',
-    description: 'Pour les athlètes avancés',
-    monthlyPrice: 29.90,
-    yearlyPrice: 239,
-    features: [
-      'Tout du plan Pro',
-      'Vidéos d\'entraînement IA',
-      'Analyse récupération avancée',
-      'Nutrition avancée',
-      'Support IA prioritaire',
-      'Conseils personnalisés'
-    ]
-  },
-  {
-    id: 'sensei',
-    name: 'Senseï (Coach/Club)',
-    description: 'Pour les coachs et clubs',
-    monthlyPrice: 69,
-    yearlyPrice: 699,
-    features: [
-      'Tout du plan Elite',
-      'Gestion multi-athlètes',
-      'Statistiques collectives',
-      'Export PDF professionnel',
-      'IA de suivi collectif',
-      'Support prioritaire dédié'
-    ]
-  }
-];
-
-export default function Pricing() {
+const Pricing = () => {
   const navigate = useNavigate();
-  const { currentPlan } = useSubscription();
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const { subscription, loading } = useSubscription();
+  const [isYearly, setIsYearly] = useState(false);
+  const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
 
-  const handleSubscribe = async (planId: string, price: number) => {
-    if (price === 0) {
-      toast.info("Vous êtes déjà sur le plan gratuit");
+  const plans = [
+    {
+      id: 'free',
+      name: 'Free',
+      icon: Shield,
+      description: 'Pour découvrir l\'app',
+      monthlyPrice: 0,
+      yearlyPrice: 0,
+      priceId: null,
+      features: PLAN_FEATURES.free,
+      cta: 'Gratuit',
+    },
+    {
+      id: 'pro',
+      name: 'Pro - Guerrier',
+      icon: Flame,
+      description: 'Pour les pratiquants réguliers',
+      monthlyPrice: PLAN_PRICES.pro.monthly,
+      yearlyPrice: PLAN_PRICES.pro.yearly,
+      priceId: 'price_pro_monthly', // À remplacer par les vrais price IDs Stripe
+      features: PLAN_FEATURES.pro,
+      cta: 'Passer à Pro',
+      popular: true,
+    },
+    {
+      id: 'elite',
+      name: 'Elite - Compétiteur',
+      icon: Crown,
+      description: 'Pour les athlètes avancés',
+      monthlyPrice: PLAN_PRICES.elite.monthly,
+      yearlyPrice: PLAN_PRICES.elite.yearly,
+      priceId: 'price_elite_monthly', // À remplacer par les vrais price IDs Stripe
+      features: PLAN_FEATURES.elite,
+      cta: 'Passer à Elite',
+    },
+    {
+      id: 'sensei',
+      name: 'Senseï - Coach',
+      icon: Users,
+      description: 'Pour les coachs et clubs',
+      monthlyPrice: PLAN_PRICES.sensei.monthly,
+      yearlyPrice: PLAN_PRICES.sensei.yearly,
+      priceId: 'price_sensei_monthly', // À remplacer par les vrais price IDs Stripe
+      features: PLAN_FEATURES.sensei,
+      cta: 'Passer à Senseï',
+    },
+  ];
+
+  const handleSubscribe = async (priceId: string | null, planId: string) => {
+    if (!priceId) {
+      toast.info('Vous êtes déjà sur le plan gratuit');
+      return;
+    }
+
+    if (planId === subscription?.plan) {
+      toast.info('Vous êtes déjà sur ce plan');
       return;
     }
 
     try {
-      toast.loading("Redirection vers le paiement...");
+      setLoadingCheckout(planId);
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId }
+      });
+
+      if (error) throw error;
       
-      // TODO: Implement Stripe checkout
-      toast.info("Intégration Stripe à venir");
-      
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
     } catch (error) {
       console.error('Error creating checkout:', error);
-      toast.error("Erreur lors de la création de la session de paiement");
+      toast.error('Erreur lors de la création du paiement');
+    } finally {
+      setLoadingCheckout(null);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)}
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
+  const handleManageSubscription = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast.error('Erreur lors de l\'ouverture du portail client');
+    }
+  };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Chargement...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted py-12 px-4">
+      <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Choisissez votre plan
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
-            Trouvez le plan parfait pour atteindre vos objectifs
+            Boostez vos performances avec l'IA
           </p>
-
-          <Tabs
-            value={billingPeriod}
-            onValueChange={(value) => setBillingPeriod(value as 'monthly' | 'yearly')}
-            className="inline-block"
-          >
-            <TabsList>
-              <TabsTrigger value="monthly">Mensuel</TabsTrigger>
-              <TabsTrigger value="yearly">
-                Annuel
-                <span className="ml-2 text-xs text-primary">(Économisez jusqu'à 20%)</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-          {pricingPlans.map((plan) => (
-            <PricingCard
-              key={plan.id}
-              name={plan.name}
-              description={plan.description}
-              monthlyPrice={plan.monthlyPrice}
-              yearlyPrice={plan.yearlyPrice}
-              isPopular={plan.isPopular}
-              features={plan.features}
-              onSubscribe={() => handleSubscribe(
-                plan.id,
-                billingPeriod === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
-              )}
-              isCurrentPlan={currentPlan === plan.id}
-              billingPeriod={billingPeriod}
+          
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <Label htmlFor="billing-toggle" className={!isYearly ? 'font-semibold' : ''}>
+              Mensuel
+            </Label>
+            <Switch
+              id="billing-toggle"
+              checked={isYearly}
+              onCheckedChange={setIsYearly}
             />
-          ))}
+            <Label htmlFor="billing-toggle" className={isYearly ? 'font-semibold' : ''}>
+              Annuel
+              <Badge variant="secondary" className="ml-2">
+                -20%
+              </Badge>
+            </Label>
+          </div>
         </div>
 
-        <div className="mt-16 text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            Questions fréquentes
-          </h2>
-          <div className="max-w-2xl mx-auto space-y-4 text-left">
-            <div>
-              <h3 className="font-semibold mb-2">Puis-je changer de plan à tout moment ?</h3>
-              <p className="text-muted-foreground">
-                Oui, vous pouvez passer à un plan supérieur ou inférieur à tout moment. 
-                Les changements prennent effet immédiatement.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Comment fonctionne la facturation ?</h3>
-              <p className="text-muted-foreground">
-                Vous êtes facturé mensuellement ou annuellement selon votre choix. 
-                L'abonnement annuel offre une réduction significative.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Puis-je annuler mon abonnement ?</h3>
-              <p className="text-muted-foreground">
-                Oui, vous pouvez annuler votre abonnement à tout moment. 
-                Vous conserverez l'accès jusqu'à la fin de votre période de facturation.
-              </p>
-            </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map((plan) => {
+            const Icon = plan.icon;
+            const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+            const isCurrentPlan = subscription?.plan === plan.id;
+
+            return (
+              <Card 
+                key={plan.id}
+                className={`relative ${
+                  plan.popular 
+                    ? 'border-primary shadow-lg shadow-primary/20' 
+                    : ''
+                } ${isCurrentPlan ? 'border-accent' : ''}`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary">Plus populaire</Badge>
+                  </div>
+                )}
+                
+                {isCurrentPlan && (
+                  <div className="absolute -top-4 right-4">
+                    <Badge variant="secondary">Votre plan</Badge>
+                  </div>
+                )}
+
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon className="h-6 w-6 text-primary" />
+                    <CardTitle>{plan.name}</CardTitle>
+                  </div>
+                  <CardDescription>{plan.description}</CardDescription>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">{price}€</span>
+                    {plan.id !== 'free' && (
+                      <span className="text-muted-foreground">
+                        /{isYearly ? 'an' : 'mois'}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent>
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+
+                <CardFooter>
+                  <Button
+                    className="w-full"
+                    variant={plan.popular ? 'default' : 'outline'}
+                    onClick={() => handleSubscribe(plan.priceId, plan.id)}
+                    disabled={isCurrentPlan || loadingCheckout === plan.id}
+                  >
+                    {isCurrentPlan ? 'Plan actuel' : plan.cta}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+
+        {subscription?.plan !== 'free' && (
+          <div className="mt-12 text-center">
+            <Button
+              variant="outline"
+              onClick={handleManageSubscription}
+            >
+              Gérer mon abonnement
+            </Button>
           </div>
+        )}
+
+        <div className="mt-12 text-center">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+          >
+            Retour à l'accueil
+          </Button>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Pricing;
