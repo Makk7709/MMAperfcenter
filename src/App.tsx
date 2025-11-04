@@ -11,6 +11,7 @@ import WorkoutHistory from "./pages/WorkoutHistory";
 import WorkoutJournal from "./pages/WorkoutJournal";
 import Statistics from "./pages/Statistics";
 import TrainingVideos from "./pages/TrainingVideos";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -107,13 +108,21 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/training-videos" 
+            <Route
+              path="/training-videos"
               element={
                 <ProtectedRoute>
                   <TrainingVideos />
                 </ProtectedRoute>
-              } 
+              }
+            />
+            <Route
+              path="/pricing"
+              element={
+                <ProtectedRoute>
+                  <Pricing />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

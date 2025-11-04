@@ -76,6 +76,14 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
             <BarChart3 className="h-4 w-4" />
             Stats
           </Button>
+          <Button 
+            variant={location.pathname === "/pricing" ? "default" : "ghost"} 
+            size="sm"
+            onClick={() => navigate("/pricing")}
+            className="gap-2"
+          >
+            Abonnements
+          </Button>
         </nav>
 
         {/* Search & Actions */}
