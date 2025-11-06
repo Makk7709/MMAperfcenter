@@ -159,6 +159,9 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Statistiques
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/pricing")}>
+                Abonnements
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

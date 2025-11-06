@@ -35,7 +35,7 @@ const Pricing = () => {
       description: 'Pour les pratiquants réguliers',
       monthlyPrice: PLAN_PRICES.pro.monthly,
       yearlyPrice: PLAN_PRICES.pro.yearly,
-      priceId: 'price_pro_monthly', // À remplacer par les vrais price IDs Stripe
+      priceId: 'price_1SQSL1DLrTr0qdOpfIx50iSu',
       features: PLAN_FEATURES.pro,
       cta: 'Passer à Pro',
       popular: true,
@@ -47,7 +47,7 @@ const Pricing = () => {
       description: 'Pour les athlètes avancés',
       monthlyPrice: PLAN_PRICES.elite.monthly,
       yearlyPrice: PLAN_PRICES.elite.yearly,
-      priceId: 'price_elite_monthly', // À remplacer par les vrais price IDs Stripe
+      priceId: 'price_1SQSLMDLrTr0qdOpffTBpoJL',
       features: PLAN_FEATURES.elite,
       cta: 'Passer à Elite',
     },
@@ -58,7 +58,7 @@ const Pricing = () => {
       description: 'Pour les coachs et clubs',
       monthlyPrice: PLAN_PRICES.sensei.monthly,
       yearlyPrice: PLAN_PRICES.sensei.yearly,
-      priceId: 'price_sensei_monthly', // À remplacer par les vrais price IDs Stripe
+      priceId: 'price_1SQSM0DLrTr0qdOpYtZFR50d',
       features: PLAN_FEATURES.sensei,
       cta: 'Passer à Senseï',
     },
