@@ -75,9 +75,20 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       productId = subscription.items.data[0].price.product as string;
       
-      // Map product ID to plan (à configurer selon vos produits Stripe)
-      // Cette logique devra être adaptée avec les vrais IDs de produits
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
+      // Map Stripe product ID to subscription plan
+      const productToPlan: Record<string, string> = {
+        'prod_TNCk7vRlC8fceD': 'pro',      // Pro - Guerrier
+        'prod_TNCkyK26dRxZ2p': 'elite',    // Elite - Compétiteur
+        'prod_TNClwYw2iSTuXI': 'sensei',   // Senseï - Coach
+      };
+      
+      plan = productToPlan[productId] || 'free';
+      logStep("Active subscription found", { 
+        subscriptionId: subscription.id, 
+        endDate: subscriptionEnd,
+        productId,
+        mappedPlan: plan 
+      });
     } else {
       logStep("No active subscription found");
     }
