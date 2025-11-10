@@ -359,8 +359,12 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          difficulty_level:
+            | Database["public"]["Enums"]["difficulty_level"]
+            | null
           duration_seconds: number | null
           id: string
+          technique_type: Database["public"]["Enums"]["technique_type"] | null
           thumbnail_url: string | null
           title: string
           updated_at: string
@@ -373,8 +377,12 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          difficulty_level?:
+            | Database["public"]["Enums"]["difficulty_level"]
+            | null
           duration_seconds?: number | null
           id?: string
+          technique_type?: Database["public"]["Enums"]["technique_type"] | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string
@@ -387,8 +395,12 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          difficulty_level?:
+            | Database["public"]["Enums"]["difficulty_level"]
+            | null
           duration_seconds?: number | null
           id?: string
+          technique_type?: Database["public"]["Enums"]["technique_type"] | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
@@ -583,7 +595,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      difficulty_level: "debutant" | "intermediaire" | "avance" | "expert"
       subscription_plan: "free" | "pro" | "elite" | "sensei"
+      technique_type: "pied" | "poings" | "combo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -712,7 +726,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      difficulty_level: ["debutant", "intermediaire", "avance", "expert"],
       subscription_plan: ["free", "pro", "elite", "sensei"],
+      technique_type: ["pied", "poings", "combo"],
     },
   },
 } as const

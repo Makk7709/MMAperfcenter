@@ -21,21 +21,32 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
     file: null as File | null,
     title: "",
     description: "",
-    category: "general",
+    category: "combat",
+    techniqueType: "",
+    difficultyLevel: "",
   });
 
   const [youtubeData, setYoutubeData] = useState({
     url: "",
     title: "",
     description: "",
-    category: "general",
+    category: "combat",
+    techniqueType: "",
+    difficultyLevel: "",
   });
 
   const handleUploadSubmit = () => {
     if (uploadData.file && uploadData.title) {
       uploadVideo(uploadData, {
         onSuccess: () => {
-          setUploadData({ file: null, title: "", description: "", category: "general" });
+          setUploadData({ 
+            file: null, 
+            title: "", 
+            description: "", 
+            category: "combat",
+            techniqueType: "",
+            difficultyLevel: "",
+          });
           onOpenChange(false);
         },
       });
@@ -49,9 +60,18 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
         title: youtubeData.title,
         description: youtubeData.description,
         category: youtubeData.category,
+        techniqueType: youtubeData.techniqueType,
+        difficultyLevel: youtubeData.difficultyLevel,
       }, {
         onSuccess: () => {
-          setYoutubeData({ url: "", title: "", description: "", category: "general" });
+          setYoutubeData({ 
+            url: "", 
+            title: "", 
+            description: "", 
+            category: "combat",
+            techniqueType: "",
+            difficultyLevel: "",
+          });
           onOpenChange(false);
         },
       });
@@ -60,93 +80,26 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ajouter une vidéo d'entraînement</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="upload" className="w-full">
+        <Tabs defaultValue="youtube" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload fichier
-            </TabsTrigger>
             <TabsTrigger value="youtube">
               <Youtube className="mr-2 h-4 w-4" />
               Lien YouTube
             </TabsTrigger>
+            <TabsTrigger value="upload">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload fichier
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="upload" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="video-file">Fichier vidéo</Label>
-              <Input
-                id="video-file"
-                type="file"
-                accept="video/*"
-                onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="upload-title">Titre</Label>
-              <Input
-                id="upload-title"
-                value={uploadData.title}
-                onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
-                placeholder="Nom de la vidéo"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="upload-description">Description (optionnel)</Label>
-              <Textarea
-                id="upload-description"
-                value={uploadData.description}
-                onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
-                placeholder="Description de l'exercice..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="upload-category">Catégorie</Label>
-              <Select value={uploadData.category} onValueChange={(value) => setUploadData({ ...uploadData, category: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">Général</SelectItem>
-                  <SelectItem value="combat">Combat</SelectItem>
-                  <SelectItem value="strength">Force</SelectItem>
-                  <SelectItem value="cardio">Cardio</SelectItem>
-                  <SelectItem value="flexibility">Flexibilité</SelectItem>
-                  <SelectItem value="technique">Technique</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button 
-              onClick={handleUploadSubmit} 
-              disabled={!uploadData.file || !uploadData.title || isUploading}
-              className="w-full"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Upload en cours...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Uploader la vidéo
-                </>
-              )}
-            </Button>
-          </TabsContent>
 
           <TabsContent value="youtube" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="youtube-url">URL YouTube</Label>
+              <Label htmlFor="youtube-url">URL YouTube *</Label>
               <Input
                 id="youtube-url"
                 value={youtubeData.url}
@@ -156,7 +109,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="youtube-title">Titre</Label>
+              <Label htmlFor="youtube-title">Titre *</Label>
               <Input
                 id="youtube-title"
                 value={youtubeData.title}
@@ -166,28 +119,62 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="youtube-description">Description (optionnel)</Label>
+              <Label htmlFor="youtube-description">Description</Label>
               <Textarea
                 id="youtube-description"
                 value={youtubeData.description}
                 onChange={(e) => setYoutubeData({ ...youtubeData, description: e.target.value })}
                 placeholder="Description de l'exercice..."
+                rows={3}
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="youtube-category">Catégorie *</Label>
+                <Select value={youtubeData.category} onValueChange={(value) => setYoutubeData({ ...youtubeData, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="combat">Combat</SelectItem>
+                    <SelectItem value="general">Général</SelectItem>
+                    <SelectItem value="strength">Force</SelectItem>
+                    <SelectItem value="cardio">Cardio</SelectItem>
+                    <SelectItem value="flexibility">Flexibilité</SelectItem>
+                    <SelectItem value="technique">Technique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="youtube-technique">Type de technique</Label>
+                <Select value={youtubeData.techniqueType} onValueChange={(value) => setYoutubeData({ ...youtubeData, techniqueType: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="pied">🦶 Pieds</SelectItem>
+                    <SelectItem value="poings">👊 Poings</SelectItem>
+                    <SelectItem value="combo">🥊 Combo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="youtube-category">Catégorie</Label>
-              <Select value={youtubeData.category} onValueChange={(value) => setYoutubeData({ ...youtubeData, category: value })}>
+              <Label htmlFor="youtube-difficulty">Niveau de difficulté</Label>
+              <Select value={youtubeData.difficultyLevel} onValueChange={(value) => setYoutubeData({ ...youtubeData, difficultyLevel: value })}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="general">Général</SelectItem>
-                  <SelectItem value="combat">Combat</SelectItem>
-                  <SelectItem value="strength">Force</SelectItem>
-                  <SelectItem value="cardio">Cardio</SelectItem>
-                  <SelectItem value="flexibility">Flexibilité</SelectItem>
-                  <SelectItem value="technique">Technique</SelectItem>
+                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="debutant">⭐ Débutant</SelectItem>
+                  <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
+                  <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
+                  <SelectItem value="expert">⭐⭐⭐⭐ Expert</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -206,6 +193,107 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                 <>
                   <Youtube className="mr-2 h-4 w-4" />
                   Ajouter la vidéo YouTube
+                </>
+              )}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="upload" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="video-file">Fichier vidéo *</Label>
+              <Input
+                id="video-file"
+                type="file"
+                accept="video/*"
+                onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-title">Titre *</Label>
+              <Input
+                id="upload-title"
+                value={uploadData.title}
+                onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                placeholder="Nom de la vidéo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-description">Description</Label>
+              <Textarea
+                id="upload-description"
+                value={uploadData.description}
+                onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
+                placeholder="Description de l'exercice..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="upload-category">Catégorie *</Label>
+                <Select value={uploadData.category} onValueChange={(value) => setUploadData({ ...uploadData, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="combat">Combat</SelectItem>
+                    <SelectItem value="general">Général</SelectItem>
+                    <SelectItem value="strength">Force</SelectItem>
+                    <SelectItem value="cardio">Cardio</SelectItem>
+                    <SelectItem value="flexibility">Flexibilité</SelectItem>
+                    <SelectItem value="technique">Technique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="upload-technique">Type de technique</Label>
+                <Select value={uploadData.techniqueType} onValueChange={(value) => setUploadData({ ...uploadData, techniqueType: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="pied">🦶 Pieds</SelectItem>
+                    <SelectItem value="poings">👊 Poings</SelectItem>
+                    <SelectItem value="combo">🥊 Combo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-difficulty">Niveau de difficulté</Label>
+              <Select value={uploadData.difficultyLevel} onValueChange={(value) => setUploadData({ ...uploadData, difficultyLevel: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="debutant">⭐ Débutant</SelectItem>
+                  <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
+                  <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
+                  <SelectItem value="expert">⭐⭐⭐⭐ Expert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button 
+              onClick={handleUploadSubmit} 
+              disabled={!uploadData.file || !uploadData.title || isUploading}
+              className="w-full"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Upload en cours...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Uploader la vidéo
                 </>
               )}
             </Button>

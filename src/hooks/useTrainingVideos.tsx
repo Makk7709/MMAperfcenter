@@ -13,6 +13,8 @@ export interface TrainingVideo {
   youtube_url?: string;
   duration_seconds?: number;
   category: 'general' | 'combat' | 'strength' | 'cardio' | 'flexibility' | 'technique';
+  technique_type?: 'pied' | 'poings' | 'combo';
+  difficulty_level?: 'debutant' | 'intermediaire' | 'avance' | 'expert';
   thumbnail_url?: string;
   created_at: string;
   updated_at: string;
@@ -37,11 +39,13 @@ export const useTrainingVideos = () => {
   });
 
   const uploadVideoMutation = useMutation({
-    mutationFn: async ({ file, title, description, category }: {
+    mutationFn: async ({ file, title, description, category, techniqueType, difficultyLevel }: {
       file: File;
       title: string;
       description?: string;
       category: string;
+      techniqueType?: string;
+      difficultyLevel?: string;
     }) => {
       if (!user) throw new Error("User not authenticated");
 
@@ -67,7 +71,9 @@ export const useTrainingVideos = () => {
           category,
           video_type: 'upload',
           video_url: publicUrl,
-        });
+          technique_type: techniqueType as any,
+          difficulty_level: difficultyLevel as any,
+        } as any);
 
       if (insertError) throw insertError;
     },
@@ -82,11 +88,13 @@ export const useTrainingVideos = () => {
   });
 
   const addYoutubeVideoMutation = useMutation({
-    mutationFn: async ({ youtubeUrl, title, description, category }: {
+    mutationFn: async ({ youtubeUrl, title, description, category, techniqueType, difficultyLevel }: {
       youtubeUrl: string;
       title: string;
       description?: string;
       category: string;
+      techniqueType?: string;
+      difficultyLevel?: string;
     }) => {
       if (!user) throw new Error("User not authenticated");
 
@@ -99,7 +107,9 @@ export const useTrainingVideos = () => {
           category,
           video_type: 'youtube',
           youtube_url: youtubeUrl,
-        });
+          technique_type: techniqueType as any,
+          difficulty_level: difficultyLevel as any,
+        } as any);
 
       if (error) throw error;
     },

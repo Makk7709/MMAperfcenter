@@ -28,6 +28,19 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
     technique: "Technique",
   };
 
+  const techniqueLabels: Record<string, string> = {
+    pied: "🦶 Pieds",
+    poings: "👊 Poings",
+    combo: "🥊 Combo",
+  };
+
+  const difficultyLabels: Record<string, string> = {
+    debutant: "⭐ Débutant",
+    intermediaire: "⭐⭐ Intermédiaire",
+    avance: "⭐⭐⭐ Avancé",
+    expert: "⭐⭐⭐⭐ Expert",
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
@@ -49,9 +62,21 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
             </Button>
           )}
         </div>
-        <Badge variant="secondary" className="w-fit mt-2">
-          {categoryLabels[video.category]}
-        </Badge>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Badge variant="secondary">
+            {categoryLabels[video.category]}
+          </Badge>
+          {video.technique_type && (
+            <Badge variant="outline">
+              {techniqueLabels[video.technique_type]}
+            </Badge>
+          )}
+          {video.difficulty_level && (
+            <Badge variant="outline" className="border-primary/50">
+              {difficultyLabels[video.difficulty_level]}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="aspect-video bg-muted rounded-lg overflow-hidden relative">
