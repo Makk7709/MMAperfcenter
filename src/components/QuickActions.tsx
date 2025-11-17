@@ -113,8 +113,8 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
               >
                 <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
                 <div className="text-center space-y-0.5">
-                  <p className="text-xs font-semibold leading-tight">{action.title}</p>
-                  <p className="text-[10px] opacity-70 leading-tight">{action.description}</p>
+                  <p className="text-xs font-bold leading-tight">{action.title}</p>
+                  <p className="text-[10px] opacity-80 font-medium leading-tight">{action.description}</p>
                 </div>
               </Button>
             );
