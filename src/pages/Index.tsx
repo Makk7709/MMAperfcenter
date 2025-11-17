@@ -6,6 +6,7 @@ import { NutritionTracker } from "@/components/NutritionTracker";
 import { WorkoutLogger } from "@/components/WorkoutLogger";
 import { RoundTimer } from "@/components/RoundTimer";
 import { CommunityActivity } from "@/components/CommunityActivity";
+import { MMAResultsFeed } from "@/components/MMAResultsFeed";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -120,6 +121,8 @@ const Index = () => {
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
               <QuickActions onSwitchTab={setActiveTab} />
             </div>
+            
+            <MMAResultsFeed />
             
             <CommunityActivity />
           </div>
