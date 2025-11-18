@@ -58,15 +58,6 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       }
     },
     {
-      title: "Coach IA",
-      description: "Assistant",
-      icon: Brain,
-      variant: "hero" as const,
-      onClick: () => {
-        toast.info("Coach IA MMA", { description: "Votre assistant intelligent arrive bientôt" });
-      }
-    },
-    {
       title: "Combat",
       description: "Techniques",
       icon: Users,
@@ -121,24 +112,51 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
           })}
         </div>
         
-        {/* Quick Start Workout */}
-        <div className="mt-6 p-4 bg-gradient-hero rounded-lg">
-          <div className="flex items-center justify-between">
+        {/* Coach IA Chat Zone */}
+        <div className="mt-6 p-6 bg-gradient-hero rounded-lg border-2 border-primary/30">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <Brain className="h-6 w-6 text-primary-foreground" />
+            </div>
             <div>
-              <h4 className="font-semibold text-primary-foreground">
-                Prêt pour votre séance ?
+              <h4 className="font-bold text-lg text-primary-foreground">
+                Coach IA KOREV
               </h4>
-              <p className="text-sm text-primary-foreground/80">
-                Workout du jour : Haut du corps
+              <p className="text-sm text-primary-foreground/70">
+                Votre assistant MMA intelligent
               </p>
             </div>
+          </div>
+          
+          <div className="bg-background/10 backdrop-blur-sm rounded-lg p-4 mb-3 min-h-[100px] max-h-[200px] overflow-y-auto">
+            <p className="text-sm text-primary-foreground/90 mb-2">
+              💪 Bonjour ! Je suis votre coach IA personnel. Posez-moi vos questions sur :
+            </p>
+            <ul className="text-xs text-primary-foreground/80 space-y-1 ml-4">
+              <li>• Techniques de combat MMA</li>
+              <li>• Plans d'entraînement personnalisés</li>
+              <li>• Nutrition et récupération</li>
+              <li>• Analyse de vos performances</li>
+            </ul>
+          </div>
+          
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Posez votre question..."
+              className="flex-1 bg-background/20 border border-primary-foreground/20 rounded-lg px-4 py-2 text-sm text-primary-foreground placeholder:text-primary-foreground/50 focus:outline-none focus:border-primary-foreground/40"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" });
+                }
+              }}
+            />
             <Button 
               size="sm" 
-              className="bg-white/20 hover:bg-white/30 text-white border-0"
-              onClick={() => setStartWorkoutOpen(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+              onClick={() => toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" })}
             >
-              <Play className="h-4 w-4 mr-2" />
-              Commencer
+              Envoyer
             </Button>
           </div>
         </div>
