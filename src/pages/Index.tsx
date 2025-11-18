@@ -54,6 +54,11 @@ const Index = () => {
         
         <div className="relative container px-4 py-20">
           <div className="max-w-3xl">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-primary tracking-tight mb-2">
+                KOREV AI
+              </h2>
+            </div>
             <div className="flex items-center gap-3 mb-6">
               <div className="h-1 w-12 bg-primary" />
               <span className="text-sm font-semibold tracking-wider text-primary uppercase">
