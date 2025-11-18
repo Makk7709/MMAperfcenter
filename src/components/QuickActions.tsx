@@ -113,51 +113,67 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
         </div>
         
         {/* Coach IA Chat Zone */}
-        <div className="mt-6 p-6 bg-gradient-hero rounded-lg border-2 border-primary/30">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-primary/20 rounded-lg">
-              <Brain className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h4 className="font-bold text-lg text-primary-foreground">
-                Coach IA KOREV
-              </h4>
-              <p className="text-sm text-primary-foreground/70">
-                Votre assistant MMA intelligent
-              </p>
+        <div className="mt-6 bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-xl overflow-hidden shadow-lg">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-primary to-primary/80 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl">
+                <Brain className="h-7 w-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-xl text-white flex items-center gap-2">
+                  Coach IA KOREV
+                  <span className="text-xs font-normal bg-white/20 px-2 py-0.5 rounded-full">Beta</span>
+                </h4>
+                <div className="flex items-center gap-1.5 text-white/90 text-sm">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span>En ligne</span>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="bg-background/10 backdrop-blur-sm rounded-lg p-4 mb-3 min-h-[100px] max-h-[200px] overflow-y-auto">
-            <p className="text-sm text-primary-foreground/90 mb-2">
-              💪 Bonjour ! Je suis votre coach IA personnel. Posez-moi vos questions sur :
-            </p>
-            <ul className="text-xs text-primary-foreground/80 space-y-1 ml-4">
-              <li>• Techniques de combat MMA</li>
-              <li>• Plans d'entraînement personnalisés</li>
-              <li>• Nutrition et récupération</li>
-              <li>• Analyse de vos performances</li>
-            </ul>
+
+          {/* Chat Messages */}
+          <div className="p-4 space-y-3 bg-background/40 min-h-[180px] max-h-[180px] overflow-y-auto">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <Brain className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 bg-card border border-border rounded-lg rounded-tl-none p-3 shadow-sm">
+                <p className="text-sm text-foreground leading-relaxed">
+                  Salut ! 👋 Je suis ton coach personnel. Je peux t'aider à :
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">🥊 Techniques MMA</span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">💪 Programmes d'entraînement</span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">🥗 Nutrition</span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">📊 Analyse perfs</span>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Posez votre question..."
-              className="flex-1 bg-background/20 border border-primary-foreground/20 rounded-lg px-4 py-2 text-sm text-primary-foreground placeholder:text-primary-foreground/50 focus:outline-none focus:border-primary-foreground/40"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" });
-                }
-              }}
-            />
-            <Button 
-              size="sm" 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground border-0"
-              onClick={() => toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" })}
-            >
-              Envoyer
-            </Button>
+
+          {/* Input Area */}
+          <div className="p-4 bg-card/50 backdrop-blur-sm border-t border-border/50">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Posez votre question au coach..."
+                className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" });
+                  }
+                }}
+              />
+              <Button 
+                size="sm" 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 shadow-md hover:shadow-lg transition-all"
+                onClick={() => toast.info("Coach IA", { description: "Fonctionnalité en cours de développement" })}
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
