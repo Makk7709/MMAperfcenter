@@ -6,13 +6,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Apple, Plus, Trash2, Settings, Flame } from "lucide-react";
+import { Apple, Plus, Trash2, Settings, Flame, Camera } from "lucide-react";
 import { useNutrition } from "@/hooks/useNutrition";
+import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
+import type { NutritionLog } from "@/hooks/useNutrition";
 
 export const NutritionTracker = () => {
   const { todayLogs, goals, loading, addNutritionLog, deleteNutritionLog, updateGoals, getTodayTotals } = useNutrition();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   
   // Form states
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
@@ -70,6 +73,10 @@ export const NutritionTracker = () => {
     });
     
     setGoalsDialogOpen(false);
+  };
+
+  const handleFoodScanned = async (food: Omit<NutritionLog, 'id'>) => {
+    await addNutritionLog(food);
   };
 
   return (
@@ -240,13 +247,22 @@ export const NutritionTracker = () => {
           </div>
         )}
         
-        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter Aliment
-            </Button>
-          </DialogTrigger>
+        <div className="grid grid-cols-2 gap-2">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => setScannerOpen(true)}
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            Scanner
+          </Button>
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Manuel
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Ajouter un Aliment</DialogTitle>
@@ -326,6 +342,13 @@ export const NutritionTracker = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
+        
+        <BarcodeScannerDialog 
+          open={scannerOpen}
+          onOpenChange={setScannerOpen}
+          onFoodScanned={handleFoodScanned}
+        />
       </CardContent>
     </Card>
   );
