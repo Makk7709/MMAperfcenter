@@ -69,7 +69,15 @@ INSTRUCTIONS:
 - Réponds en français
 - Si des informations manquent dans le profil, demande-les au combattant
 - Pour les programmes d'entraînement, structure-les clairement avec échauffement, corps de séance, et retour au calme
-- Adapte l'intensité selon son niveau de fitness`;
+- Adapte l'intensité selon son niveau de fitness
+
+NUTRITION & MACROS:
+- Calcule et recommande des répartitions de macros personnalisées (protéines/glucides/lipides) selon ses objectifs
+- Propose des projections de poids réalistes basées sur son profil et ses objectifs
+- Crée des recettes équilibrées adaptées aux combattants avec calcul des macros détaillé
+- Suggère des plans alimentaires par semaine si demandé
+- Adapte les calories et macros selon phase (prise de masse, sèche, maintien, perte de poids)
+- Pour les recettes: inclus portions, temps de préparation, ingrédients précis et valeurs nutritionnelles complètes`;
 
     const response = await fetch("https://ai-gateway.internal/v1/chat/completions", {
       method: "POST",
