@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { QuickStatsCards } from "@/components/QuickStatsCards";
 import { QuickActions } from "@/components/QuickActions";
@@ -25,6 +25,11 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const isPremium = true;
   const [activeTab, setActiveTab] = useState("nutrition");
+  const aiCoachRef = useRef<HTMLDivElement>(null);
+
+  const scrollToAICoach = () => {
+    aiCoachRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
 
@@ -86,6 +91,7 @@ const Index = () => {
                 variant="default" 
                 size="lg"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary group"
+                onClick={scrollToAICoach}
               >
                 <Brain className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
                 Coach IA MMA
@@ -126,7 +132,9 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - AI Coach & Actions */}
           <div className="lg:col-span-1 space-y-6">
-            <AICoachChat />
+            <div ref={aiCoachRef}>
+              <AICoachChat />
+            </div>
             
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
