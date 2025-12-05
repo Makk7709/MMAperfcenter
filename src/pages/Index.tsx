@@ -7,6 +7,7 @@ import { WorkoutLogger } from "@/components/WorkoutLogger";
 import { RoundTimer } from "@/components/RoundTimer";
 import { CommunityActivity } from "@/components/CommunityActivity";
 import { MMANewsBanner } from "@/components/MMANewsBanner";
+import { AICoachChat } from "@/components/AICoachChat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -123,8 +124,10 @@ const Index = () => {
 
         {/* Main Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Actions & Tools */}
+          {/* Left Column - AI Coach & Actions */}
           <div className="lg:col-span-1 space-y-6">
+            <AICoachChat />
+            
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
               <QuickActions onSwitchTab={setActiveTab} />
