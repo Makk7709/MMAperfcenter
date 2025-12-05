@@ -764,7 +764,7 @@ export type Database = {
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "coach"
       difficulty_level: "debutant" | "intermediaire" | "avance" | "expert"
       organization_role: "owner" | "admin" | "member"
       subscription_plan: "free" | "pro" | "elite" | "sensei"
@@ -897,7 +897,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "coach"],
       difficulty_level: ["debutant", "intermediaire", "avance", "expert"],
       organization_role: ["owner", "admin", "member"],
       subscription_plan: ["free", "pro", "elite", "sensei"],
