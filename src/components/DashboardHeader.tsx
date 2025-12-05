@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home } from "lucide-react";
+import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home, Shield } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasAdminAccess } = useUserRole();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-gradient-card backdrop-blur-md border-b border-border/50 shadow-card">
@@ -84,6 +86,17 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
           >
             Abonnements
           </Button>
+          {hasAdminAccess && (
+            <Button 
+              variant={location.pathname.startsWith("/admin") ? "default" : "ghost"} 
+              size="sm"
+              onClick={() => navigate("/admin")}
+              className="gap-2"
+            >
+              <Shield className="h-4 w-4" />
+              Admin
+            </Button>
+          )}
         </nav>
 
         {/* Search & Actions */}

@@ -513,6 +513,7 @@ export type Database = {
       training_videos: {
         Row: {
           category: string
+          coach_name: string | null
           created_at: string
           description: string | null
           difficulty_level:
@@ -527,10 +528,13 @@ export type Database = {
           user_id: string
           video_type: string
           video_url: string | null
+          views_count: number
+          visibility: string
           youtube_url: string | null
         }
         Insert: {
           category?: string
+          coach_name?: string | null
           created_at?: string
           description?: string | null
           difficulty_level?:
@@ -545,10 +549,13 @@ export type Database = {
           user_id: string
           video_type: string
           video_url?: string | null
+          views_count?: number
+          visibility?: string
           youtube_url?: string | null
         }
         Update: {
           category?: string
+          coach_name?: string | null
           created_at?: string
           description?: string | null
           difficulty_level?:
@@ -563,6 +570,8 @@ export type Database = {
           user_id?: string
           video_type?: string
           video_url?: string | null
+          views_count?: number
+          visibility?: string
           youtube_url?: string | null
         }
         Relationships: []
@@ -752,6 +761,7 @@ export type Database = {
         Args: { count?: number; org_id: string; user_id_param: string }
         Returns: undefined
       }
+      increment_video_views: { Args: { video_id: string }; Returns: undefined }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
