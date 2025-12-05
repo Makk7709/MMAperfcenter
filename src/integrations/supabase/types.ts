@@ -115,6 +115,125 @@ export type Database = {
         }
         Relationships: []
       }
+      meute_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string
+          id: string
+          meute_id: string
+          user_id: string
+          workout_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description: string
+          id?: string
+          meute_id: string
+          user_id: string
+          workout_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          meute_id?: string
+          user_id?: string
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meute_activities_meute_id_fkey"
+            columns: ["meute_id"]
+            isOneToOne: false
+            referencedRelation: "meutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meute_activities_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meute_members: {
+        Row: {
+          created_at: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          joined_at: string | null
+          meute_id: string
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          meute_id: string
+          role?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          meute_id?: string
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meute_members_meute_id_fkey"
+            columns: ["meute_id"]
+            isOneToOne: false
+            referencedRelation: "meutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meutes: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
