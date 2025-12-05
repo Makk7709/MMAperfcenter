@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { AIStatsAnalysis } from "@/components/AIStatsAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrendingUp, Flame } from "lucide-react";
@@ -136,6 +137,9 @@ export default function Statistics() {
           <h1 className="text-3xl font-bold">Statistiques & Progression</h1>
           <p className="text-muted-foreground mt-2">Analyse de vos performances sur 7 jours</p>
         </div>
+
+        {/* AI Analysis Section */}
+        <AIStatsAnalysis />
 
         {/* Weekly Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

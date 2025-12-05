@@ -3,6 +3,9 @@ project_id = "vpvfkazmfvxbpffymodg"
 [functions.ai-coach]
 verify_jwt = true
 
+[functions.ai-stats-analysis]
+verify_jwt = true
+
 [functions.create-checkout]
 verify_jwt = true
 
