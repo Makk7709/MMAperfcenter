@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "bg-card border border-border hover:bg-muted hover:border-primary/30 text-foreground hover:scale-105 transform transition-all duration-300",
         ghost: "bg-muted hover:bg-muted/80 text-foreground hover:scale-105 transform transition-all duration-300",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-hero text-primary-foreground hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold",
+        hero: "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold",
         fitness: "bg-accent text-accent-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
       },
       size: {
