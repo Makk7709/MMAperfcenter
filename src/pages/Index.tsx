@@ -5,7 +5,7 @@ import { QuickActions } from "@/components/QuickActions";
 import { NutritionTracker } from "@/components/NutritionTracker";
 import { WorkoutLogger } from "@/components/WorkoutLogger";
 import { RoundTimer } from "@/components/RoundTimer";
-import { CommunityActivity } from "@/components/CommunityActivity";
+import { MeuteCard } from "@/components/MeuteCard";
 import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,7 @@ const Index = () => {
               <QuickActions onSwitchTab={setActiveTab} />
             </div>
             
-            <CommunityActivity />
+            <MeuteCard />
           </div>
 
           {/* Center/Right Columns - Main Tracking */}
