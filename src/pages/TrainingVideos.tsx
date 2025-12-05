@@ -1,132 +1,137 @@
 import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Video, Lock } from "lucide-react";
-import { AddVideoDialog } from "@/components/AddVideoDialog";
+import { Loader2, Video, Play, Filter } from "lucide-react";
 import { VideoCard } from "@/components/VideoCard";
 import { useTrainingVideos } from "@/hooks/useTrainingVideos";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserRole } from "@/hooks/useUserRole";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 export default function TrainingVideos() {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [techniqueFilter, setTechniqueFilter] = useState<string>("all");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
-  const { videos, isLoading, deleteVideo } = useTrainingVideos();
+  const [sortBy, setSortBy] = useState<string>("recent");
+  const { videos, isLoading } = useTrainingVideos();
   const { user } = useAuth();
-  const { isAdmin, isLoading: isLoadingRole } = useUserRole();
 
   const filteredVideos = videos?.filter(video => {
     const matchesCategory = categoryFilter === "all" || video.category === categoryFilter;
     const matchesTechnique = techniqueFilter === "all" || video.technique_type === techniqueFilter;
     const matchesDifficulty = difficultyFilter === "all" || video.difficulty_level === difficultyFilter;
     return matchesCategory && matchesTechnique && matchesDifficulty;
+  }).sort((a, b) => {
+    if (sortBy === "recent") {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    if (sortBy === "views") {
+      return ((b as any).views_count || 0) - ((a as any).views_count || 0);
+    }
+    return 0;
   });
 
-  if (isLoadingRole) {
-    return (
-      <div className="min-h-screen bg-background">
-        <DashboardHeader />
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
+  const activeFiltersCount = [categoryFilter, techniqueFilter, difficultyFilter].filter(f => f !== "all").length;
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Video className="h-8 w-8" />
-              Vidéos d'Entraînement
-              {!isAdmin && <Lock className="h-5 w-5 text-muted-foreground" />}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {isAdmin 
-                ? "Gérez votre bibliothèque de vidéos d'entraînement"
-                : "Consultez les vidéos d'entraînement par technique et niveau"
-              }
-            </p>
-          </div>
-          {isAdmin && (
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter une vidéo
-            </Button>
-          )}
-        </div>
-
-        {!isAdmin && (
-          <Alert className="mb-6">
-            <Lock className="h-4 w-4" />
-            <AlertTitle>Accès restreint</AlertTitle>
-            <AlertDescription>
-              Seuls les administrateurs peuvent ajouter ou supprimer des vidéos. Vous pouvez consulter toutes les vidéos disponibles.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Catégorie</label>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les catégories</SelectItem>
-                <SelectItem value="combat">Combat</SelectItem>
-                <SelectItem value="general">Général</SelectItem>
-                <SelectItem value="strength">Force</SelectItem>
-                <SelectItem value="cardio">Cardio</SelectItem>
-                <SelectItem value="flexibility">Flexibilité</SelectItem>
-                <SelectItem value="technique">Technique</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">Type de technique</label>
-            <Select value={techniqueFilter} onValueChange={setTechniqueFilter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="pied">🦶 Pieds</SelectItem>
-                <SelectItem value="poings">👊 Poings</SelectItem>
-                <SelectItem value="combo">🥊 Combo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">Difficulté</label>
-            <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les niveaux</SelectItem>
-                <SelectItem value="debutant">⭐ Débutant</SelectItem>
-                <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
-                <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
-                <SelectItem value="expert">⭐⭐⭐⭐ Expert</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Play className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Vidéothèque</h1>
+              <p className="text-muted-foreground">
+                {videos?.length || 0} vidéos d'entraînement disponibles
+              </p>
+            </div>
           </div>
         </div>
 
+        {/* Filters Bar */}
+        <div className="bg-card border rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filtrer les vidéos</span>
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {activeFiltersCount} filtre{activeFiltersCount > 1 ? "s" : ""} actif{activeFiltersCount > 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Catégorie</label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  <SelectItem value="combat">🥊 Combat</SelectItem>
+                  <SelectItem value="general">📚 Général</SelectItem>
+                  <SelectItem value="strength">💪 Force</SelectItem>
+                  <SelectItem value="cardio">🏃 Cardio</SelectItem>
+                  <SelectItem value="flexibility">🧘 Flexibilité</SelectItem>
+                  <SelectItem value="technique">🎯 Technique</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Type de technique</label>
+              <Select value={techniqueFilter} onValueChange={setTechniqueFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="pied">🦶 Pieds</SelectItem>
+                  <SelectItem value="poings">👊 Poings</SelectItem>
+                  <SelectItem value="combo">🔥 Combo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Niveau</label>
+              <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous niveaux</SelectItem>
+                  <SelectItem value="debutant">⭐ Débutant</SelectItem>
+                  <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
+                  <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
+                  <SelectItem value="expert">⭐⭐⭐⭐ Expert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Trier par</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Plus récentes</SelectItem>
+                  <SelectItem value="views">Plus vues</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Videos Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : filteredVideos && filteredVideos.length > 0 ? (
@@ -135,35 +140,23 @@ export default function TrainingVideos() {
               <VideoCard
                 key={video.id}
                 video={video}
-                onDelete={deleteVideo}
-                canDelete={isAdmin}
+                onDelete={() => {}}
+                canDelete={false}
               />
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Aucune vidéo trouvée</h3>
-            <p className="text-muted-foreground mb-4">
-              {categoryFilter === "all" && techniqueFilter === "all" && difficultyFilter === "all"
-                ? isAdmin 
-                  ? "Commencez par ajouter votre première vidéo d'entraînement"
-                  : "Aucune vidéo disponible pour le moment"
-                : "Aucune vidéo ne correspond aux filtres sélectionnés"}
+          <div className="text-center py-16 bg-card border rounded-xl">
+            <Video className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Aucune vidéo trouvée</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {activeFiltersCount > 0
+                ? "Aucune vidéo ne correspond aux filtres sélectionnés. Essayez de modifier vos critères."
+                : "La vidéothèque est vide pour le moment. De nouvelles vidéos seront bientôt disponibles !"}
             </p>
-            {isAdmin && (
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Ajouter une vidéo
-              </Button>
-            )}
           </div>
         )}
       </main>
-
-      {isAdmin && (
-        <AddVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-      )}
     </div>
   );
 }
