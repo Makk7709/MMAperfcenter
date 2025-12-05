@@ -220,6 +220,127 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_invitations: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          organization_id: string
+          role: Database["public"]["Enums"]["organization_role"] | null
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["organization_role"] | null
+          token?: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["organization_role"] | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          joined_at: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["organization_role"] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          organization_id: string
+          role?: Database["public"]["Enums"]["organization_role"] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          organization_id?: string
+          role?: Database["public"]["Enums"]["organization_role"] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          monthly_render_quota: number | null
+          name: string
+          primary_color: string | null
+          quota_reset_date: string | null
+          renders_used_this_month: number | null
+          slug: string
+          subscription_tier:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          monthly_render_quota?: number | null
+          name: string
+          primary_color?: string | null
+          quota_reset_date?: string | null
+          renders_used_this_month?: number | null
+          slug: string
+          subscription_tier?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          monthly_render_quota?: number | null
+          name?: string
+          primary_color?: string | null
+          quota_reset_date?: string | null
+          renders_used_this_month?: number | null
+          slug?: string
+          subscription_tier?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -264,6 +385,41 @@ export type Database = {
           weight?: number | null
         }
         Relationships: []
+      }
+      render_usage: {
+        Row: {
+          created_at: string | null
+          id: string
+          month: string | null
+          organization_id: string | null
+          render_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          month?: string | null
+          organization_id?: string | null
+          render_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          month?: string | null
+          organization_id?: string | null
+          render_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "render_usage_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sets: {
         Row: {
@@ -563,6 +719,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_organization_quota: {
+        Args: { org_id: string }
+        Returns: {
+          can_render: boolean
+          current_usage: number
+          monthly_limit: number
+          remaining: number
+        }[]
+      }
       create_notification: {
         Args: {
           p_message: string
@@ -583,6 +748,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_organization_usage: {
+        Args: { count?: number; org_id: string; user_id_param: string }
+        Returns: undefined
+      }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -592,11 +761,14 @@ export type Database = {
           similarity: number
         }[]
       }
+      reset_monthly_organization_quotas: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
       difficulty_level: "debutant" | "intermediaire" | "avance" | "expert"
+      organization_role: "owner" | "admin" | "member"
       subscription_plan: "free" | "pro" | "elite" | "sensei"
+      subscription_tier: "starter" | "pro" | "enterprise"
       technique_type: "pied" | "poings" | "combo"
     }
     CompositeTypes: {
@@ -727,7 +899,9 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       difficulty_level: ["debutant", "intermediaire", "avance", "expert"],
+      organization_role: ["owner", "admin", "member"],
       subscription_plan: ["free", "pro", "elite", "sensei"],
+      subscription_tier: ["starter", "pro", "enterprise"],
       technique_type: ["pied", "poings", "combo"],
     },
   },
