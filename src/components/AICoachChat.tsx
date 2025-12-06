@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot, Send, Loader2, User, Sparkles, X, Maximize2, Minimize2 } from "lucide-react";
+import { Bot, Send, Loader2, User, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { PDFExportButton } from "./PDFExportButton";
 
 interface Message {
   role: "user" | "assistant";
@@ -220,15 +221,23 @@ export const AICoachChat = () => {
                       <Bot className="h-4 w-4" />
                     )}
                   </div>
-                  <div className={cn(
-                    "rounded-xl px-4 py-2 max-w-[80%]",
-                    msg.role === "user" 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-muted"
-                  )}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    {msg.role === "assistant" && msg.content === "" && isLoading && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="flex-1 max-w-[80%]">
+                    <div className={cn(
+                      "rounded-xl px-4 py-2",
+                      msg.role === "user" 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-muted"
+                    )}>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      {msg.role === "assistant" && msg.content === "" && isLoading && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+                    </div>
+                    {/* Show PDF export button for assistant messages with substantial content */}
+                    {msg.role === "assistant" && msg.content.length > 100 && !isLoading && (
+                      <div className="mt-2 flex justify-start">
+                        <PDFExportButton content={msg.content} />
+                      </div>
                     )}
                   </div>
                 </div>
