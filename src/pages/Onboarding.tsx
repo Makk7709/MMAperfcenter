@@ -268,8 +268,7 @@ export default function Onboarding() {
                     {[
                       { value: "beginner", label: "Débutant", desc: "< 1 an" },
                       { value: "intermediate", label: "Intermédiaire", desc: "1-3 ans" },
-                      { value: "advanced", label: "Avancé", desc: "3-5 ans" },
-                      { value: "expert", label: "Expert", desc: "5+ ans" },
+                      { value: "advanced", label: "Avancé", desc: "3+ ans" },
                     ].map((level) => (
                       <Button
                         key={level.value}
