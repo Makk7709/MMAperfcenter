@@ -60,6 +60,7 @@ import { SparringPDFExport } from "./SparringPDFExport";
 import { SparringShareDialog } from "./SparringShareDialog";
 import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
+import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
 
 // Types améliorés
 interface FighterStats {
@@ -551,21 +552,63 @@ export const SparringAnalysisV2 = () => {
       setAnalyzing(true);
       setUploadProgress(60);
       
-      // Step 3: Send frames to AI for analysis
+      // Step 3: Send frames to AI for analysis with retry logic
       console.log('[Sparring] Sending frames to AI...');
-      const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-sparring', {
-        body: { 
-          frames,
-          totalDuration,
-          analysisId: recordId,
-          videoName: file.name
+      
+      const result = await retryWithBackoff(
+        async () => {
+          const { data, error } = await supabase.functions.invoke('analyze-sparring', {
+            body: { 
+              frames,
+              totalDuration,
+              analysisId: recordId,
+              videoName: file.name
+            }
+          });
+
+          if (error) {
+            // Check if this is a retryable error
+            const errorMessage = error.message || '';
+            if (errorMessage.includes('429') || errorMessage.includes('rate limit') || 
+                errorMessage.includes('500') || errorMessage.includes('timeout')) {
+              throw new RetryableError(errorMessage);
+            }
+            throw new Error(errorMessage);
+          }
+
+          if (!data?.success) {
+            const errorMsg = data?.error || 'Erreur d\'analyse';
+            // Rate limits and server errors are retryable
+            if (errorMsg.includes('Limite') || errorMsg.includes('429') || errorMsg.includes('500')) {
+              throw new RetryableError(errorMsg);
+            }
+            throw new Error(errorMsg);
+          }
+
+          return data;
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 3000,
+          backoffMultiplier: 2,
+          maxDelayMs: 15000,
+          onRetry: (attempt, error, nextDelayMs) => {
+            console.log(`[Sparring] Retry ${attempt}, error: ${error.message}, next delay: ${nextDelayMs}ms`);
+            toast.warning(`⏳ Tentative ${attempt}/3 échouée. Nouvelle tentative dans ${Math.round(nextDelayMs/1000)}s...`);
+          },
+          onSuccess: (_data, attempts) => {
+            if (attempts > 1) {
+              console.log(`[Sparring] Success after ${attempts} attempts`);
+            }
+          },
+          onFailure: (errors, attempts) => {
+            console.error(`[Sparring] Failed after ${attempts} attempts:`, errors);
+          }
         }
-      });
+      );
 
-      if (analysisError) throw analysisError;
-
-      if (analysisResult?.success) {
-        setCurrentAnalysis(analysisResult.analysis);
+      if (result.success && result.data) {
+        setCurrentAnalysis(result.data.analysis);
         setCurrentAnalysisId(recordId || null);
         setCurrentVideoName(file.name);
         setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
@@ -582,12 +625,23 @@ export const SparringAnalysisV2 = () => {
           setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
         }
       } else {
-        throw new Error(analysisResult?.error || 'Erreur d\'analyse');
+        throw result.finalError || new Error('Erreur d\'analyse après plusieurs tentatives');
       }
 
     } catch (error) {
       console.error('Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'analyse');
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'analyse';
+      
+      // Provide user-friendly error messages
+      if (errorMessage.includes('Limite') || errorMessage.includes('429')) {
+        toast.error('🚫 Trop de requêtes. Attendez 1 minute et réessayez.');
+      } else if (errorMessage.includes('Crédits') || errorMessage.includes('402')) {
+        toast.error('💳 Crédits IA insuffisants. Contactez le support.');
+      } else if (errorMessage.includes('volumineux') || errorMessage.includes('413')) {
+        toast.error('📦 Vidéo trop grande. Essayez une vidéo plus courte.');
+      } else {
+        toast.error(`❌ ${errorMessage}`);
+      }
     } finally {
       setUploading(false);
       setAnalyzing(false);
