@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home, Shield, Video } from "lucide-react";
+import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home, Shield } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
@@ -12,13 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { SparringAnalysis } from "@/components/SparringAnalysis";
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -28,7 +21,6 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignOut }: DashboardHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
-  const [sparringDialogOpen, setSparringDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { hasAdminAccess } = useUserRole();
@@ -105,15 +97,6 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
               Admin
             </Button>
           )}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setSparringDialogOpen(true)}
-            className="gap-2 bg-primary/10 hover:bg-primary/20 text-primary"
-          >
-            <Video className="h-4 w-4" />
-            Analyse Combat
-          </Button>
         </nav>
 
         {/* Search & Actions */}
@@ -192,24 +175,10 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
               <DropdownMenuItem onClick={() => navigate("/pricing")}>
                 Abonnements
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSparringDialogOpen(true)}>
-                <Video className="h-4 w-4 mr-2" />
-                Analyse Combat
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
-
-      {/* Sparring Analysis Dialog */}
-      <Dialog open={sparringDialogOpen} onOpenChange={setSparringDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Analyse de Sparring par IA</DialogTitle>
-          </DialogHeader>
-          <SparringAnalysis />
-        </DialogContent>
-      </Dialog>
     </header>
   );
 };
