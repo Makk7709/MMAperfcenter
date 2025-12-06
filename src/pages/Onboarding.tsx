@@ -127,12 +127,18 @@ export default function Onboarding() {
 
       if (error) throw error;
 
+      // Mark onboarding as completed to prevent redirect loop
+      sessionStorage.setItem("onboarding_completed", "true");
+      
       toast.success("Profil complété ! Bienvenue chez KOREV AI 🥊");
-      navigate("/");
+      
+      // Small delay to let the toast show and state update
+      setTimeout(() => {
+        navigate("/");
+      }, 500);
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Erreur lors de la sauvegarde");
-    } finally {
       setIsLoading(false);
     }
   };
