@@ -2,6 +2,33 @@ import '@testing-library/jest-dom';
 import { vi, beforeEach } from 'vitest';
 
 // ============================================
+// RESIZE OBSERVER MOCK
+// ============================================
+
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+global.ResizeObserver = ResizeObserverMock as any;
+
+// ============================================
+// INTERSECTION OBSERVER MOCK
+// ============================================
+
+class IntersectionObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  root = null;
+  rootMargin = '';
+  thresholds = [];
+}
+
+global.IntersectionObserver = IntersectionObserverMock as any;
+
+// ============================================
 // MOCK CONFIG - Global state for video mock
 // ============================================
 

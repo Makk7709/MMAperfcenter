@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { StartWorkoutDialog } from "@/components/StartWorkoutDialog";
+import { StartWorkoutDialogV2, type WorkoutConfig } from "@/components/workout/StartWorkoutDialogV2";
 import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
 import { useState } from "react";
 import { useWorkouts } from "@/hooks/useWorkouts";
@@ -110,11 +110,14 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
         </div>
       </CardContent>
       
-      <StartWorkoutDialog 
+      <StartWorkoutDialogV2 
         open={startWorkoutOpen} 
         onOpenChange={setStartWorkoutOpen}
-        onStartWorkout={(name) => {
-          startWorkout(name);
+        onStartWorkout={(config: WorkoutConfig) => {
+          startWorkout(config.name);
+          toast.success(`🏋️ ${config.name}`, {
+            description: `${config.duration}min • ${config.intensity}`
+          });
           onSwitchTab?.("workout");
         }}
       />
