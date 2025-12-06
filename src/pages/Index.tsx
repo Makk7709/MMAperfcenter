@@ -10,6 +10,7 @@ import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
 import { SparringShowcase } from "@/components/SparringShowcase";
 import { SparringAnalysisFAB } from "@/components/SparringAnalysisFAB";
+import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -198,6 +199,9 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
 
       {/* Floating Action Button */}
       <SparringAnalysisFAB />
