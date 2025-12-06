@@ -506,13 +506,19 @@ export const SparringAnalysisV2 = () => {
     try {
       const fileName = `${user.id}/${Date.now()}_${file.name}`;
       
-      // Use XMLHttpRequest for real progress tracking
+      // Get user's session token for authenticated upload
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+      
+      // Use XMLHttpRequest for real progress tracking with user's session token
       const uploadPromise = new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         
-        // Get the upload URL from Supabase
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vpvfkazmfvxbpffymodg.supabase.co';
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg';
+        const supabaseUrl = 'https://vpvfkazmfvxbpffymodg.supabase.co';
         
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
@@ -550,7 +556,9 @@ export const SparringAnalysisV2 = () => {
         xhr.timeout = 5 * 60 * 1000;
         
         xhr.open('POST', `${supabaseUrl}/storage/v1/object/sparring-videos/${fileName}`);
-        xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`);
+        // Use user's session token instead of anon key
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        xhr.setRequestHeader('apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg');
         xhr.setRequestHeader('x-upsert', 'true');
         
         xhr.send(file);
