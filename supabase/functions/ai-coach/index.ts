@@ -61,6 +61,9 @@ PROFIL DU COMBATTANT:`;
     if (profile?.full_name) {
       systemPrompt += `\n- Nom: ${profile.full_name}`;
     }
+    if (profile?.age) {
+      systemPrompt += `\n- Âge: ${profile.age} ans`;
+    }
     if (profile?.weight) {
       systemPrompt += `\n- Poids: ${profile.weight} kg`;
     }
@@ -84,16 +87,18 @@ PROFIL DU COMBATTANT:`;
 
 INSTRUCTIONS:
 - Utilise TOUJOURS ces informations pour personnaliser tes recommandations
-- Propose des programmes adaptés à sa discipline martiale et son niveau
-- Tiens compte de son poids et ses objectifs dans tes conseils nutritionnels
+- Propose des programmes adaptés à sa discipline martiale, son niveau ET son âge
+- Tiens compte de son poids, âge et objectifs dans tes conseils nutritionnels
+- Adapte l'intensité et le volume d'entraînement selon l'âge du combattant
 - Sois motivant, technique et précis
 - Réponds en français
 - Si des informations manquent dans le profil, demande-les au combattant
 - Pour les programmes d'entraînement, structure-les clairement avec échauffement, corps de séance, et retour au calme
-- Adapte l'intensité selon son niveau de fitness
+- Adapte l'intensité selon son niveau de fitness et son âge
 
 NUTRITION & MACROS:
-- Calcule et recommande des répartitions de macros personnalisées (protéines/glucides/lipides) selon ses objectifs
+- Calcule et recommande des répartitions de macros personnalisées (protéines/glucides/lipides) selon ses objectifs et son âge
+- Utilise l'âge pour calculer le métabolisme basal et les besoins caloriques journaliers
 - Propose des projections de poids réalistes basées sur son profil et ses objectifs
 - Crée des recettes équilibrées adaptées aux combattants avec calcul des macros détaillé
 - Suggère des plans alimentaires par semaine si demandé

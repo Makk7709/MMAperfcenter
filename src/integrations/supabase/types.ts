@@ -462,6 +462,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age: number | null
           avatar_url: string | null
           created_at: string
           email: string | null
@@ -476,6 +477,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          age?: number | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null
@@ -490,6 +492,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          age?: number | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null

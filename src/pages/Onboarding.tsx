@@ -18,7 +18,8 @@ import {
   ArrowRight, 
   ArrowLeft,
   Sparkles,
-  Brain
+  Brain,
+  Calendar
 } from "lucide-react";
 
 const DISCIPLINES = [
@@ -82,7 +83,7 @@ export default function Onboarding() {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.full_name && formData.gender;
+        return formData.full_name && formData.gender && formData.age;
       case 2:
         return formData.weight && formData.height;
       case 3:
@@ -119,6 +120,7 @@ export default function Onboarding() {
           weight: parseFloat(formData.weight),
           height: parseInt(formData.height),
           gender: formData.gender,
+          age: parseInt(formData.age),
           fitness_level: formData.fitness_level,
           martial_arts_discipline: formData.martial_arts_discipline,
           goals: formData.goals,
@@ -198,25 +200,46 @@ export default function Onboarding() {
                     className="h-12"
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label>Genre</Label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: "male", label: "Homme" },
-                      { value: "female", label: "Femme" },
-                      { value: "other", label: "Autre" },
-                    ].map((option) => (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        variant={formData.gender === option.value ? "default" : "outline"}
-                        className="h-12"
-                        onClick={() => handleChange("gender", option.value)}
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Genre</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { value: "male", label: "Homme" },
+                        { value: "female", label: "Femme" },
+                        { value: "other", label: "Autre" },
+                      ].map((option) => (
+                        <Button
+                          key={option.value}
+                          type="button"
+                          variant={formData.gender === option.value ? "default" : "outline"}
+                          className="h-10"
+                          onClick={() => handleChange("gender", option.value)}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="age" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" /> Âge
+                    </Label>
+                    <Input
+                      id="age"
+                      type="number"
+                      min="10"
+                      max="100"
+                      value={formData.age}
+                      onChange={(e) => handleChange("age", e.target.value)}
+                      placeholder="25"
+                      className="h-12 text-center text-lg"
+                    />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Pour adapter tes programmes
+                    </p>
                   </div>
                 </div>
               </div>
