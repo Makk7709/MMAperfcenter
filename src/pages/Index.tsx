@@ -8,21 +8,15 @@ import { RoundTimer } from "@/components/RoundTimer";
 import { MeuteCard } from "@/components/MeuteCard";
 import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
-import { SparringAnalysis } from "@/components/SparringAnalysis";
+import { SparringShowcase } from "@/components/SparringShowcase";
+import { SparringAnalysisFAB } from "@/components/SparringAnalysisFAB";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Brain, 
   Crown, 
   Users, 
-  BarChart3,
   Star,
   Zap
 } from "lucide-react";
@@ -32,7 +26,6 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const isPremium = true;
   const [activeTab, setActiveTab] = useState("nutrition");
-  const [sparringDialogOpen, setSparringDialogOpen] = useState(false);
   const aiCoachRef = useRef<HTMLDivElement>(null);
 
   const scrollToAICoach = () => {
@@ -105,16 +98,6 @@ const Index = () => {
                 Coach IA MMA
               </Button>
               
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="border-primary/30 hover:bg-primary/10 hover:border-primary/50"
-                onClick={() => setSparringDialogOpen(true)}
-              >
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Analyse Combat
-              </Button>
-              
               {!isPremium && (
                 <Button 
                   size="lg"
@@ -129,7 +112,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Sparring Showcase Section */}
+      <SparringShowcase />
       <div className="container px-4 py-12">
         {/* Quick Stats with subtle gold accents */}
         <section className="mb-10 relative">
@@ -215,15 +199,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Sparring Analysis Dialog */}
-      <Dialog open={sparringDialogOpen} onOpenChange={setSparringDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Analyse de Sparring par IA</DialogTitle>
-          </DialogHeader>
-          <SparringAnalysis />
-        </DialogContent>
-      </Dialog>
+      {/* Floating Action Button */}
+      <SparringAnalysisFAB />
     </div>
   );
 };
