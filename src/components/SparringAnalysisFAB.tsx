@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SparringAnalysis } from "@/components/SparringAnalysis";
+import { SparringAnalysisV2 } from "@/components/sparring";
 
 export const SparringAnalysisFAB = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,17 +59,8 @@ export const SparringAnalysisFAB = () => {
 
       {/* Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Video className="h-5 w-5 text-primary" />
-              Analyse de Sparring par IA
-              <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-normal">
-                EXCLUSIF
-              </span>
-            </DialogTitle>
-          </DialogHeader>
-          <SparringAnalysis />
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <SparringAnalysisV2 />
         </DialogContent>
       </Dialog>
     </>
