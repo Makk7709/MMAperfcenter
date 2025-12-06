@@ -16,6 +16,7 @@ import {
   TrendingUp, 
   AlertCircle,
   User,
+  Users,
   Swords,
   Timer,
   ChevronDown,
