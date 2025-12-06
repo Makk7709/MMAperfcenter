@@ -49,10 +49,41 @@ serve(async (req) => {
       mimeType = 'video/x-msvideo';
     }
 
-    // Use the video URL directly instead of downloading to avoid memory limits
-    // Gemini can fetch from public URLs
-    console.log('Sending video URL to AI for analysis...');
-    console.log(`Video URL: ${videoUrl}, mime: ${mimeType}`);
+    console.log(`Downloading video for base64 encoding, mime: ${mimeType}`);
+    
+    // Download video and convert to base64
+    // We limit to 15MB to stay within memory constraints
+    const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15MB
+    
+    const videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Impossible de télécharger la vidéo: ${videoResponse.status}`);
+    }
+    
+    const contentLength = videoResponse.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_VIDEO_SIZE) {
+      throw new Error('Vidéo trop volumineuse (max 15MB). Compressez ou raccourcissez la vidéo.');
+    }
+    
+    const videoBuffer = await videoResponse.arrayBuffer();
+    
+    if (videoBuffer.byteLength > MAX_VIDEO_SIZE) {
+      throw new Error('Vidéo trop volumineuse (max 15MB). Compressez ou raccourcissez la vidéo.');
+    }
+    
+    console.log(`Video downloaded: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB`);
+    
+    // Convert to base64
+    const uint8Array = new Uint8Array(videoBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64Video = btoa(binary);
+    
+    console.log(`Video encoded to base64, length: ${base64Video.length}`);
 
     // Système de prompt amélioré pour des analyses plus riches
     const systemPrompt = `Tu es un expert en analyse de combat MMA, boxe et arts martiaux avec 20 ans d'expérience en coaching. 
@@ -207,7 +238,7 @@ INSTRUCTIONS CRITIQUES:
 RETOURNE UNIQUEMENT LE JSON, SANS MARKDOWN NI TEXTE SUPPLÉMENTAIRE.`;
 
     // Call Gemini Vision API for video analysis with base64 data
-    console.log('Calling AI Gateway with video data...');
+    console.log('Calling AI Gateway with base64 video data...');
     
     const response = await fetch('https://ai-gateway.internal/v1/chat/completions', {
       method: 'POST',
@@ -241,7 +272,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
               {
                 type: 'image_url',
                 image_url: {
-                  url: videoUrl
+                  url: `data:${mimeType};base64,${base64Video}`
                 }
               }
             ]
