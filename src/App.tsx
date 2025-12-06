@@ -40,8 +40,16 @@ function ProtectedRoute({ children, requiresOnboarding = true }: { children: Rea
     return <Navigate to="/auth" replace />;
   }
 
+  // Check if onboarding was just completed (to prevent redirect loop)
+  const onboardingJustCompleted = sessionStorage.getItem("onboarding_completed") === "true";
+  
+  // Clear the flag after reading it
+  if (onboardingJustCompleted && location.pathname === "/") {
+    sessionStorage.removeItem("onboarding_completed");
+  }
+
   // Check if profile needs onboarding (missing critical fields)
-  const needsOnboarding = requiresOnboarding && profile && (
+  const needsOnboarding = requiresOnboarding && !onboardingJustCompleted && profile && (
     !profile.weight || 
     !profile.height || 
     !profile.fitness_level || 
