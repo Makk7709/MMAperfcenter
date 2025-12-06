@@ -2,11 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { StartWorkoutDialogV2, type WorkoutConfig } from "@/components/workout/StartWorkoutDialogV2";
+import { WorkoutManager } from "@/components/workout/WorkoutManager";
 import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
 import { useState } from "react";
-import { useWorkouts } from "@/hooks/useWorkouts";
 import { useNutrition } from "@/hooks/useNutrition";
+import type { SessionSummary } from "@/utils/gamification/wolfTracking";
 import { 
   Camera, 
   ScanLine, 
@@ -22,11 +22,16 @@ interface QuickActionsProps {
 }
 
 export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
-  const [startWorkoutOpen, setStartWorkoutOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const { startWorkout } = useWorkouts();
   const { addNutritionLog } = useNutrition();
   const navigate = useNavigate();
+
+  const handleWorkoutComplete = (summary: SessionSummary) => {
+    toast.success(`🐺 Chasse Terminée !`, {
+      description: `+${summary.xpEarned} XP • ${Math.round(summary.duration / 60)}min`
+    });
+    onSwitchTab?.("workout");
+  };
   
   const actions = [
     {
@@ -50,9 +55,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       description: "Démarrer",
       icon: Dumbbell,
       variant: "default" as const,
-      onClick: () => {
-        setStartWorkoutOpen(true);
-      }
+      isWorkout: true,
     },
     {
       title: "Combat",
@@ -78,7 +81,29 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       variant: "ghost" as const,
       onClick: () => navigate("/history")
     }
-  ];
+  ] as const;
+
+  // Workout button with WorkoutManager
+  const WorkoutButton = () => {
+    const Icon = Dumbbell;
+    return (
+      <WorkoutManager
+        onWorkoutComplete={handleWorkoutComplete}
+        trigger={
+          <Button
+            variant="default"
+            className="h-24 flex-col gap-1.5 p-3 group justify-center w-full cursor-pointer"
+          >
+            <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+            <div className="text-center space-y-0.5">
+              <p className="text-xs font-bold leading-tight">Workout</p>
+              <p className="text-[10px] opacity-80 font-medium leading-tight">Démarrer</p>
+            </div>
+          </Button>
+        }
+      />
+    );
+  };
 
   return (
     <Card className="bg-gradient-card border-0 shadow-card">
@@ -91,13 +116,18 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {actions.map((action, index) => {
+            // Special handling for workout button
+            if ('isWorkout' in action && action.isWorkout) {
+              return <WorkoutButton key={index} />;
+            }
+
             const Icon = action.icon;
             return (
               <Button
                 key={index}
                 variant={action.variant}
                 className="h-24 flex-col gap-1.5 p-3 group justify-center"
-                onClick={action.onClick}
+                onClick={'onClick' in action ? action.onClick : undefined}
               >
                 <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
                 <div className="text-center space-y-0.5">
@@ -109,18 +139,6 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
           })}
         </div>
       </CardContent>
-      
-      <StartWorkoutDialogV2 
-        open={startWorkoutOpen} 
-        onOpenChange={setStartWorkoutOpen}
-        onStartWorkout={(config: WorkoutConfig) => {
-          startWorkout(config.name);
-          toast.success(`🏋️ ${config.name}`, {
-            description: `${config.duration}min • ${config.intensity}`
-          });
-          onSwitchTab?.("workout");
-        }}
-      />
 
       <BarcodeScannerDialog
         open={scannerOpen}

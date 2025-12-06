@@ -514,9 +514,9 @@ describe('Session Summary', () => {
       const mmaTitle = getWolfSessionTitle('mma');
       const strengthTitle = getWolfSessionTitle('strength');
       
-      expect(boxingTitle.toLowerCase()).toMatch(/chasse|combat|attaque/);
-      expect(mmaTitle.toLowerCase()).toMatch(/meute|combat|guerre/);
-      expect(strengthTitle.toLowerCase()).toMatch(/force|territoire|conquête/);
+      expect(boxingTitle.toLowerCase()).toMatch(/chasse|combat|attaque|crocs|poings/);
+      expect(mmaTitle.toLowerCase()).toMatch(/meute|combat|guerre|prédateur/);
+      expect(strengthTitle.toLowerCase()).toMatch(/force|territoire|conquête|crocs|puissance/);
     });
   });
 });

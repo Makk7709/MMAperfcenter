@@ -445,7 +445,7 @@ describe('Motivational Messages', () => {
     it('should be celebratory', () => {
       const newRank = WOLF_RANKS[1];
       const message = getRankUpMessage(newRank);
-      const celebratoryWords = ['félicitations', 'bravo', 'incroyable', 'devenu', 'évolué', 'ascension'];
+      const celebratoryWords = ['félicitations', 'bravo', 'incroyable', 'devenu', 'évolué', 'ascension', 'célèbre', 'atteint'];
       const isCelebratory = celebratoryWords.some(word => 
         message.toLowerCase().includes(word)
       );

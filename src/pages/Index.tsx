@@ -10,6 +10,7 @@ import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
 import { SparringShowcase } from "@/components/SparringShowcase";
 import { SparringAnalysisFAB } from "@/components/SparringAnalysisFAB";
+import { WolfRankDisplay } from "@/components/gamification/WolfRankDisplay";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -130,6 +131,9 @@ const Index = () => {
               <AICoachChat />
             </div>
             
+            {/* Wolf Rank Display */}
+            <WolfRankDisplay currentXP={1250} showAnimation />
+
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
               <QuickActions onSwitchTab={setActiveTab} />
