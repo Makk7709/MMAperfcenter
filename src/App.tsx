@@ -87,7 +87,16 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // Don't render video background while loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-primary">Chargement...</div>
+      </div>
+    );
+  }
   
   return (
     <>
