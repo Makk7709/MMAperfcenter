@@ -587,6 +587,39 @@ export type Database = {
           },
         ]
       }
+      sparring_analyses: {
+        Row: {
+          analysis: Json | null
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+          video_name: string
+          video_url: string
+        }
+        Insert: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          video_name: string
+          video_url: string
+        }
+        Update: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          video_name?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
