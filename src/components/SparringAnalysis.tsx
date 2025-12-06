@@ -84,7 +84,7 @@ interface AnalysisRecord {
 }
 
 export const SparringAnalysis = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<SparringAnalysisData | null>(null);
@@ -97,6 +97,31 @@ export const SparringAnalysis = () => {
       fetchPreviousAnalyses();
     }
   }, [user]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <Card className="bg-gradient-card border-border/50">
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show message if not authenticated
+  if (!user) {
+    return (
+      <Card className="bg-gradient-card border-border/50">
+        <CardContent className="flex flex-col items-center justify-center py-8 gap-4">
+          <AlertCircle className="h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground text-center">
+            Connectez-vous pour utiliser l'analyse de sparring
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const fetchPreviousAnalyses = async () => {
     if (!user) return;
