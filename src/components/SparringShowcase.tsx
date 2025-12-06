@@ -94,13 +94,13 @@ export const SparringShowcase = () => {
             {/* Left: Content */}
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <Badge className="bg-primary/20 text-primary border-primary/30 animate-pulse">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  EXCLUSIF
-                </Badge>
-                <Badge variant="outline" className="border-primary/30">
-                  Powered by IA
-                </Badge>
+              <Badge className="bg-primary/20 text-primary border-primary/30 animate-pulse">
+                <Sparkles className="h-3 w-3 mr-1" />
+                EXCLUSIF
+              </Badge>
+              <Badge variant="outline" className="border-primary/30">
+                Powered by PRISM
+              </Badge>
               </div>
 
               <h2 className="text-4xl md:text-5xl font-bold leading-tight">
