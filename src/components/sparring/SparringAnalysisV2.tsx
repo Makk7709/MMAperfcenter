@@ -496,32 +496,66 @@ export const SparringAnalysisV2 = () => {
 
     setUploading(true);
     setUploadProgress(0);
-    toast.info('📤 Upload de la vidéo en cours...');
-
-    // Simuler la progression de l'upload pour le feedback utilisateur
+    
     const fileSizeMB = file.size / (1024 * 1024);
-    const estimatedSeconds = Math.max(5, fileSizeMB / 2); // ~2MB/s estimation
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) return prev;
-        return prev + (90 / (estimatedSeconds * 10));
-      });
-    }, 100);
+    console.log(`[Sparring Upload] Starting upload: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
+    toast.info(`📤 Upload de la vidéo (${fileSizeMB.toFixed(1)} MB)...`);
 
     try {
-      // Upload vers Supabase Storage
       const fileName = `${user.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('sparring-videos')
-        .upload(fileName, file);
-
-      clearInterval(progressInterval);
       
-      if (uploadError) {
-        setUploadProgress(0);
-        throw uploadError;
-      }
+      // Use XMLHttpRequest for real progress tracking
+      const uploadPromise = new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Get the upload URL from Supabase
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vpvfkazmfvxbpffymodg.supabase.co';
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg';
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            console.log(`[Sparring Upload] Progress: ${percent}%`);
+            setUploadProgress(percent);
+          }
+        });
+        
+        xhr.addEventListener('load', () => {
+          console.log(`[Sparring Upload] XHR completed with status: ${xhr.status}`);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(new Error(errorData.message || `Upload failed: ${xhr.status}`));
+            } catch {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          console.error('[Sparring Upload] XHR error event');
+          reject(new Error('Erreur réseau lors de l\'upload'));
+        });
+        
+        xhr.addEventListener('timeout', () => {
+          console.error('[Sparring Upload] XHR timeout');
+          reject(new Error('Timeout: l\'upload a pris trop de temps'));
+        });
+        
+        // Set timeout for large files (5 minutes)
+        xhr.timeout = 5 * 60 * 1000;
+        
+        xhr.open('POST', `${supabaseUrl}/storage/v1/object/sparring-videos/${fileName}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`);
+        xhr.setRequestHeader('x-upsert', 'true');
+        
+        xhr.send(file);
+      });
       
+      await uploadPromise;
+      console.log('[Sparring Upload] Upload completed successfully');
       setUploadProgress(100);
 
       // Obtenir l'URL publique
