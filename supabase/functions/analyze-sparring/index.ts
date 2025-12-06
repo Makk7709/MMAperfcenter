@@ -37,6 +37,31 @@ serve(async (req) => {
     }
 
     console.log('Analyzing sparring video:', videoUrl);
+    console.log('Downloading video for analysis...');
+
+    // Download video and convert to base64
+    const videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download video: ${videoResponse.status}`);
+    }
+
+    const videoBuffer = await videoResponse.arrayBuffer();
+    const videoBase64 = btoa(
+      new Uint8Array(videoBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    
+    // Determine mime type from URL
+    let mimeType = 'video/mp4';
+    const lowerUrl = videoUrl.toLowerCase();
+    if (lowerUrl.includes('.webm')) {
+      mimeType = 'video/webm';
+    } else if (lowerUrl.includes('.mov') || lowerUrl.includes('quicktime')) {
+      mimeType = 'video/quicktime';
+    } else if (lowerUrl.includes('.avi')) {
+      mimeType = 'video/x-msvideo';
+    }
+
+    console.log(`Video downloaded: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)} MB, mime: ${mimeType}`);
 
     // Système de prompt amélioré pour des analyses plus riches
     const systemPrompt = `Tu es un expert en analyse de combat MMA, boxe et arts martiaux avec 20 ans d'expérience en coaching. 
@@ -147,32 +172,52 @@ Structure JSON requise:
       "striking": 80,
       "grappling": 70,
       "defense": 65,
-      "cardio": 85
+      "cardio": 85,
+      "technique": 78,
+      "ring_control": 70,
+      "aggression": 75
     },
     "fighter_2": {
       "overall": 72,
-      "striking": 68,
-      "grappling": 78,
+      "striking": 75,
+      "grappling": 68,
       "defense": 70,
-      "cardio": 75
+      "cardio": 80,
+      "technique": 74,
+      "ring_control": 65,
+      "aggression": 72
+    }
+  },
+  "body_strike_distribution": {
+    "fighter_1": {
+      "head": 45,
+      "body": 30,
+      "legs": 25
+    },
+    "fighter_2": {
+      "head": 50,
+      "body": 25,
+      "legs": 25
     }
   }
 }
 
-RÈGLES D'ANALYSE:
-1. Les scores de performance sont sur 100 (75-85 = bon, 60-74 = moyen, <60 = à améliorer)
-2. Compte les coups de façon réaliste basée sur ce que tu observes
-3. Les "key_moments" doivent être les actions marquantes (knockdown, takedown réussi, beau combo, soumission)
-4. significance: "high" pour knockdown/soumission, "medium" pour bons échanges, "low" pour actions mineures
-5. Les types de key_moments: "strike", "takedown", "submission_attempt", "knockdown", "dominant_position", "escape"
-6. Les recommandations doivent être ACTIONNABLES (ex: "Travailler le jab au sac 3x/semaine" pas juste "améliorer le jab")
-7. Sois précis sur les techniques observées (jab, cross, hook, uppercut, front kick, roundhouse, teep, etc.)
+INSTRUCTIONS CRITIQUES:
+1. Regarde ATTENTIVEMENT toute la vidéo
+2. Identifie clairement les deux combattants par leur apparence (couleur des gants, shorts, etc.)
+3. Compte chaque coup porté et reçu avec précision
+4. Évalue les techniques utilisées: jabs, crosses, hooks, uppercuts, kicks, knees, elbows, takedowns
+5. Note les esquives, blocks et parades pour le calcul du defense_rate (en pourcentage)
+6. Identifie les moments clés (KD potentiel, belle combinaison, takedown réussi, soumission tentée)
+7. Les scores de performance doivent être entre 0-100, réalistes basés sur ce que tu observes
 8. Pour la défense: esquives, parades, blocks, head movement
 9. Si la vidéo ne permet pas de compter précisément, fais des estimations raisonnables basées sur l'activité visible
 
 RETOURNE UNIQUEMENT LE JSON, SANS MARKDOWN NI TEXTE SUPPLÉMENTAIRE.`;
 
-    // Call Gemini Vision API for video analysis
+    // Call Gemini Vision API for video analysis with base64 data
+    console.log('Calling AI Gateway with video data...');
+    
     const response = await fetch('https://ai-gateway.internal/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -205,7 +250,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
               {
                 type: 'image_url',
                 image_url: {
-                  url: videoUrl
+                  url: `data:${mimeType};base64,${videoBase64}`
                 }
               }
             ]
@@ -225,6 +270,9 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
       }
       if (response.status === 402) {
         throw new Error('Crédits IA insuffisants. Veuillez recharger votre compte.');
+      }
+      if (response.status === 413) {
+        throw new Error('Vidéo trop volumineuse. Essayez une vidéo plus courte ou de plus basse résolution.');
       }
       throw new Error(`Erreur d'analyse: ${response.status}`);
     }
@@ -253,120 +301,152 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
       if (jsonStr.endsWith('```')) {
         jsonStr = jsonStr.slice(0, -3);
       }
-      
       jsonStr = jsonStr.trim();
+      
       analysis = JSON.parse(jsonStr);
-      
-      // Validate required fields and add defaults if missing
-      analysis = {
-        summary: analysis.summary || "Analyse du combat en cours...",
-        duration_estimate: analysis.duration_estimate || "N/A",
-        duration_seconds: analysis.duration_seconds || 300,
-        fighters: analysis.fighters || [
-          { identifier: "Combattant 1", style: "Non identifié", strengths: [], weaknesses: [], corner: "red" },
-          { identifier: "Combattant 2", style: "Non identifié", strengths: [], weaknesses: [], corner: "blue" }
-        ],
-        statistics: analysis.statistics || {
-          fighter_1: {
-            punches_thrown: 0, punches_landed: 0, kicks_thrown: 0, kicks_landed: 0,
-            takedowns_attempted: 0, takedowns_successful: 0, submissions_attempted: 0,
-            clinch_time_percent: 0, ground_time_percent: 0, significant_strikes: 0,
-            head_strikes: 0, body_strikes: 0, leg_strikes: 0, defense_rate: 70
-          },
-          fighter_2: {
-            punches_thrown: 0, punches_landed: 0, kicks_thrown: 0, kicks_landed: 0,
-            takedowns_attempted: 0, takedowns_successful: 0, submissions_attempted: 0,
-            clinch_time_percent: 0, ground_time_percent: 0, significant_strikes: 0,
-            head_strikes: 0, body_strikes: 0, leg_strikes: 0, defense_rate: 70
-          }
-        },
-        key_moments: analysis.key_moments || [],
-        rounds: analysis.rounds || [],
-        techniques_observed: analysis.techniques_observed || [],
-        recommendations: analysis.recommendations || { fighter_1: [], fighter_2: [] },
-        overall_analysis: analysis.overall_analysis || "",
-        performance_scores: analysis.performance_scores || {
-          fighter_1: { overall: 70, striking: 70, grappling: 70, defense: 70, cardio: 70 },
-          fighter_2: { overall: 70, striking: 70, grappling: 70, defense: 70, cardio: 70 }
-        }
-      };
-      
       console.log('Analysis parsed successfully');
-      
     } catch (parseError) {
-      console.error('Failed to parse JSON:', parseError);
-      console.error('Raw text:', analysisText.substring(0, 500));
+      console.error('Failed to parse analysis as JSON:', parseError);
+      console.log('Raw text (first 500 chars):', analysisText.substring(0, 500));
       
-      // Return a fallback analysis with the raw text
+      // Create a fallback analysis
       analysis = {
         summary: analysisText.substring(0, 500),
-        duration_estimate: "N/A",
-        duration_seconds: 300,
+        duration_estimate: "Non déterminé",
+        duration_seconds: 0,
         fighters: [
-          { identifier: "Combattant 1", style: "Analyse en cours", strengths: [], weaknesses: [], corner: "red" },
-          { identifier: "Combattant 2", style: "Analyse en cours", strengths: [], weaknesses: [], corner: "blue" }
+          {
+            identifier: "Combattant 1",
+            style: "Non déterminé",
+            strengths: ["À analyser"],
+            weaknesses: ["À analyser"],
+            corner: "red"
+          },
+          {
+            identifier: "Combattant 2", 
+            style: "Non déterminé",
+            strengths: ["À analyser"],
+            weaknesses: ["À analyser"],
+            corner: "blue"
+          }
         ],
         statistics: {
           fighter_1: {
-            punches_thrown: 30, punches_landed: 18, kicks_thrown: 10, kicks_landed: 6,
-            takedowns_attempted: 2, takedowns_successful: 1, submissions_attempted: 0,
-            clinch_time_percent: 15, ground_time_percent: 10, significant_strikes: 15,
-            head_strikes: 10, body_strikes: 5, leg_strikes: 3, defense_rate: 65
+            punches_thrown: 0,
+            punches_landed: 0,
+            kicks_thrown: 0,
+            kicks_landed: 0,
+            takedowns_attempted: 0,
+            takedowns_successful: 0,
+            submissions_attempted: 0,
+            clinch_time_percent: 0,
+            ground_time_percent: 0,
+            significant_strikes: 0,
+            head_strikes: 0,
+            body_strikes: 0,
+            leg_strikes: 0,
+            defense_rate: 0
           },
           fighter_2: {
-            punches_thrown: 35, punches_landed: 15, kicks_thrown: 8, kicks_landed: 4,
-            takedowns_attempted: 3, takedowns_successful: 2, submissions_attempted: 1,
-            clinch_time_percent: 20, ground_time_percent: 15, significant_strikes: 12,
-            head_strikes: 8, body_strikes: 4, leg_strikes: 3, defense_rate: 60
+            punches_thrown: 0,
+            punches_landed: 0,
+            kicks_thrown: 0,
+            kicks_landed: 0,
+            takedowns_attempted: 0,
+            takedowns_successful: 0,
+            submissions_attempted: 0,
+            clinch_time_percent: 0,
+            ground_time_percent: 0,
+            significant_strikes: 0,
+            head_strikes: 0,
+            body_strikes: 0,
+            leg_strikes: 0,
+            defense_rate: 0
           }
         },
-        key_moments: [
-          { timestamp: "1:00", timestamp_seconds: 60, type: "strike", description: "Échange intense", fighter: "Combattant 1", significance: "medium" }
-        ],
+        key_moments: [],
         rounds: [],
         techniques_observed: [],
         recommendations: {
-          fighter_1: ["Continuer à travailler la technique"],
-          fighter_2: ["Améliorer la défense"]
+          fighter_1: ["Analyse manuelle recommandée"],
+          fighter_2: ["Analyse manuelle recommandée"]
         },
-        overall_analysis: "Analyse partielle - veuillez réessayer pour une analyse complète.",
+        overall_analysis: "L'analyse n'a pas pu être générée correctement. Veuillez réessayer avec une vidéo plus claire.",
         performance_scores: {
-          fighter_1: { overall: 70, striking: 70, grappling: 70, defense: 65, cardio: 75 },
-          fighter_2: { overall: 68, striking: 65, grappling: 72, defense: 60, cardio: 70 }
+          fighter_1: {
+            overall: 50,
+            striking: 50,
+            grappling: 50,
+            defense: 50,
+            cardio: 50,
+            technique: 50,
+            ring_control: 50,
+            aggression: 50
+          },
+          fighter_2: {
+            overall: 50,
+            striking: 50,
+            grappling: 50,
+            defense: 50,
+            cardio: 50,
+            technique: 50,
+            ring_control: 50,
+            aggression: 50
+          }
         },
-        raw_response: true,
-        parse_error: 'Could not parse structured analysis'
+        body_strike_distribution: {
+          fighter_1: { head: 33, body: 33, legs: 34 },
+          fighter_2: { head: 33, body: 33, legs: 34 }
+        }
       };
     }
 
-    // Update the analysis in database
+    // Update the database with the analysis
     if (analysisId) {
       const { error: updateError } = await supabase
         .from('sparring_analyses')
         .update({ 
-          analysis,
-          status: 'completed'
+          analysis: analysis,
+          status: 'completed',
+          updated_at: new Date().toISOString()
         })
         .eq('id', analysisId);
 
       if (updateError) {
         console.error('Error updating analysis:', updateError);
+      } else {
+        console.log('Analysis saved to database');
       }
     }
 
-    return new Response(JSON.stringify({ success: true, analysis }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        analysis 
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
 
   } catch (error) {
     console.error('Error in analyze-sparring:', error);
     
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { 
+        status: 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
   }
 });
