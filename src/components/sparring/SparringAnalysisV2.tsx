@@ -403,6 +403,7 @@ export const SparringAnalysisV2 = () => {
   
   // États
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [currentAnalysis, setCurrentAnalysis] = useState<SparringAnalysisData | null>(null);
@@ -494,7 +495,18 @@ export const SparringAnalysisV2 = () => {
     }
 
     setUploading(true);
+    setUploadProgress(0);
     toast.info('📤 Upload de la vidéo en cours...');
+
+    // Simuler la progression de l'upload pour le feedback utilisateur
+    const fileSizeMB = file.size / (1024 * 1024);
+    const estimatedSeconds = Math.max(5, fileSizeMB / 2); // ~2MB/s estimation
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + (90 / (estimatedSeconds * 10));
+      });
+    }, 100);
 
     try {
       // Upload vers Supabase Storage
@@ -503,7 +515,14 @@ export const SparringAnalysisV2 = () => {
         .from('sparring-videos')
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      clearInterval(progressInterval);
+      
+      if (uploadError) {
+        setUploadProgress(0);
+        throw uploadError;
+      }
+      
+      setUploadProgress(100);
 
       // Obtenir l'URL publique
       const { data: urlData } = supabase.storage
@@ -629,7 +648,7 @@ export const SparringAnalysisV2 = () => {
           htmlFor="video-upload-v2" 
           className="cursor-pointer flex flex-col items-center gap-4"
         >
-          {uploading ? (
+        {uploading ? (
             <>
               <div className="relative">
                 <div className="w-20 h-20 rounded-full border-4 border-primary/30 animate-pulse" />
@@ -637,7 +656,8 @@ export const SparringAnalysisV2 = () => {
               </div>
               <div className="space-y-2">
                 <span className="text-lg font-medium">Upload en cours...</span>
-                <Progress value={33} className="w-48 mx-auto" />
+                <Progress value={uploadProgress} className="w-48 mx-auto" />
+                <p className="text-xs text-muted-foreground">{Math.round(uploadProgress)}% - Veuillez patienter</p>
               </div>
             </>
           ) : analyzing ? (
