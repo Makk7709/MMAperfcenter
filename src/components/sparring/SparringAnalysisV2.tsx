@@ -489,8 +489,10 @@ export const SparringAnalysisV2 = () => {
       return;
     }
 
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error('Fichier trop volumineux. Maximum 100MB.');
+    // Edge functions have memory limits - max 20MB for video analysis
+    const maxSizeMB = 20;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${maxSizeMB}MB. Compressez votre vidéo ou réduisez la résolution.`);
       return;
     }
 

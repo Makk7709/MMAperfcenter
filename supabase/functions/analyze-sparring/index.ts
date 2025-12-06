@@ -37,18 +37,6 @@ serve(async (req) => {
     }
 
     console.log('Analyzing sparring video:', videoUrl);
-    console.log('Downloading video for analysis...');
-
-    // Download video and convert to base64
-    const videoResponse = await fetch(videoUrl);
-    if (!videoResponse.ok) {
-      throw new Error(`Failed to download video: ${videoResponse.status}`);
-    }
-
-    const videoBuffer = await videoResponse.arrayBuffer();
-    const videoBase64 = btoa(
-      new Uint8Array(videoBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
     
     // Determine mime type from URL
     let mimeType = 'video/mp4';
@@ -61,7 +49,10 @@ serve(async (req) => {
       mimeType = 'video/x-msvideo';
     }
 
-    console.log(`Video downloaded: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)} MB, mime: ${mimeType}`);
+    // Use the video URL directly instead of downloading to avoid memory limits
+    // Gemini can fetch from public URLs
+    console.log('Sending video URL to AI for analysis...');
+    console.log(`Video URL: ${videoUrl}, mime: ${mimeType}`);
 
     // Système de prompt amélioré pour des analyses plus riches
     const systemPrompt = `Tu es un expert en analyse de combat MMA, boxe et arts martiaux avec 20 ans d'expérience en coaching. 
@@ -250,7 +241,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:${mimeType};base64,${videoBase64}`
+                  url: videoUrl
                 }
               }
             ]
