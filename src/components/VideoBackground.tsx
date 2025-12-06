@@ -39,8 +39,8 @@ export function VideoBackground({ freezeAt = 9 }: VideoBackgroundProps) {
         playsInline
         preload="auto"
       />
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-background/70" />
+      {/* Subtle dark overlay for readability */}
+      <div className="absolute inset-0 bg-background/50" />
     </div>
   );
 }
