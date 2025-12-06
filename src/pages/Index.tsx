@@ -41,22 +41,16 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <DashboardHeader userName={userName} isPremium={isPremium} onSignOut={handleSignOut} />
       
       {/* MMA News Banner */}
       <MMANewsBanner />
       
-      {/* Hero Section - Premium Black & Gold */}
+      {/* Hero Section - Uses video background, no additional image needed */}
       <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
-        <div className="absolute inset-0 bg-gradient-hero" />
-        <div className="absolute inset-0 bg-gradient-gold-accent opacity-30" />
-        <img 
-          src={heroImage} 
-          alt="MMA Fighter Training" 
-          className="absolute inset-0 w-full h-full object-cover object-center opacity-30"
-        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background" />
         
         {/* Gold accent line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary" />
