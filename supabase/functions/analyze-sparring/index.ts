@@ -7,24 +7,28 @@ const corsHeaders = {
 };
 
 // ============================================
-// RETRY WITH EXPONENTIAL BACKOFF
+// CONFIGURATION
 // ============================================
 
-interface RetryOptions {
-  maxRetries: number;
-  initialDelayMs: number;
-  backoffMultiplier: number;
-  maxDelayMs: number;
-  retryableStatuses: number[];
-}
+const AI_CONFIG = {
+  model: 'google/gemini-2.5-flash',
+  maxTokens: 5000,
+  temperature: 0.2, // Low temperature for consistent JSON output
+  maxFrames: 16,
+  apiUrl: 'https://ai-gateway.internal/v1/chat/completions',
+};
 
-const defaultRetryOptions: RetryOptions = {
+const RETRY_CONFIG = {
   maxRetries: 3,
-  initialDelayMs: 1000,
+  initialDelayMs: 2000,
   backoffMultiplier: 2,
-  maxDelayMs: 10000,
+  maxDelayMs: 15000,
   retryableStatuses: [429, 500, 502, 503, 504],
 };
+
+// ============================================
+// RETRY LOGIC
+// ============================================
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -32,50 +36,43 @@ function sleep(ms: number): Promise<void> {
 
 async function fetchWithRetry(
   url: string,
-  init: RequestInit,
-  options: Partial<RetryOptions> = {}
+  init: RequestInit
 ): Promise<Response> {
-  const config = { ...defaultRetryOptions, ...options };
   let lastError: Error | null = null;
-  let delay = config.initialDelayMs;
+  let delay = RETRY_CONFIG.initialDelayMs;
 
-  for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
     try {
-      console.log(`🔄 AI API call attempt ${attempt}/${config.maxRetries}`);
+      console.log(`🔄 AI call attempt ${attempt}/${RETRY_CONFIG.maxRetries}`);
       const startTime = Date.now();
       
       const response = await fetch(url, init);
       const elapsed = Date.now() - startTime;
       console.log(`   Response: ${response.status} in ${elapsed}ms`);
 
-      // Success or non-retryable error
-      if (response.ok || !config.retryableStatuses.includes(response.status)) {
+      if (response.ok || !RETRY_CONFIG.retryableStatuses.includes(response.status)) {
         return response;
       }
 
-      // Retryable status - get error details
       const errorText = await response.text();
       lastError = new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
       (lastError as any).status = response.status;
 
-      // Check for Retry-After header
       const retryAfter = response.headers.get('Retry-After');
       if (retryAfter) {
-        delay = Math.min(parseInt(retryAfter, 10) * 1000 || delay, config.maxDelayMs);
+        delay = Math.min(parseInt(retryAfter, 10) * 1000 || delay, RETRY_CONFIG.maxDelayMs);
       }
 
-      console.log(`   ⚠️ Retryable error ${response.status}, waiting ${delay}ms before retry...`);
+      console.log(`   ⚠️ Retry in ${delay}ms...`);
 
     } catch (error) {
-      // Network error
       lastError = error instanceof Error ? error : new Error(String(error));
       console.log(`   ❌ Network error: ${lastError.message}`);
     }
 
-    // Don't wait after the last attempt
-    if (attempt < config.maxRetries) {
+    if (attempt < RETRY_CONFIG.maxRetries) {
       await sleep(delay);
-      delay = Math.min(delay * config.backoffMultiplier, config.maxDelayMs);
+      delay = Math.min(delay * RETRY_CONFIG.backoffMultiplier, RETRY_CONFIG.maxDelayMs);
     }
   }
 
@@ -83,29 +80,227 @@ async function fetchWithRetry(
 }
 
 // ============================================
-// UPDATE STATUS HELPER
+// PROMPT GENERATION
 // ============================================
 
-async function updateAnalysisStatus(
-  supabase: ReturnType<typeof createClient>,
-  analysisId: string,
-  status: 'pending' | 'processing' | 'completed' | 'error',
-  retryInfo?: { attempt: number; maxRetries: number; nextRetryIn?: number }
-) {
-  const updateData: Record<string, any> = { 
-    status,
-    updated_at: new Date().toISOString()
-  };
+function createSystemPrompt(frameCount: number, totalDuration: number): string {
+  const minutes = Math.floor(totalDuration / 60);
+  const seconds = Math.round(totalDuration % 60);
+  const durationStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  const intervalSeconds = Math.round(totalDuration / frameCount);
   
-  if (retryInfo) {
-    updateData.retry_info = retryInfo;
+  return `Tu es un ANALYSTE DE COMBAT PROFESSIONNEL avec 20 ans d'expérience dans l'analyse vidéo pour l'UFC.
+
+CONTEXTE:
+- ${frameCount} images extraites d'un sparring
+- Durée: ${durationStr} (${Math.round(totalDuration)}s)
+- Intervalle: ~${intervalSeconds}s entre chaque image
+
+RÈGLES:
+1. Retourne UNIQUEMENT du JSON valide
+2. JAMAIS de markdown (\`\`\`) ou texte autour
+3. Scores entre 0-100, statistiques >= 0
+4. Sois RÉALISTE basé sur ce que tu VOIS`;
+}
+
+function createUserPrompt(frameCount: number, totalDuration: number): string {
+  const minutes = Math.floor(totalDuration / 60);
+  const seconds = Math.round(totalDuration % 60);
+  const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  
+  return `Analyse ces ${frameCount} images et retourne CE JSON EXACT:
+
+{
+  "summary": "Description 2-3 phrases",
+  "duration_estimate": "${durationEstimate}",
+  "duration_seconds": ${Math.round(totalDuration)},
+  "fighters": [
+    {"identifier": "Description combattant 1", "style": "Son style", "strengths": ["Force 1", "Force 2"], "weaknesses": ["Faiblesse"], "corner": "red"},
+    {"identifier": "Description combattant 2", "style": "Son style", "strengths": ["Force 1", "Force 2"], "weaknesses": ["Faiblesse"], "corner": "blue"}
+  ],
+  "statistics": {
+    "fighter_1": {"punches_thrown": 0, "punches_landed": 0, "kicks_thrown": 0, "kicks_landed": 0, "takedowns_attempted": 0, "takedowns_successful": 0, "significant_strikes": 0, "head_strikes": 0, "body_strikes": 0, "leg_strikes": 0, "defense_rate": 50},
+    "fighter_2": {"punches_thrown": 0, "punches_landed": 0, "kicks_thrown": 0, "kicks_landed": 0, "takedowns_attempted": 0, "takedowns_successful": 0, "significant_strikes": 0, "head_strikes": 0, "body_strikes": 0, "leg_strikes": 0, "defense_rate": 50}
+  },
+  "key_moments": [{"timestamp": "0:00", "timestamp_seconds": 0, "type": "strike", "description": "Action", "fighter": "Combattant", "significance": "medium"}],
+  "rounds": [{"number": 1, "winner_suggestion": "Combattant ou Draw", "key_events": ["Event"]}],
+  "techniques_observed": [{"technique": "Nom", "fighter": "Combattant", "execution": "Bien/À améliorer/Excellent"}],
+  "recommendations": {"fighter_1": ["Conseil 1", "Conseil 2"], "fighter_2": ["Conseil 1", "Conseil 2"]},
+  "overall_analysis": "Analyse tactique complète",
+  "performance_scores": {
+    "fighter_1": {"overall": 50, "striking": 50, "grappling": 50, "defense": 50, "cardio": 50, "technique": 50},
+    "fighter_2": {"overall": 50, "striking": 50, "grappling": 50, "defense": 50, "cardio": 50, "technique": 50}
+  }
+}
+
+Remplace les valeurs par ton analyse. JSON UNIQUEMENT.`;
+}
+
+// ============================================
+// JSON PARSING & VALIDATION
+// ============================================
+
+function parseAIResponse(text: string): unknown {
+  let jsonStr = text.trim();
+  
+  // Remove markdown code blocks
+  if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
+  else if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
+  if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
+  jsonStr = jsonStr.trim();
+  
+  // Try to find JSON object if there's extra text
+  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[0];
   }
   
-  await supabase
-    .from('sparring_analyses')
-    .update(updateData)
-    .eq('id', analysisId);
+  return JSON.parse(jsonStr);
 }
+
+function clampScore(value: unknown, defaultValue = 50): number {
+  if (typeof value !== 'number' || isNaN(value)) return defaultValue;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function clampStat(value: unknown, defaultValue = 0): number {
+  if (typeof value !== 'number' || isNaN(value)) return defaultValue;
+  return Math.max(0, Math.round(value));
+}
+
+function validateStatistics(stats: any) {
+  return {
+    punches_thrown: clampStat(stats?.punches_thrown),
+    punches_landed: clampStat(stats?.punches_landed),
+    kicks_thrown: clampStat(stats?.kicks_thrown),
+    kicks_landed: clampStat(stats?.kicks_landed),
+    takedowns_attempted: clampStat(stats?.takedowns_attempted),
+    takedowns_successful: clampStat(stats?.takedowns_successful),
+    significant_strikes: clampStat(stats?.significant_strikes),
+    head_strikes: clampStat(stats?.head_strikes),
+    body_strikes: clampStat(stats?.body_strikes),
+    leg_strikes: clampStat(stats?.leg_strikes),
+    defense_rate: clampScore(stats?.defense_rate, 50),
+  };
+}
+
+function validateScores(scores: any) {
+  return {
+    overall: clampScore(scores?.overall),
+    striking: clampScore(scores?.striking),
+    grappling: clampScore(scores?.grappling),
+    defense: clampScore(scores?.defense),
+    cardio: clampScore(scores?.cardio),
+    technique: clampScore(scores?.technique),
+  };
+}
+
+function validateAnalysis(data: any, totalDuration: number) {
+  const minutes = Math.floor(totalDuration / 60);
+  const seconds = Math.round(totalDuration % 60);
+  const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  
+  // Ensure fighters array has exactly 2 items
+  const fighters = Array.isArray(data?.fighters) ? data.fighters.slice(0, 2) : [];
+  while (fighters.length < 2) {
+    fighters.push({
+      identifier: `Combattant ${fighters.length + 1}`,
+      style: 'Non déterminé',
+      strengths: [],
+      weaknesses: [],
+      corner: fighters.length === 0 ? 'red' : 'blue'
+    });
+  }
+  
+  return {
+    summary: typeof data?.summary === 'string' ? data.summary : 'Analyse non disponible',
+    duration_estimate: typeof data?.duration_estimate === 'string' ? data.duration_estimate : durationEstimate,
+    duration_seconds: Math.round(totalDuration),
+    fighters: fighters.map((f: any, i: number) => ({
+      identifier: typeof f?.identifier === 'string' ? f.identifier : `Combattant ${i + 1}`,
+      style: typeof f?.style === 'string' ? f.style : 'Non déterminé',
+      strengths: Array.isArray(f?.strengths) ? f.strengths.filter((s: any) => typeof s === 'string') : [],
+      weaknesses: Array.isArray(f?.weaknesses) ? f.weaknesses.filter((s: any) => typeof s === 'string') : [],
+      corner: f?.corner === 'blue' ? 'blue' : (i === 0 ? 'red' : 'blue'),
+    })),
+    statistics: {
+      fighter_1: validateStatistics(data?.statistics?.fighter_1),
+      fighter_2: validateStatistics(data?.statistics?.fighter_2),
+    },
+    key_moments: Array.isArray(data?.key_moments) 
+      ? data.key_moments.filter((m: any) => m?.description).map((m: any) => ({
+          timestamp: typeof m.timestamp === 'string' ? m.timestamp : '0:00',
+          timestamp_seconds: typeof m.timestamp_seconds === 'number' ? Math.max(0, m.timestamp_seconds) : 0,
+          type: ['strike', 'takedown', 'submission', 'defense', 'knockdown', 'position'].includes(m.type) ? m.type : 'strike',
+          description: m.description,
+          fighter: typeof m.fighter === 'string' ? m.fighter : 'Inconnu',
+          significance: ['low', 'medium', 'high'].includes(m.significance) ? m.significance : 'medium',
+        }))
+      : [],
+    rounds: Array.isArray(data?.rounds) && data.rounds.length > 0
+      ? data.rounds.map((r: any) => ({
+          number: typeof r?.number === 'number' ? r.number : 1,
+          winner_suggestion: typeof r?.winner_suggestion === 'string' ? r.winner_suggestion : 'Indéterminé',
+          key_events: Array.isArray(r?.key_events) ? r.key_events.filter((e: any) => typeof e === 'string') : [],
+        }))
+      : [{ number: 1, winner_suggestion: 'Indéterminé', key_events: [] }],
+    techniques_observed: Array.isArray(data?.techniques_observed)
+      ? data.techniques_observed.filter((t: any) => t?.technique).map((t: any) => ({
+          technique: t.technique,
+          fighter: typeof t.fighter === 'string' ? t.fighter : 'Inconnu',
+          execution: typeof t.execution === 'string' ? t.execution : 'Non évalué',
+        }))
+      : [],
+    recommendations: {
+      fighter_1: Array.isArray(data?.recommendations?.fighter_1) 
+        ? data.recommendations.fighter_1.filter((r: any) => typeof r === 'string')
+        : ['Continuez à travailler vos fondamentaux'],
+      fighter_2: Array.isArray(data?.recommendations?.fighter_2)
+        ? data.recommendations.fighter_2.filter((r: any) => typeof r === 'string')
+        : ['Continuez à travailler vos fondamentaux'],
+    },
+    overall_analysis: typeof data?.overall_analysis === 'string' ? data.overall_analysis : 'Analyse détaillée non disponible.',
+    performance_scores: {
+      fighter_1: validateScores(data?.performance_scores?.fighter_1),
+      fighter_2: validateScores(data?.performance_scores?.fighter_2),
+    },
+  };
+}
+
+function createFallbackAnalysis(totalDuration: number, errorText?: string) {
+  const minutes = Math.floor(totalDuration / 60);
+  const seconds = Math.round(totalDuration % 60);
+  
+  return {
+    summary: errorText?.substring(0, 300) || "L'analyse n'a pas pu être générée. Réessayez avec une vidéo plus claire.",
+    duration_estimate: `${minutes}:${String(seconds).padStart(2, '0')}`,
+    duration_seconds: Math.round(totalDuration),
+    fighters: [
+      { identifier: 'Combattant 1', style: 'Non déterminé', strengths: [], weaknesses: [], corner: 'red' },
+      { identifier: 'Combattant 2', style: 'Non déterminé', strengths: [], weaknesses: [], corner: 'blue' },
+    ],
+    statistics: {
+      fighter_1: validateStatistics(null),
+      fighter_2: validateStatistics(null),
+    },
+    key_moments: [],
+    rounds: [{ number: 1, winner_suggestion: 'Indéterminé', key_events: [] }],
+    techniques_observed: [],
+    recommendations: {
+      fighter_1: ['Réessayez avec une vidéo de meilleure qualité'],
+      fighter_2: ['Réessayez avec une vidéo de meilleure qualité'],
+    },
+    overall_analysis: "L'analyse automatique n'a pas pu être complétée.",
+    performance_scores: {
+      fighter_1: validateScores(null),
+      fighter_2: validateScores(null),
+    },
+  };
+}
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -121,198 +316,73 @@ serve(async (req) => {
     
     // Input validation
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
-      throw new Error('Video frames are required');
+      throw new Error('Video frames required');
     }
-
     if (frames.length < 3) {
-      throw new Error('Au moins 3 frames sont nécessaires pour une analyse fiable');
+      throw new Error('Minimum 3 frames requis');
     }
 
     const LEGACY_AI_GATEWAY_KEY = Deno.env.get('LEGACY_AI_GATEWAY_KEY');
     if (!LEGACY_AI_GATEWAY_KEY) {
-      throw new Error('LEGACY_AI_GATEWAY_KEY is not configured');
+      throw new Error('API key not configured');
     }
 
-    // Create Supabase client
+    // Setup Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Update status to processing
+    // Update status
     if (analysisId) {
-      await updateAnalysisStatus(supabase, analysisId, 'processing');
+      await supabase.from('sparring_analyses').update({ status: 'processing' }).eq('id', analysisId);
     }
 
-    console.log(`📹 Analyzing sparring video: ${videoName || 'unknown'}`);
-    console.log(`   Frames: ${frames.length}, Duration: ${Math.round(totalDuration)}s`);
+    console.log(`📹 Analyzing: ${videoName || 'video'} (${frames.length} frames, ${Math.round(totalDuration)}s)`);
 
-    // Limit frames to prevent payload too large
-    const maxFrames = 16; // Optimal for API limits
-    const selectedFrames = frames.length > maxFrames 
-      ? frames.filter((_: any, i: number) => i % Math.ceil(frames.length / maxFrames) === 0).slice(0, maxFrames)
+    // Limit frames
+    const selectedFrames = frames.length > AI_CONFIG.maxFrames
+      ? frames.filter((_: any, i: number) => i % Math.ceil(frames.length / AI_CONFIG.maxFrames) === 0).slice(0, AI_CONFIG.maxFrames)
       : frames;
 
-    // Build image content array
-    const imageContents = selectedFrames.map((frame: { timestamp: number; base64: string }) => ({
+    // Build image contents
+    const imageContents = selectedFrames.map((frame: { base64: string }) => ({
       type: 'image_url',
-      image_url: {
-        url: `data:image/jpeg;base64,${frame.base64}`
-      }
+      image_url: { url: `data:image/jpeg;base64,${frame.base64}` }
     }));
 
     console.log(`   Sending ${imageContents.length} frames to AI...`);
 
-    // Calculate payload size estimate
-    const estimatedPayloadMB = imageContents.reduce((sum, img) => 
-      sum + (img.image_url.url.length * 0.75) / 1024 / 1024, 0);
-    console.log(`   Estimated payload: ${estimatedPayloadMB.toFixed(2)}MB`);
-
-    // System prompt optimisé
-    const systemPrompt = `Tu es un expert en analyse de combat MMA, boxe et arts martiaux avec 20 ans d'expérience en coaching. 
-Tu analyses des séquences d'images extraites d'un sparring comme un coach professionnel de l'UFC.
-
-CONTEXTE: Tu reçois ${selectedFrames.length} images extraites d'une vidéo de sparring d'environ ${Math.round(totalDuration)} secondes.
-
-IMPORTANT: Tu dois retourner UNIQUEMENT un JSON valide, sans texte avant ou après.
-
-Structure JSON requise:
-{
-  "summary": "Résumé professionnel du combat en 3-4 phrases",
-  "duration_estimate": "${Math.floor(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}",
-  "duration_seconds": ${Math.round(totalDuration)},
-  "fighters": [
-    {
-      "identifier": "Combattant ROUGE (description)",
-      "style": "Style de combat dominant",
-      "strengths": ["Force 1", "Force 2", "Force 3"],
-      "weaknesses": ["Faiblesse 1", "Faiblesse 2"],
-      "corner": "red"
-    },
-    {
-      "identifier": "Combattant BLEU (description)",
-      "style": "Style de combat dominant",
-      "strengths": ["Force 1", "Force 2", "Force 3"],
-      "weaknesses": ["Faiblesse 1", "Faiblesse 2"],
-      "corner": "blue"
-    }
-  ],
-  "statistics": {
-    "fighter_1": {
-      "punches_thrown": 0, "punches_landed": 0,
-      "kicks_thrown": 0, "kicks_landed": 0,
-      "takedowns_attempted": 0, "takedowns_successful": 0,
-      "significant_strikes": 0,
-      "head_strikes": 0, "body_strikes": 0, "leg_strikes": 0,
-      "defense_rate": 0
-    },
-    "fighter_2": {
-      "punches_thrown": 0, "punches_landed": 0,
-      "kicks_thrown": 0, "kicks_landed": 0,
-      "takedowns_attempted": 0, "takedowns_successful": 0,
-      "significant_strikes": 0,
-      "head_strikes": 0, "body_strikes": 0, "leg_strikes": 0,
-      "defense_rate": 0
-    }
-  },
-  "key_moments": [
-    {
-      "timestamp": "0:45",
-      "timestamp_seconds": 45,
-      "type": "strike|takedown|submission|defense",
-      "description": "Description de l'action",
-      "fighter": "Combattant ROUGE",
-      "significance": "high|medium|low"
-    }
-  ],
-  "rounds": [
-    {
-      "number": 1,
-      "winner_suggestion": "Combattant ROUGE/BLEU/Draw",
-      "key_events": ["Événement 1", "Événement 2"]
-    }
-  ],
-  "techniques_observed": [
-    {
-      "technique": "Nom technique",
-      "fighter": "Combattant ROUGE",
-      "execution": "Bien exécuté/À améliorer/Excellent"
-    }
-  ],
-  "recommendations": {
-    "fighter_1": ["Conseil 1", "Conseil 2", "Conseil 3"],
-    "fighter_2": ["Conseil 1", "Conseil 2", "Conseil 3"]
-  },
-  "overall_analysis": "Analyse tactique globale",
-  "performance_scores": {
-    "fighter_1": {
-      "overall": 75, "striking": 80, "grappling": 70,
-      "defense": 65, "cardio": 85, "technique": 78
-    },
-    "fighter_2": {
-      "overall": 72, "striking": 75, "grappling": 68,
-      "defense": 70, "cardio": 80, "technique": 74
-    }
-  }
-}
-
-INSTRUCTIONS:
-1. Analyse ATTENTIVEMENT chaque image
-2. Identifie les combattants par apparence (couleur gants/shorts)
-3. Estime les statistiques basées sur les positions visibles
-4. Les scores doivent être entre 0-100, réalistes
-5. RETOURNE UNIQUEMENT LE JSON, SANS MARKDOWN`;
-
-    // Call AI API with retry
-    const response = await fetchWithRetry(
-      'https://ai-gateway.internal/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LEGACY_AI_GATEWAY_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Analyse ces ${selectedFrames.length} images extraites d'un sparring.
-Durée totale: ${Math.round(totalDuration)} secondes.
-Retourne UNIQUEMENT le JSON.`
-                },
-                ...imageContents
-              ]
-            }
-          ],
-          max_tokens: 5000,
-          temperature: 0.3, // Lower temperature for more consistent output
-        }),
+    // Call AI API
+    const response = await fetchWithRetry(AI_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LEGACY_AI_GATEWAY_KEY}`,
+        'Content-Type': 'application/json',
       },
-      {
-        maxRetries: 3,
-        initialDelayMs: 2000,
-        backoffMultiplier: 2,
-        maxDelayMs: 15000,
-      }
-    );
+      body: JSON.stringify({
+        model: AI_CONFIG.model,
+        messages: [
+          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration) },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: createUserPrompt(selectedFrames.length, totalDuration) },
+              ...imageContents
+            ]
+          }
+        ],
+        max_tokens: AI_CONFIG.maxTokens,
+        temperature: AI_CONFIG.temperature,
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI Gateway final error:', response.status, errorText);
+      console.error('AI error:', response.status, errorText);
       
-      if (response.status === 429) {
-        throw new Error('Limite de requêtes atteinte. Réessayez dans 1 minute.');
-      }
-      if (response.status === 402) {
-        throw new Error('Crédits IA insuffisants.');
-      }
-      if (response.status === 413) {
-        throw new Error('Vidéo trop volumineuse. Essayez avec une vidéo plus courte.');
-      }
+      if (response.status === 429) throw new Error('Limite de requêtes. Réessayez dans 1 minute.');
+      if (response.status === 402) throw new Error('Crédits IA insuffisants.');
+      if (response.status === 413) throw new Error('Vidéo trop volumineuse.');
       throw new Error(`Erreur d'analyse: ${response.status}`);
     }
 
@@ -320,48 +390,29 @@ Retourne UNIQUEMENT le JSON.`
     const analysisText = data.choices?.[0]?.message?.content;
 
     if (!analysisText) {
-      throw new Error('Aucune analyse générée par l\'IA');
+      throw new Error('Aucune analyse générée');
     }
 
-    console.log('✅ Analysis received, length:', analysisText.length);
+    console.log('✅ Response received, parsing...');
 
-    // Parse JSON response
+    // Parse and validate
     let analysis;
     try {
-      let jsonStr = analysisText.trim();
-      
-      // Remove markdown code blocks
-      if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
-      else if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
-      if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
-      jsonStr = jsonStr.trim();
-      
-      analysis = JSON.parse(jsonStr);
-      console.log('✅ JSON parsed successfully');
+      const parsed = parseAIResponse(analysisText);
+      analysis = validateAnalysis(parsed, totalDuration);
+      console.log('✅ Analysis validated');
     } catch (parseError) {
-      console.error('❌ JSON parse failed:', parseError);
-      console.log('Raw text (first 300 chars):', analysisText.substring(0, 300));
-      
-      // Fallback analysis
+      console.error('❌ Parse error:', parseError);
       analysis = createFallbackAnalysis(totalDuration, analysisText);
     }
 
     // Save to database
     if (analysisId && supabase) {
-      const { error: updateError } = await supabase
+      await supabase
         .from('sparring_analyses')
-        .update({ 
-          analysis,
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
+        .update({ analysis, status: 'completed', updated_at: new Date().toISOString() })
         .eq('id', analysisId);
-
-      if (updateError) {
-        console.error('DB update error:', updateError);
-      } else {
-        console.log('✅ Analysis saved to database');
-      }
+      console.log('✅ Saved to DB');
     }
 
     return new Response(
@@ -370,9 +421,8 @@ Retourne UNIQUEMENT le JSON.`
     );
 
   } catch (error) {
-    console.error('❌ Error in analyze-sparring:', error);
+    console.error('❌ Error:', error);
     
-    // Update status to error in database
     if (analysisId && supabase) {
       await supabase
         .from('sparring_analyses')
@@ -385,46 +435,8 @@ Retourne UNIQUEMENT le JSON.`
     }
     
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-// ============================================
-// FALLBACK ANALYSIS
-// ============================================
-
-function createFallbackAnalysis(totalDuration: number, rawText: string) {
-  return {
-    summary: rawText.substring(0, 500) || "Analyse non disponible - réessayez avec une vidéo plus claire",
-    duration_estimate: `${Math.floor(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}`,
-    duration_seconds: Math.round(totalDuration),
-    fighters: [
-      { identifier: "Combattant 1", style: "À déterminer", strengths: ["À analyser"], weaknesses: ["À analyser"], corner: "red" },
-      { identifier: "Combattant 2", style: "À déterminer", strengths: ["À analyser"], weaknesses: ["À analyser"], corner: "blue" }
-    ],
-    statistics: {
-      fighter_1: { punches_thrown: 0, punches_landed: 0, kicks_thrown: 0, kicks_landed: 0, significant_strikes: 0, head_strikes: 0, body_strikes: 0, leg_strikes: 0, defense_rate: 50 },
-      fighter_2: { punches_thrown: 0, punches_landed: 0, kicks_thrown: 0, kicks_landed: 0, significant_strikes: 0, head_strikes: 0, body_strikes: 0, leg_strikes: 0, defense_rate: 50 }
-    },
-    key_moments: [],
-    rounds: [{ number: 1, winner_suggestion: "Indéterminé", key_events: [] }],
-    techniques_observed: [],
-    recommendations: {
-      fighter_1: ["Réessayez l'analyse avec une meilleure qualité vidéo"],
-      fighter_2: ["Réessayez l'analyse avec une meilleure qualité vidéo"]
-    },
-    overall_analysis: "L'analyse n'a pas pu être générée correctement. Veuillez réessayer.",
-    performance_scores: {
-      fighter_1: { overall: 50, striking: 50, grappling: 50, defense: 50, cardio: 50, technique: 50 },
-      fighter_2: { overall: 50, striking: 50, grappling: 50, defense: 50, cardio: 50, technique: 50 }
-    }
-  };
-}
