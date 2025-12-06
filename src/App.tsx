@@ -14,6 +14,7 @@ import WorkoutJournal from "./pages/WorkoutJournal";
 import Statistics from "./pages/Statistics";
 import TrainingVideos from "./pages/TrainingVideos";
 import Pricing from "./pages/Pricing";
+import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -164,6 +165,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/legal" element={<Legal />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
