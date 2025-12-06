@@ -87,7 +87,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   
   // Don't render video background while loading
   if (loading) {
@@ -100,7 +100,8 @@ function AppContent() {
   
   return (
     <>
-      {user && <VideoBackground freezeAt={9} />}
+      {/* Video background always visible */}
+      <VideoBackground freezeAt={9} />
       <Routes>
         <Route 
           path="/" 
