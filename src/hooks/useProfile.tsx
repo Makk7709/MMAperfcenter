@@ -26,6 +26,9 @@ export const useProfile = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+    } else {
+      setProfile(null);
+      setLoading(false);
     }
   }, [user]);
 
@@ -36,13 +39,12 @@ export const useProfile = () => {
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      toast.error('Erreur lors du chargement du profil');
     } finally {
       setLoading(false);
     }
