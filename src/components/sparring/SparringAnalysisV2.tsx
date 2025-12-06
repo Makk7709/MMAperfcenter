@@ -39,7 +39,8 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
-  Eye
+  Eye,
+  ImageIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,6 +59,7 @@ import {
 import { SparringPDFExport } from "./SparringPDFExport";
 import { SparringShareDialog } from "./SparringShareDialog";
 import { SparringProgressTracker } from "./SparringProgressTracker";
+import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
 
 // Types améliorés
 interface FighterStats {
@@ -482,17 +484,17 @@ export const SparringAnalysisV2 = () => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    // Validation
+    // Validation - only check format, not size (we extract frames client-side now)
     const validTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
     if (!validTypes.includes(file.type)) {
       toast.error('Format non supporté. Utilisez MP4, MOV, WebM ou AVI.');
       return;
     }
 
-    // Edge functions have memory limits - max 15MB for video analysis
-    const maxSizeMB = 15;
+    // Max 500MB for source video (we only extract frames)
+    const maxSizeMB = 500;
     if (file.size > maxSizeMB * 1024 * 1024) {
-      toast.error(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${maxSizeMB}MB. Compressez votre vidéo ou réduisez la résolution.`);
+      toast.error(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${maxSizeMB}MB.`);
       return;
     }
 
@@ -500,88 +502,41 @@ export const SparringAnalysisV2 = () => {
     setUploadProgress(0);
     
     const fileSizeMB = file.size / (1024 * 1024);
-    console.log(`[Sparring Upload] Starting upload: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
-    toast.info(`📤 Upload de la vidéo (${fileSizeMB.toFixed(1)} MB)...`);
+    console.log(`[Sparring] Starting analysis: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
+    toast.info(`🎬 Extraction des frames de la vidéo...`);
 
     try {
-      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+      // Step 1: Extract frames from video client-side
+      console.log('[Sparring] Extracting frames from video...');
+      setUploadProgress(10);
       
-      // Get user's session token for authenticated upload
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error('Session expirée. Veuillez vous reconnecter.');
-      }
-      
-      // Use XMLHttpRequest for real progress tracking with user's session token
-      const uploadPromise = new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        
-        const supabaseUrl = 'https://vpvfkazmfvxbpffymodg.supabase.co';
-        
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            console.log(`[Sparring Upload] Progress: ${percent}%`);
-            setUploadProgress(percent);
-          }
-        });
-        
-        xhr.addEventListener('load', () => {
-          console.log(`[Sparring Upload] XHR completed with status: ${xhr.status}`);
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              reject(new Error(errorData.message || `Upload failed: ${xhr.status}`));
-            } catch {
-              reject(new Error(`Upload failed with status: ${xhr.status}`));
-            }
-          }
-        });
-        
-        xhr.addEventListener('error', () => {
-          console.error('[Sparring Upload] XHR error event');
-          reject(new Error('Erreur réseau lors de l\'upload'));
-        });
-        
-        xhr.addEventListener('timeout', () => {
-          console.error('[Sparring Upload] XHR timeout');
-          reject(new Error('Timeout: l\'upload a pris trop de temps'));
-        });
-        
-        // Set timeout for large files (5 minutes)
-        xhr.timeout = 5 * 60 * 1000;
-        
-        xhr.open('POST', `${supabaseUrl}/storage/v1/object/sparring-videos/${fileName}`);
-        // Use user's session token instead of anon key
-        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
-        xhr.setRequestHeader('apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg');
-        xhr.setRequestHeader('x-upsert', 'true');
-        
-        xhr.send(file);
+      const extractedFrames = await extractVideoFrames(file, {
+        frameInterval: 2, // Every 2 seconds
+        maxFrames: 20, // Max 20 frames to keep payload reasonable
+        quality: 0.7, // Good quality while keeping size down
+        maxWidth: 1024 // Reduce resolution for API
       });
       
-      await uploadPromise;
-      console.log('[Sparring Upload] Upload completed successfully');
-      setUploadProgress(100);
+      console.log(`[Sparring] Extracted ${extractedFrames.length} frames`);
+      setUploadProgress(40);
+      
+      if (extractedFrames.length < 3) {
+        throw new Error('Vidéo trop courte. Minimum 6 secondes requis.');
+      }
 
-      // Obtenir l'URL publique
-      const { data: urlData } = supabase.storage
-        .from('sparring-videos')
-        .getPublicUrl(fileName);
+      // Format frames for API
+      const { frames, totalDuration } = formatFramesForAPI(extractedFrames);
+      console.log(`[Sparring] Video duration: ${totalDuration}s`);
+      
+      toast.info(`📸 ${extractedFrames.length} frames extraites. Analyse en cours...`);
+      setUploadProgress(50);
 
-      const videoUrl = urlData.publicUrl;
-      setCurrentVideoUrl(videoUrl);
-
-      // Créer l'enregistrement d'analyse
+      // Step 2: Create analysis record
       const { data: analysisRecord, error: recordError } = await supabase
         .from('sparring_analyses')
         .insert({
           user_id: user.id,
-          video_url: videoUrl,
+          video_url: '', // No video upload needed anymore
           video_name: file.name,
           status: 'pending'
         })
@@ -591,16 +546,19 @@ export const SparringAnalysisV2 = () => {
       if (recordError) throw recordError;
 
       const recordId = analysisRecord?.id as string | undefined;
-
+      
       setUploading(false);
       setAnalyzing(true);
-      toast.info('🤖 Analyse IA en cours... Notre IA examine chaque seconde de votre combat.');
-
-      // Lancer l'analyse
+      setUploadProgress(60);
+      
+      // Step 3: Send frames to AI for analysis
+      console.log('[Sparring] Sending frames to AI...');
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-sparring', {
         body: { 
-          videoUrl,
-          analysisId: recordId
+          frames,
+          totalDuration,
+          analysisId: recordId,
+          videoName: file.name
         }
       });
 
@@ -610,6 +568,7 @@ export const SparringAnalysisV2 = () => {
         setCurrentAnalysis(analysisResult.analysis);
         setCurrentAnalysisId(recordId || null);
         setCurrentVideoName(file.name);
+        setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
         setAnalysisProgress(100);
         toast.success('✅ Analyse terminée ! Découvrez vos statistiques de combat.');
         // Refresh previous analyses

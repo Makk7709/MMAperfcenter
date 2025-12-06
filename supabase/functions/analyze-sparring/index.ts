@@ -12,10 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, analysisId } = await req.json();
+    const { frames, analysisId, videoName, totalDuration } = await req.json();
     
-    if (!videoUrl) {
-      throw new Error('Video URL is required');
+    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+      throw new Error('Video frames are required');
     }
 
     const LEGACY_AI_GATEWAY_KEY = Deno.env.get('LEGACY_AI_GATEWAY_KEY');
@@ -36,66 +36,32 @@ serve(async (req) => {
         .eq('id', analysisId);
     }
 
-    console.log('Analyzing sparring video:', videoUrl);
-    
-    // Determine mime type from URL
-    let mimeType = 'video/mp4';
-    const lowerUrl = videoUrl.toLowerCase();
-    if (lowerUrl.includes('.webm')) {
-      mimeType = 'video/webm';
-    } else if (lowerUrl.includes('.mov') || lowerUrl.includes('quicktime')) {
-      mimeType = 'video/quicktime';
-    } else if (lowerUrl.includes('.avi')) {
-      mimeType = 'video/x-msvideo';
-    }
+    console.log(`Analyzing sparring video with ${frames.length} frames, duration: ${totalDuration}s`);
 
-    console.log(`Downloading video for base64 encoding, mime: ${mimeType}`);
-    
-    // Download video and convert to base64
-    // We limit to 15MB to stay within memory constraints
-    const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15MB
-    
-    const videoResponse = await fetch(videoUrl);
-    if (!videoResponse.ok) {
-      throw new Error(`Impossible de télécharger la vidéo: ${videoResponse.status}`);
-    }
-    
-    const contentLength = videoResponse.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > MAX_VIDEO_SIZE) {
-      throw new Error('Vidéo trop volumineuse (max 15MB). Compressez ou raccourcissez la vidéo.');
-    }
-    
-    const videoBuffer = await videoResponse.arrayBuffer();
-    
-    if (videoBuffer.byteLength > MAX_VIDEO_SIZE) {
-      throw new Error('Vidéo trop volumineuse (max 15MB). Compressez ou raccourcissez la vidéo.');
-    }
-    
-    console.log(`Video downloaded: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB`);
-    
-    // Convert to base64
-    const uint8Array = new Uint8Array(videoBuffer);
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    const base64Video = btoa(binary);
-    
-    console.log(`Video encoded to base64, length: ${base64Video.length}`);
+    // Build image content array from frames
+    const imageContents = frames.slice(0, 20).map((frame: { timestamp: number; base64: string }, index: number) => ({
+      type: 'image_url',
+      image_url: {
+        url: `data:image/jpeg;base64,${frame.base64}`
+      }
+    }));
+
+    console.log(`Sending ${imageContents.length} frames to AI for analysis...`);
 
     // Système de prompt amélioré pour des analyses plus riches
     const systemPrompt = `Tu es un expert en analyse de combat MMA, boxe et arts martiaux avec 20 ans d'expérience en coaching. 
-Tu analyses des vidéos de sparring comme un coach professionnel de l'UFC.
+Tu analyses des séquences d'images extraites d'un sparring comme un coach professionnel de l'UFC.
+
+CONTEXTE: Tu reçois ${frames.length} images extraites d'une vidéo de sparring d'environ ${Math.round(totalDuration)} secondes.
+Les images sont espacées d'environ ${Math.round(totalDuration / frames.length)} secondes.
 
 IMPORTANT: Tu dois retourner UNIQUEMENT un JSON valide, sans texte avant ou après.
 
 Structure JSON requise:
 {
   "summary": "Résumé professionnel du combat en 3-4 phrases, mentionnant les styles observés et le déroulement général",
-  "duration_estimate": "Durée estimée (ex: '5:32')",
-  "duration_seconds": 332,
+  "duration_estimate": "${Math.floor(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}",
+  "duration_seconds": ${Math.round(totalDuration)},
   "fighters": [
     {
       "identifier": "Combattant coin ROUGE (description physique: taille, short, etc.)",
@@ -160,7 +126,7 @@ Structure JSON requise:
     {
       "number": 1,
       "start_time": "0:00",
-      "end_time": "3:00",
+      "end_time": "${Math.floor(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}",
       "winner_suggestion": "Combattant ROUGE",
       "key_events": ["Événement clé 1", "Événement clé 2"]
     }
@@ -225,20 +191,19 @@ Structure JSON requise:
 }
 
 INSTRUCTIONS CRITIQUES:
-1. Regarde ATTENTIVEMENT toute la vidéo
+1. Analyse ATTENTIVEMENT chaque image de la séquence
 2. Identifie clairement les deux combattants par leur apparence (couleur des gants, shorts, etc.)
-3. Compte chaque coup porté et reçu avec précision
+3. Estime les statistiques basées sur les positions et mouvements visibles
 4. Évalue les techniques utilisées: jabs, crosses, hooks, uppercuts, kicks, knees, elbows, takedowns
-5. Note les esquives, blocks et parades pour le calcul du defense_rate (en pourcentage)
-6. Identifie les moments clés (KD potentiel, belle combinaison, takedown réussi, soumission tentée)
+5. Note la position défensive, la garde, et le mouvement des combattants
+6. Identifie les moments clés (belle combinaison, takedown, position dominante)
 7. Les scores de performance doivent être entre 0-100, réalistes basés sur ce que tu observes
-8. Pour la défense: esquives, parades, blocks, head movement
-9. Si la vidéo ne permet pas de compter précisément, fais des estimations raisonnables basées sur l'activité visible
+8. Extrapole raisonnablement les statistiques basées sur l'activité visible dans les images
 
 RETOURNE UNIQUEMENT LE JSON, SANS MARKDOWN NI TEXTE SUPPLÉMENTAIRE.`;
 
-    // Call Gemini Vision API for video analysis with base64 data
-    console.log('Calling AI Gateway with base64 video data...');
+    // Call Gemini Vision API for multi-frame analysis
+    console.log('Calling AI Gateway with frame images...');
     
     const response = await fetch('https://ai-gateway.internal/v1/chat/completions', {
       method: 'POST',
@@ -258,10 +223,13 @@ RETOURNE UNIQUEMENT LE JSON, SANS MARKDOWN NI TEXTE SUPPLÉMENTAIRE.`;
             content: [
               {
                 type: 'text',
-                text: `Analyse cette vidéo de sparring de combat (MMA/boxe/kickboxing) en détail comme un coach professionnel.
+                text: `Analyse ces ${frames.length} images extraites d'une vidéo de sparring de combat (MMA/boxe/kickboxing).
+
+Les images sont prises toutes les ${Math.round(totalDuration / frames.length)} secondes environ.
+Durée totale estimée: ${Math.round(totalDuration)} secondes.
 
 Identifie les deux combattants par leur position/apparence.
-Compte les coups (poings, pieds), les takedowns, le temps au sol.
+Estime les statistiques (coups, takedowns, temps au sol) basées sur les positions visibles.
 Évalue la technique, la défense, le cardio de chaque combattant.
 Donne des scores de performance réalistes.
 Identifie les moments clés du combat avec leurs timestamps approximatifs.
@@ -269,12 +237,7 @@ Fournis des recommandations d'entraînement CONCRÈTES et personnalisées.
 
 IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
               },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Video}`
-                }
-              }
+              ...imageContents
             ]
           }
         ],
@@ -294,7 +257,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
         throw new Error('Crédits IA insuffisants. Veuillez recharger votre compte.');
       }
       if (response.status === 413) {
-        throw new Error('Vidéo trop volumineuse. Essayez une vidéo plus courte ou de plus basse résolution.');
+        throw new Error('Données trop volumineuses. Essayez avec moins de frames.');
       }
       throw new Error(`Erreur d'analyse: ${response.status}`);
     }
@@ -334,8 +297,8 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte autour.`
       // Create a fallback analysis
       analysis = {
         summary: analysisText.substring(0, 500),
-        duration_estimate: "Non déterminé",
-        duration_seconds: 0,
+        duration_estimate: `${Math.floor(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}`,
+        duration_seconds: Math.round(totalDuration),
         fighters: [
           {
             identifier: "Combattant 1",
