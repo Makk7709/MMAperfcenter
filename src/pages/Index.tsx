@@ -48,13 +48,13 @@ const Index = () => {
       <MMANewsBanner />
       
       {/* Hero Section - Premium Black & Gold */}
-      <section className="relative overflow-hidden border-b border-border/50 min-h-[500px] max-h-[700px]">
+      <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
         <div className="absolute inset-0 bg-gradient-hero" />
         <div className="absolute inset-0 bg-gradient-gold-accent opacity-30" />
         <img 
           src={heroImage} 
           alt="MMA Fighter Training" 
-          className="absolute inset-0 w-full h-full object-cover object-right-top opacity-30"
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-30"
         />
         
         {/* Gold accent line */}
