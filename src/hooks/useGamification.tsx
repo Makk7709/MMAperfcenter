@@ -83,27 +83,27 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Fetch profile data (total XP, badges, etc.)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('total_xp, unlocked_badges, total_workouts')
-        .eq('id', user.id)
-        .single();
-
-      // Fetch workout dates for streak calculation
+      // Fetch workout data for streak and count calculation
       const { data: workouts } = await supabase
         .from('workouts')
-        .select('date')
+        .select('created_at, status')
         .eq('user_id', user.id)
-        .order('date', { ascending: false })
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
         .limit(100);
 
-      const totalXP = profile?.total_xp || 0;
-      const unlockedBadges = profile?.unlocked_badges || [];
-      const totalWorkouts = profile?.total_workouts || 0;
+      // Calculate totals from workouts
+      const totalWorkouts = workouts?.length || 0;
+      
+      // Use localStorage for XP and badges (no DB columns exist)
+      const storedXP = localStorage.getItem(`gamification_xp_${user.id}`);
+      const storedBadges = localStorage.getItem(`gamification_badges_${user.id}`);
+      
+      const totalXP = storedXP ? parseInt(storedXP, 10) : 0;
+      const unlockedBadges = storedBadges ? JSON.parse(storedBadges) : [];
 
       // Calculate streak from workout dates
-      const workoutDates = workouts?.map(w => w.date) || [];
+      const workoutDates = workouts?.map(w => w.created_at.split('T')[0]) || [];
       const streakDays = calculateStreak(workoutDates);
 
       // Calculate rank
@@ -146,12 +146,9 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     const newRank = calculateRank(newTotalXP);
     const rankChanged = newRank.level > state.currentRank.level;
 
-    // Update in Supabase
+    // Update in localStorage (no DB column for XP)
     try {
-      await supabase
-        .from('profiles')
-        .update({ total_xp: newTotalXP })
-        .eq('id', user.id);
+      localStorage.setItem(`gamification_xp_${user.id}`, newTotalXP.toString());
 
       setState(prev => ({
         ...prev,
@@ -192,10 +189,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
       const newBadgeIds = [...state.unlockedBadges, ...newBadges.map(b => b.id)];
 
       try {
-        await supabase
-          .from('profiles')
-          .update({ unlocked_badges: newBadgeIds })
-          .eq('id', user.id);
+        // Store badges in localStorage (no DB column exists)
+        localStorage.setItem(`gamification_badges_${user.id}`, JSON.stringify(newBadgeIds));
 
         setState(prev => ({
           ...prev,
@@ -223,13 +218,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      // Update total workouts
+      // Update total workouts (count from actual workouts, no need to store separately)
       const newTotalWorkouts = state.totalWorkouts + 1;
-
-      await supabase
-        .from('profiles')
-        .update({ total_workouts: newTotalWorkouts })
-        .eq('id', user.id);
 
       setState(prev => ({
         ...prev,

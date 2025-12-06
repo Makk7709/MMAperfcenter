@@ -311,9 +311,9 @@ describe('PR (Personal Record) Tracking', () => {
 
     it('should filter PRs by exercise name', () => {
       const allPRs = [
-        { exercise: 'Bench Press', weight: 100, reps: 10 },
-        { exercise: 'Squats', weight: 150, reps: 5 },
-        { exercise: 'Bench Press', weight: 110, reps: 8 },
+        { exercise: 'Bench Press', weight: 100, reps: 10, date: '2024-01-01' },
+        { exercise: 'Squats', weight: 150, reps: 5, date: '2024-01-02' },
+        { exercise: 'Bench Press', weight: 110, reps: 8, date: '2024-01-03' },
       ];
       
       const benchPRs = getPRHistory('Bench Press', allPRs);
