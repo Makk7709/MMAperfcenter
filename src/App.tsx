@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { VideoBackground } from "@/components/VideoBackground";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -85,6 +86,99 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppContent() {
+  const { user } = useAuth();
+  
+  return (
+    <>
+      {user && <VideoBackground freezeAt={9} />}
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/auth" 
+          element={
+            <PublicRoute>
+              <Auth />
+            </PublicRoute>
+          } 
+        />
+        <Route 
+          path="/onboarding" 
+          element={
+            <ProtectedRoute requiresOnboarding={false}>
+              <Onboarding />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/history" 
+          element={
+            <ProtectedRoute>
+              <WorkoutHistory />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/journal" 
+          element={
+            <ProtectedRoute>
+              <WorkoutJournal />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/statistics" 
+          element={
+            <ProtectedRoute>
+              <Statistics />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route
+          path="/training-videos"
+          element={
+            <ProtectedRoute>
+              <TrainingVideos />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pricing"
+          element={
+            <ProtectedRoute>
+              <Pricing />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/legal" element={<Legal />} />
+        {/* Admin Routes */}
+        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+        <Route path="/admin/subscriptions" element={<ProtectedRoute><AdminSubscriptions /></ProtectedRoute>} />
+        <Route path="/admin/videos" element={<ProtectedRoute><AdminVideos /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -92,89 +186,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/auth" 
-              element={
-                <PublicRoute>
-                  <Auth />
-                </PublicRoute>
-              } 
-            />
-            <Route 
-              path="/onboarding" 
-              element={
-                <ProtectedRoute requiresOnboarding={false}>
-                  <Onboarding />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/history" 
-              element={
-                <ProtectedRoute>
-                  <WorkoutHistory />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/journal" 
-              element={
-                <ProtectedRoute>
-                  <WorkoutJournal />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/statistics" 
-              element={
-                <ProtectedRoute>
-                  <Statistics />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/training-videos"
-              element={
-                <ProtectedRoute>
-                  <TrainingVideos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/pricing"
-              element={
-                <ProtectedRoute>
-                  <Pricing />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/legal" element={<Legal />} />
-            {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
-            <Route path="/admin/subscriptions" element={<ProtectedRoute><AdminSubscriptions /></ProtectedRoute>} />
-            <Route path="/admin/videos" element={<ProtectedRoute><AdminVideos /></ProtectedRoute>} />
-            <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppContent />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
