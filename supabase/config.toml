@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.fetch-mma-results]
 verify_jwt = false
+
+[functions.analyze-sparring]
+verify_jwt = true
