@@ -2,10 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import WorkoutJournal from "./pages/WorkoutJournal";
@@ -21,10 +23,12 @@ import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+function ProtectedRoute({ children, requiresOnboarding = true }: { children: React.ReactNode; requiresOnboarding?: boolean }) {
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const location = useLocation();
   
-  if (loading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-primary">Chargement...</div>
@@ -34,6 +38,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check if profile needs onboarding (missing critical fields)
+  const needsOnboarding = requiresOnboarding && profile && (
+    !profile.weight || 
+    !profile.height || 
+    !profile.fitness_level || 
+    !profile.martial_arts_discipline ||
+    !profile.goals || 
+    profile.goals.length === 0
+  );
+
+  // Redirect to onboarding if needed and not already on onboarding page
+  if (needsOnboarding && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
   }
   
   return <>{children}</>;
@@ -79,6 +98,14 @@ const App = () => (
                 <PublicRoute>
                   <Auth />
                 </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/onboarding" 
+              element={
+                <ProtectedRoute requiresOnboarding={false}>
+                  <Onboarding />
+                </ProtectedRoute>
               } 
             />
             <Route 
