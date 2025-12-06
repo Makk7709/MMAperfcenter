@@ -101,19 +101,23 @@ export const SparringAnalysis = () => {
   const fetchPreviousAnalyses = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('sparring_analyses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    try {
+      const { data, error } = await supabase
+        .from('sparring_analyses' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-    if (error) {
-      console.error('Error fetching analyses:', error);
-      return;
+      if (error) {
+        console.error('Error fetching analyses:', error);
+        return;
+      }
+
+      setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
+    } catch (err) {
+      console.error('Error fetching analyses:', err);
     }
-
-    setPreviousAnalyses(data as unknown as AnalysisRecord[]);
   };
 
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,7 +158,7 @@ export const SparringAnalysis = () => {
 
       // Create analysis record
       const { data: analysisRecord, error: recordError } = await supabase
-        .from('sparring_analyses')
+        .from('sparring_analyses' as any)
         .insert({
           user_id: user.id,
           video_url: videoUrl,
@@ -174,18 +178,18 @@ export const SparringAnalysis = () => {
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-sparring', {
         body: { 
           videoUrl,
-          analysisId: analysisRecord.id
+          analysisId: (analysisRecord as any)?.id
         }
       });
 
       if (analysisError) throw analysisError;
 
-      if (analysisResult.success) {
+      if (analysisResult?.success) {
         setCurrentAnalysis(analysisResult.analysis);
         toast.success('Analyse terminée !');
         fetchPreviousAnalyses();
       } else {
-        throw new Error(analysisResult.error);
+        throw new Error(analysisResult?.error || 'Erreur d\'analyse');
       }
 
     } catch (error) {
