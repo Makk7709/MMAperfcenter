@@ -115,6 +115,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_usage: {
+        Row: {
+          created_at: string
+          feature_name: string
+          id: string
+          month: string
+          updated_at: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feature_name: string
+          id?: string
+          month?: string
+          updated_at?: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feature_name?: string
+          id?: string
+          month?: string
+          updated_at?: string
+          usage_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       meute_activities: {
         Row: {
           activity_type: string
@@ -901,6 +931,17 @@ export type Database = {
         }
         Returns: string
       }
+      get_feature_limit: {
+        Args: {
+          _feature: string
+          _plan: Database["public"]["Enums"]["subscription_plan"]
+        }
+        Returns: number
+      }
+      get_feature_usage: {
+        Args: { _feature_name: string; _user_id: string }
+        Returns: number
+      }
       has_feature_access: {
         Args: { _feature: string; _user_id: string }
         Returns: boolean
@@ -911,6 +952,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_feature_usage: {
+        Args: { _feature_name: string; _user_id: string }
+        Returns: number
       }
       increment_organization_usage: {
         Args: { count?: number; org_id: string; user_id_param: string }
