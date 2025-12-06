@@ -68,14 +68,30 @@ export interface PRCheckResult {
   previousBest?: { weight: number; reps: number };
 }
 
+export interface PersonalRecord {
+  exerciseId: string;
+  exerciseName: string;
+  value: number;
+  unit: string;
+  previousBest?: number;
+  date: string;
+}
+
 export interface SessionSummary {
+  totalExercises: number;
   totalVolume: number;
+  totalWeight: number;
   totalReps: number;
   totalSets: number;
   duration: number;
   xpEarned: number;
-  wolfTitle: string;
-  newPRs: number;
+  wolfTitle?: string;
+  newPRs?: number;
+  personalRecords: PersonalRecord[];
+  caloriesEstimate: number;
+  intensityScore: number;
+  muscleGroups: string[];
+  badges: string[];
 }
 
 export interface SessionComparison {
@@ -402,20 +418,77 @@ const WOLF_SESSION_TITLES: Record<string, string[]> = {
   default: ['Chasse du Jour', 'Entraînement de Meute', 'Session du Loup'],
 };
 
-export function getWolfSessionTitle(workoutType: string): string {
+export function getWolfSessionTitle(workoutType: string, intensityScore?: number): string {
   const titles = WOLF_SESSION_TITLES[workoutType] || WOLF_SESSION_TITLES.default;
-  return titles[Math.floor(Math.random() * titles.length)];
+  // Use intensity to pick a more epic title for high intensity
+  const index = intensityScore && intensityScore >= 80 
+    ? titles.length - 1 
+    : Math.floor(Math.random() * titles.length);
+  return titles[index];
+}
+
+const MOTIVATIONAL_MESSAGES: Record<string, string[]> = {
+  low: [
+    'Chaque chasse compte. Continue à traquer tes objectifs.',
+    'Le loup se repose pour mieux attaquer demain.',
+    'Les petites victoires construisent les grands prédateurs.',
+  ],
+  medium: [
+    'Belle chasse ! Ta meute est fière de toi.',
+    'Tu marques ton territoire avec force.',
+    'Le loup en toi se réveille !',
+  ],
+  high: [
+    'Chasse légendaire ! Tu es un vrai Alpha !',
+    'La meute tremble devant ta puissance !',
+    'Le Loup Garou sommeille en toi... il s\'éveille !',
+  ],
+};
+
+export function getMotivationalMessage(intensityScore: number): string {
+  let category: string;
+  if (intensityScore >= 80) {
+    category = 'high';
+  } else if (intensityScore >= 50) {
+    category = 'medium';
+  } else {
+    category = 'low';
+  }
+  const messages = MOTIVATIONAL_MESSAGES[category];
+  return messages[Math.floor(Math.random() * messages.length)];
 }
 
 export function generateSessionSummary(session: WorkoutSession): SessionSummary {
+  const totalVolume = calculateTotalVolume(session);
+  const totalReps = calculateTotalReps(session);
+  const totalSets = calculateTotalSets(session);
+  const duration = getSessionDuration(session);
+  
+  // Estimate calories (rough calculation: ~5 kcal per set + volume factor)
+  const caloriesEstimate = Math.round(totalSets * 5 + totalVolume / 100);
+  
+  // Calculate intensity score (0-100) based on volume per minute
+  const volumePerMinute = duration > 0 ? totalVolume / duration : 0;
+  const intensityScore = Math.min(100, Math.round(volumePerMinute / 50 * 100));
+  
+  // Extract muscle groups from exercises
+  const muscleGroups = [...new Set(session.exercises.map(ex => ex.category))];
+  
   return {
-    totalVolume: calculateTotalVolume(session),
-    totalReps: calculateTotalReps(session),
-    totalSets: calculateTotalSets(session),
-    duration: getSessionDuration(session),
+    totalExercises: session.exercises.length,
+    totalVolume,
+    totalWeight: totalVolume,
+    totalReps,
+    totalSets,
+    duration: duration * 60, // Convert to seconds
     xpEarned: session.xpEarned || 0,
-    wolfTitle: getWolfSessionTitle(session.type),
-    newPRs: 0, // Would be calculated from PR tracking
+    wolfTitle: getWolfSessionTitle(session.type, intensityScore),
+    newPRs: 0,
+    personalRecords: [], // Would be populated from PR tracking
+    caloriesEstimate,
+    intensityScore,
+    muscleGroups,
+    badges: [], // Would be populated from badge checking
   };
 }
 
@@ -494,6 +567,7 @@ export default {
   // Summary
   generateSessionSummary,
   getWolfSessionTitle,
+  getMotivationalMessage,
 
   // Comparison
   compareToLastSession,

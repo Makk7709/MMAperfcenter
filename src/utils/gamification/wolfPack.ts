@@ -27,6 +27,7 @@ export interface WolfBadge {
   description: string;
   category: BadgeCategory;
   condition: BadgeCondition;
+  xpReward: number;
 }
 
 export interface WolfSound {
@@ -229,6 +230,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'Tu as hurlé pour la première fois - Premier entraînement',
     category: 'milestone',
     condition: { type: 'totalWorkouts', value: 1 },
+    xpReward: 50,
   },
   {
     id: 'feu_meute',
@@ -237,6 +239,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'La flamme de la meute brûle en toi - 7 jours consécutifs',
     category: 'streak',
     condition: { type: 'streakDays', value: 7 },
+    xpReward: 100,
   },
   {
     id: 'crocs_aceres',
@@ -245,6 +248,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'Tes crocs sont redoutables - 100 coups portés',
     category: 'combat',
     condition: { type: 'totalStrikes', value: 100 },
+    xpReward: 150,
   },
   {
     id: 'sommet_territoire',
@@ -253,6 +257,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'Tu domines ton territoire - Record personnel battu',
     category: 'achievement',
     condition: { type: 'personalRecords', value: 1 },
+    xpReward: 75,
   },
   {
     id: 'nuit_chasse',
@@ -261,6 +266,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'La nuit t\'appartient - Entraînement après 22h',
     category: 'special',
     condition: { type: 'lateNightWorkouts', value: 1 },
+    xpReward: 100,
   },
   {
     id: 'trace_indelebile',
@@ -269,6 +275,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'Ta trace marque le territoire - 30 jours consécutifs',
     category: 'streak',
     condition: { type: 'streakDays', value: 30 },
+    xpReward: 300,
   },
   {
     id: 'predateur',
@@ -277,6 +284,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'La proie ne t\'échappe jamais - 50 entraînements',
     category: 'milestone',
     condition: { type: 'totalWorkouts', value: 50 },
+    xpReward: 250,
   },
   {
     id: 'regard_loup',
@@ -285,6 +293,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'Tu vois ce que les autres ne voient pas - 10 analyses sparring',
     category: 'combat',
     condition: { type: 'sparringAnalyses', value: 10 },
+    xpReward: 200,
   },
   {
     id: 'pleine_lune',
@@ -293,6 +302,7 @@ export const WOLF_BADGES: WolfBadge[] = [
     description: 'La transformation est complète - Rang Loup Garou atteint',
     category: 'achievement',
     condition: { type: 'totalXP', value: 30000 },
+    xpReward: 500,
   },
 ];
 
