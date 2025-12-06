@@ -16,14 +16,35 @@ serve(async (req) => {
 
     // Get user from auth header
     const authHeader = req.headers.get("authorization");
+    
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace("Bearer ", "");
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader! } },
-    });
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Use service role key to verify the user token
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("User not authenticated");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error("User not authenticated:", authError?.message);
+      return new Response(JSON.stringify({ error: "User not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    console.log("User authenticated:", user.id);
 
     // Fetch user profile
     const { data: profile } = await supabase
