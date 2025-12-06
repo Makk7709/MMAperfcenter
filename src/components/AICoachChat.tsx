@@ -37,13 +37,24 @@ export const AICoachChat = () => {
     let assistantContent = "";
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Veuillez vous connecter");
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        toast.error("Erreur de session");
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!session?.access_token) {
+        console.error("No session or access token");
+        toast.error("Veuillez vous reconnecter");
         setIsLoading(false);
         return;
       }
 
+      console.log("Calling ai-coach with token...");
+      
       const response = await fetch(
         `https://vpvfkazmfvxbpffymodg.supabase.co/functions/v1/ai-coach`,
         {
@@ -51,6 +62,7 @@ export const AICoachChat = () => {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg",
           },
           body: JSON.stringify({
             messages: [...messages, userMessage],

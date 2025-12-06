@@ -16,14 +16,32 @@ serve(async (req) => {
 
     // Get user from auth header
     const authHeader = req.headers.get("authorization");
+    console.log("Auth header present:", !!authHeader);
+    
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader! } },
+      global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("User not authenticated");
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log("User fetched:", !!user, "Error:", authError?.message);
+    
+    if (!user) {
+      console.error("User not authenticated:", authError?.message);
+      return new Response(JSON.stringify({ error: "User not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch user profile
     const { data: profile } = await supabase
