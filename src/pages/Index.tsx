@@ -54,7 +54,7 @@ const Index = () => {
         <img 
           src={heroImage} 
           alt="MMA Fighter Training" 
-          className="absolute inset-0 w-full h-full object-cover object-[center_30%] opacity-30"
+          className="absolute inset-0 w-full h-full object-cover object-[70%_25%] md:object-[65%_30%] lg:object-[60%_30%] xl:object-[55%_35%] 2xl:object-[50%_35%] opacity-30"
         />
         
         {/* Gold accent line */}
