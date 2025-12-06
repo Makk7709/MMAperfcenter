@@ -108,44 +108,46 @@ export const SparringProgressTracker = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchAnalyses();
-    }
-  }, [user]);
+    const fetchAnalyses = async () => {
+      if (!user) return;
 
-  const fetchAnalyses = async () => {
-    if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('sparring_analyses')
+          .select('id, video_name, created_at, analysis')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-    try {
-      const { data, error } = await supabase
-        .from('sparring_analyses')
-        .select('id, video_name, created_at, analysis')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      
-      const validAnalyses = (data || []).filter(
-        (a: any) => a.analysis?.performance_scores
-      ) as AnalysisRecord[];
-      
-      setAnalyses(validAnalyses);
-      
-      // Auto-select first two for comparison
-      if (validAnalyses.length >= 2) {
-        setCompareSession1(validAnalyses[0].id);
-        setCompareSession2(validAnalyses[1].id);
-      } else if (validAnalyses.length === 1) {
-        setCompareSession1(validAnalyses[0].id);
+        if (error) throw error;
+        
+        // Filter analyses that have performance scores
+        const validAnalyses = (data || []).filter(
+          (a): a is typeof a & { analysis: NonNullable<typeof a.analysis> } => 
+            a.analysis !== null && 
+            typeof a.analysis === 'object' &&
+            'performance_scores' in (a.analysis as object)
+        ) as unknown as AnalysisRecord[];
+        
+        setAnalyses(validAnalyses);
+        
+        // Auto-select first two for comparison
+        if (validAnalyses.length >= 2) {
+          setCompareSession1(validAnalyses[0].id);
+          setCompareSession2(validAnalyses[1].id);
+        } else if (validAnalyses.length === 1) {
+          setCompareSession1(validAnalyses[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching analyses:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching analyses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchAnalyses();
+  }, [user]);
 
   const getAnalysisById = (id: string | null) => {
     if (!id) return null;

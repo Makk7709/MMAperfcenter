@@ -417,9 +417,25 @@ export const SparringAnalysisV2 = () => {
 
   // Charger les analyses précédentes
   useEffect(() => {
-    if (user) {
-      fetchPreviousAnalyses();
-    }
+    const loadAnalyses = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('sparring_analyses')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
+      } catch (err) {
+        console.error('Error fetching analyses:', err);
+      }
+    };
+
+    loadAnalyses();
   }, [user]);
 
   // Simuler la progression de l'analyse
@@ -459,24 +475,6 @@ export const SparringAnalysisV2 = () => {
       </Card>
     );
   }
-
-  const fetchPreviousAnalyses = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('sparring_analyses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
-    } catch (err) {
-      console.error('Error fetching analyses:', err);
-    }
-  };
 
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -523,10 +521,12 @@ export const SparringAnalysisV2 = () => {
           video_name: file.name,
           status: 'pending'
         })
-        .select()
+        .select('id')
         .single();
 
       if (recordError) throw recordError;
+
+      const recordId = analysisRecord?.id as string | undefined;
 
       setUploading(false);
       setAnalyzing(true);
@@ -536,7 +536,7 @@ export const SparringAnalysisV2 = () => {
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-sparring', {
         body: { 
           videoUrl,
-          analysisId: (analysisRecord as any)?.id
+          analysisId: recordId
         }
       });
 
@@ -544,11 +544,20 @@ export const SparringAnalysisV2 = () => {
 
       if (analysisResult?.success) {
         setCurrentAnalysis(analysisResult.analysis);
-        setCurrentAnalysisId((analysisRecord as any)?.id);
+        setCurrentAnalysisId(recordId || null);
         setCurrentVideoName(file.name);
         setAnalysisProgress(100);
         toast.success('✅ Analyse terminée ! Découvrez vos statistiques de combat.');
-        fetchPreviousAnalyses();
+        // Refresh previous analyses
+        if (user) {
+          const { data } = await supabase
+            .from('sparring_analyses')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+          setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
+        }
       } else {
         throw new Error(analysisResult?.error || 'Erreur d\'analyse');
       }
