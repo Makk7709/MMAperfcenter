@@ -8,8 +8,15 @@ import { RoundTimer } from "@/components/RoundTimer";
 import { MeuteCard } from "@/components/MeuteCard";
 import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
+import { SparringAnalysis } from "@/components/SparringAnalysis";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Brain, 
@@ -25,6 +32,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const isPremium = true;
   const [activeTab, setActiveTab] = useState("nutrition");
+  const [sparringDialogOpen, setSparringDialogOpen] = useState(false);
   const aiCoachRef = useRef<HTMLDivElement>(null);
 
   const scrollToAICoach = () => {
@@ -101,6 +109,7 @@ const Index = () => {
                 variant="outline" 
                 size="lg"
                 className="border-primary/30 hover:bg-primary/10 hover:border-primary/50"
+                onClick={() => setSparringDialogOpen(true)}
               >
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Analyse Combat
@@ -205,6 +214,16 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Sparring Analysis Dialog */}
+      <Dialog open={sparringDialogOpen} onOpenChange={setSparringDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Analyse de Sparring par IA</DialogTitle>
+          </DialogHeader>
+          <SparringAnalysis />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
