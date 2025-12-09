@@ -1349,10 +1349,16 @@ export const SparringAnalysisV2 = () => {
                 <Badge className="bg-primary/20 text-primary border-primary/30">
                   PRO
                 </Badge>
+                <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 font-semibold">
+                  BETA
+                </Badge>
               </CardTitle>
               <CardDescription>
                 Statistiques de combat professionnelles par intelligence artificielle
               </CardDescription>
+              <p className="text-xs text-muted-foreground mt-1 italic">
+                ⚠️ Fonctionnalité en version bêta. Les résultats sont fournis à titre indicatif et peuvent contenir des imprécisions.
+              </p>
             </div>
           </div>
           

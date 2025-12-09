@@ -101,6 +101,9 @@ export const SparringShowcase = () => {
               <Badge variant="outline" className="border-primary/30">
                 Powered by PRISM
               </Badge>
+              <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 font-semibold">
+                BETA
+              </Badge>
               </div>
 
               <h2 className="text-4xl md:text-5xl font-bold leading-tight">
