@@ -28,6 +28,7 @@ export const SparringAnalysisFAB = () => {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium whitespace-nowrap">Analyse IA de Sparring</span>
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-500 rounded">BETA</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">Unique sur le marché</p>
         </div>
@@ -52,8 +53,10 @@ export const SparringAnalysisFAB = () => {
           {/* Icon */}
           <Video className="h-7 w-7 text-primary-foreground relative z-10 group-hover:scale-110 transition-transform" />
           
-          {/* Sparkle effect */}
-          <Sparkles className="absolute top-1 right-1 h-4 w-4 text-primary-foreground/80 animate-pulse" />
+          {/* Beta badge */}
+          <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-500 text-black rounded z-20">
+            BETA
+          </span>
         </Button>
       </div>
 
