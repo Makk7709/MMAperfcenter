@@ -126,7 +126,7 @@ const Index = () => {
             </div>
             
             {/* Wolf Rank Display */}
-            <WolfRankDisplay currentXP={1250} showAnimation />
+            <WolfRankDisplay currentXP={1250} />
 
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
