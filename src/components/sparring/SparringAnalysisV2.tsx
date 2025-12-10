@@ -61,6 +61,7 @@ import { SparringShareDialog } from "./SparringShareDialog";
 import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
 import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
+import { convertToSignedUrl } from "@/utils/storageUtils";
 
 // Types améliorés
 interface FighterStats {
@@ -648,13 +649,20 @@ export const SparringAnalysisV2 = () => {
     }
   };
 
-  const loadAnalysis = (record: AnalysisRecord) => {
+  const loadAnalysis = async (record: AnalysisRecord) => {
     if (record.analysis) {
       setCurrentAnalysis(record.analysis);
-      setCurrentVideoUrl(record.video_url);
       setCurrentAnalysisId(record.id);
       setCurrentVideoName(record.video_name);
       setShowHistory(false);
+      
+      // Convert public URL to signed URL for security (1 hour expiration)
+      if (record.video_url) {
+        const signedUrl = await convertToSignedUrl(record.video_url, 'sparring-videos', 3600);
+        setCurrentVideoUrl(signedUrl);
+      } else {
+        setCurrentVideoUrl(null);
+      }
     }
   };
 
