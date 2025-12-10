@@ -49,21 +49,6 @@ export type Database = {
           },
         ]
       }
-      Document: {
-        Row: {
-          created_at: string
-          id: number
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-        }
-        Update: {
-          created_at?: string
-          id?: number
-        }
-        Relationships: []
-      }
       documents: {
         Row: {
           content: string | null
