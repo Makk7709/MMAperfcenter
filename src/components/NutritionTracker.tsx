@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Apple, Plus, Trash2, Settings, Flame, Camera } from "lucide-react";
+import { Plus, Trash2, Settings, Flame, Camera } from "lucide-react";
 import { useNutrition } from "@/hooks/useNutrition";
 import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
+import { FoodSearchInput } from "@/components/FoodSearchInput";
 import type { NutritionLog } from "@/hooks/useNutrition";
 
 export const NutritionTracker = () => {
@@ -284,12 +285,20 @@ export const NutritionTracker = () => {
               </div>
               <div>
                 <Label>Nom de l'aliment</Label>
-                <Input
+                <FoodSearchInput
                   value={foodName}
-                  onChange={(e) => setFoodName(e.target.value)}
-                  placeholder="Ex: Poulet grillé"
-                  required
+                  onChange={setFoodName}
+                  onFoodSelect={(food) => {
+                    setCalories(food.calories.toString());
+                    setProtein(food.protein.toString());
+                    setCarbs(food.carbs.toString());
+                    setFat(food.fat.toString());
+                  }}
+                  placeholder="Rechercher un aliment..."
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tapez pour rechercher ou saisissez manuellement
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
