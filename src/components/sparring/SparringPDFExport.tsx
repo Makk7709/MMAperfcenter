@@ -224,8 +224,13 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
 
       // Meta row
       doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(140, 140, 140);
-      doc.text(`VIDÉO  ${videoName}`, margin, pageHeight - 32);
+      const videoLabel = `VIDÉO  ${videoName}`;
+      const fitVid = fitText(videoLabel, pageWidth - 2 * margin, 8, 6);
+      doc.setFontSize(fitVid.size);
+      doc.text(fitVid.text, margin, pageHeight - 32);
+      doc.setFontSize(8);
       doc.text(`DURÉE  ${analysis.duration_estimate}`, margin, pageHeight - 26);
       doc.text(`ANALYSÉ LE  ${new Date(analysisDate).toLocaleDateString('fr-FR')}`, margin, pageHeight - 20);
 
