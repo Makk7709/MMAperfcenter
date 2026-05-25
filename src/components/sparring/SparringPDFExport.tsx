@@ -163,14 +163,44 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
       doc.setTextColor(...gold);
       doc.text('COMBATTANTS', margin, cardY + 8);
 
-      doc.setFontSize(16);
+      // Helper: fit text to a max width by shrinking font, then truncating with ellipsis
+      const fitText = (text: string, maxWidth: number, startSize: number, minSize = 10) => {
+        let size = startSize;
+        doc.setFontSize(size);
+        let w = doc.getTextWidth(text);
+        while (w > maxWidth && size > minSize) {
+          size -= 1;
+          doc.setFontSize(size);
+          w = doc.getTextWidth(text);
+        }
+        let out = text;
+        while (doc.getTextWidth(out + '…') > maxWidth && out.length > 4) {
+          out = out.slice(0, -1);
+        }
+        if (out !== text) out = out + '…';
+        return { text: out, size };
+      };
+
+      const vsGap = 18; // reserved width around the centered "VS"
+      const sideMax = (pageWidth - 2 * margin - vsGap * 2) / 2;
+      const f1Name = fighter1?.identifier || 'Combattant 1';
+      const f2Name = fighter2?.identifier || 'Combattant 2';
+      const f1Style = fighter1?.style || 'Style non identifié';
+      const f2Style = fighter2?.style || 'Style non identifié';
+
+      // Fighter 1 left
       doc.setFont('helvetica', 'bold');
+      const fit1 = fitText(f1Name, sideMax, 16, 10);
+      doc.setFontSize(fit1.size);
       doc.setTextColor(255, 255, 255);
-      doc.text(fighter1?.identifier || 'Combattant 1', margin, cardY + 20);
+      doc.text(fit1.text, margin, cardY + 20);
+
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(180, 180, 180);
-      doc.text(fighter1?.style || 'Style non identifié', margin, cardY + 27);
+      const fit1s = fitText(f1Style, sideMax, 9, 7);
+      doc.setFontSize(fit1s.size);
+      doc.text(fit1s.text, margin, cardY + 27);
 
       // VS center
       doc.setFontSize(20);
@@ -179,14 +209,18 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
       doc.text('VS', pageWidth / 2, cardY + 22, { align: 'center' });
 
       // Fighter 2 right
-      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
+      const fit2 = fitText(f2Name, sideMax, 16, 10);
+      doc.setFontSize(fit2.size);
       doc.setTextColor(255, 255, 255);
-      doc.text(fighter2?.identifier || 'Combattant 2', pageWidth - margin, cardY + 20, { align: 'right' });
+      doc.text(fit2.text, pageWidth - margin, cardY + 20, { align: 'right' });
+
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(180, 180, 180);
-      doc.text(fighter2?.style || 'Style non identifié', pageWidth - margin, cardY + 27, { align: 'right' });
+      const fit2s = fitText(f2Style, sideMax, 9, 7);
+      doc.setFontSize(fit2s.size);
+      doc.text(fit2s.text, pageWidth - margin, cardY + 27, { align: 'right' });
 
       // Meta row
       doc.setFontSize(8);
