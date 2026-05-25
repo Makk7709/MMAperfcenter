@@ -92,10 +92,11 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
         trigger={
           <Button
             variant="default"
-            className="h-24 flex-col gap-1.5 p-3 group justify-center w-full cursor-pointer"
+            className="liquid-glass-btn group relative overflow-hidden h-24 flex-col gap-1.5 p-3 justify-center w-full cursor-pointer text-primary-foreground"
           >
-            <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
-            <div className="text-center space-y-0.5">
+            <span className="liquid-glass-shine" aria-hidden="true" />
+            <Icon className="h-6 w-6 relative z-10 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+            <div className="text-center space-y-0.5 relative z-10">
               <p className="text-xs font-bold leading-tight">Workout</p>
               <p className="text-[10px] opacity-80 font-medium leading-tight">Démarrer</p>
             </div>
@@ -104,6 +105,8 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       />
     );
   };
+
+  const yellowVariants = new Set(["default", "fitness"]);
 
   return (
     <Card className="liquid-glass-solid border-0">
@@ -122,15 +125,20 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
             }
 
             const Icon = action.icon;
+            const isYellow = yellowVariants.has(action.variant);
+            const glassClass = isYellow
+              ? "liquid-glass-btn text-primary-foreground"
+              : "liquid-glass-btn-dark";
             return (
               <Button
                 key={index}
                 variant={action.variant}
-                className="h-24 flex-col gap-1.5 p-3 group justify-center"
+                className={`${glassClass} group relative overflow-hidden h-24 flex-col gap-1.5 p-3 justify-center`}
                 onClick={'onClick' in action ? action.onClick : undefined}
               >
-                <Icon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
-                <div className="text-center space-y-0.5">
+                {isYellow && <span className="liquid-glass-shine" aria-hidden="true" />}
+                <Icon className="h-6 w-6 relative z-10 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+                <div className="text-center space-y-0.5 relative z-10">
                   <p className="text-xs font-bold leading-tight">{action.title}</p>
                   <p className="text-[10px] opacity-80 font-medium leading-tight">{action.description}</p>
                 </div>
