@@ -354,10 +354,6 @@ export default function WorkoutHistory() {
                   </Card>
                 );
               })
-                    </CardContent>
-                  </Card>
-                );
-              })
             )}
           </TabsContent>
         </Tabs>
