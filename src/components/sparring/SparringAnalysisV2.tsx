@@ -144,6 +144,12 @@ interface SparringAnalysisData {
       cardio: number;
     };
   };
+  analysis_quality?: {
+    confidence: number;
+    stats_confidence: number;
+    video_quality: 'poor' | 'fair' | 'good' | 'excellent';
+    warnings: string[];
+  };
   raw_response?: boolean;
   error?: string;
 }
