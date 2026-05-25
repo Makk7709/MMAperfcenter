@@ -58,30 +58,50 @@ serve(async (req) => {
 
 PROFIL DU COMBATTANT:`;
 
-    if (profile?.full_name) {
-      systemPrompt += `\n- Nom: ${profile.full_name}`;
-    }
-    if (profile?.age) {
-      systemPrompt += `\n- Âge: ${profile.age} ans`;
-    }
-    if (profile?.weight) {
-      systemPrompt += `\n- Poids: ${profile.weight} kg`;
-    }
-    if (profile?.height) {
-      systemPrompt += `\n- Taille: ${profile.height} cm`;
-    }
-    if (profile?.gender) {
-      systemPrompt += `\n- Genre: ${profile.gender}`;
-    }
-    if (profile?.fitness_level) {
-      systemPrompt += `\n- Niveau de fitness: ${profile.fitness_level}`;
-    }
-    if (profile?.martial_arts_discipline) {
-      systemPrompt += `\n- Discipline: ${profile.martial_arts_discipline}`;
-    }
-    if (profile?.goals && profile.goals.length > 0) {
-      systemPrompt += `\n- Objectifs: ${profile.goals.join(", ")}`;
-    }
+    const p: any = profile || {};
+    const add = (label: string, value: any) => {
+      if (value === null || value === undefined || value === "") return;
+      if (Array.isArray(value) && value.length === 0) return;
+      systemPrompt += `\n- ${label}: ${Array.isArray(value) ? value.join(", ") : value}`;
+    };
+
+    // Identité
+    add("Nom", p.full_name);
+    add("Âge", p.age ? `${p.age} ans` : null);
+    add("Genre", p.gender);
+    add("Latéralité", p.handedness);
+
+    // Physique
+    add("Poids", p.weight ? `${p.weight} kg` : null);
+    add("Taille", p.height ? `${p.height} cm` : null);
+    add("Masse grasse", p.body_fat_percent ? `${p.body_fat_percent}%` : null);
+    add("Tour de taille", p.waist_cm ? `${p.waist_cm} cm` : null);
+    add("Morphotype", p.morphotype);
+    add("Blessures / limitations", p.injuries);
+
+    // Expérience martiale
+    add("Discipline principale", p.martial_arts_discipline);
+    add("Disciplines secondaires", p.secondary_disciplines);
+    add("Niveau global", p.fitness_level);
+    add("Années de pratique", p.years_practice);
+    add("Grade / ceinture", p.belt_rank);
+    add("Niveau compétition", p.competition_level);
+    add("Nombre de combats", p.competitions_count);
+
+    // Objectifs
+    add("Objectifs", p.goals);
+    add("Objectif principal", p.primary_goal);
+    add("Échéance objectif", p.goal_deadline);
+    add("Événement cible", p.target_event);
+
+    // Lifestyle
+    add("Sommeil moyen", p.sleep_hours ? `${p.sleep_hours} h/nuit` : null);
+    add("Niveau de stress", p.stress_level ? `${p.stress_level}/10` : null);
+    add("Disponibilité", p.weekly_availability ? `${p.weekly_availability} séances/semaine` : null);
+    add("Durée préférée d'une séance", p.preferred_session_duration ? `${p.preferred_session_duration} min` : null);
+    add("Lieu d'entraînement", p.training_location);
+    add("Équipement disponible", p.equipment);
+    add("Restrictions alimentaires", p.dietary_restrictions);
 
     systemPrompt += `
 
