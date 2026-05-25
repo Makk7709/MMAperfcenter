@@ -72,250 +72,384 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
 
   const generatePDF = async () => {
     setExporting(true);
-    
+
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
-      let yPosition = margin;
 
-      // Helper functions
-      const addText = (text: string, x: number, y: number, options: { fontSize?: number; fontStyle?: string; color?: [number, number, number] } = {}) => {
-        const { fontSize = 10, fontStyle = 'normal', color = [0, 0, 0] } = options;
-        doc.setFontSize(fontSize);
-        doc.setFont('helvetica', fontStyle);
-        doc.setTextColor(...color);
-        doc.text(text, x, y);
-        return y + fontSize * 0.5;
+      // Palette
+      const gold: [number, number, number] = [212, 175, 55];
+      const goldSoft: [number, number, number] = [232, 200, 100];
+      const ink: [number, number, number] = [28, 28, 32];
+      const darkGray: [number, number, number] = [55, 55, 60];
+      const subtle: [number, number, number] = [120, 120, 128];
+      const red: [number, number, number] = [220, 53, 69];
+      const blue: [number, number, number] = [13, 110, 253];
+      const bgSoft: [number, number, number] = [248, 247, 244];
+
+      const fighter1 = analysis.fighters?.[0];
+      const fighter2 = analysis.fighters?.[1];
+      const scores1 = analysis.performance_scores?.fighter_1;
+      const scores2 = analysis.performance_scores?.fighter_2;
+      const stats1 = analysis.statistics?.fighter_1;
+      const stats2 = analysis.statistics?.fighter_2;
+
+      // ============= COVER PAGE =============
+      doc.setFillColor(15, 15, 18);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      // Top thin gold accent line
+      doc.setFillColor(...gold);
+      doc.rect(0, 0, pageWidth, 2, 'F');
+
+      // Small top label
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...gold);
+      doc.text('PRISM • SPARRING ANALYSIS', margin, 18);
+
+      // Date right-aligned
+      doc.setFontSize(8);
+      doc.setTextColor(180, 180, 180);
+      const coverDate = new Date().toLocaleDateString('fr-FR', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      }).toUpperCase();
+      doc.text(coverDate, pageWidth - margin, 18, { align: 'right' });
+
+      // Brand block — large
+      doc.setFontSize(56);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...gold);
+      doc.text('KOREV', margin, pageHeight / 2 - 30);
+      doc.setTextColor(255, 255, 255);
+      doc.text('AI', margin + 80, pageHeight / 2 - 30);
+
+      // Divider
+      doc.setDrawColor(...gold);
+      doc.setLineWidth(0.8);
+      doc.line(margin, pageHeight / 2 - 18, margin + 30, pageHeight / 2 - 18);
+
+      // Report title
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...goldSoft);
+      doc.text('PERFORMANCE CENTER', margin, pageHeight / 2 - 8);
+
+      doc.setFontSize(28);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Rapport d\'Analyse', margin, pageHeight / 2 + 6);
+      doc.setTextColor(...gold);
+      doc.text('de Sparring', margin, pageHeight / 2 + 18);
+
+      // BETA chip
+      doc.setFillColor(...gold);
+      doc.roundedRect(margin, pageHeight / 2 + 26, 22, 7, 1.5, 1.5, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 15, 18);
+      doc.text('BETA', margin + 11, pageHeight / 2 + 31, { align: 'center' });
+
+      // Fight card (combattants)
+      const cardY = pageHeight - 90;
+      doc.setDrawColor(...gold);
+      doc.setLineWidth(0.3);
+      doc.line(margin, cardY, pageWidth - margin, cardY);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...gold);
+      doc.text('COMBATTANTS', margin, cardY + 8);
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(fighter1?.identifier || 'Combattant 1', margin, cardY + 20);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 180, 180);
+      doc.text(fighter1?.style || 'Style non identifié', margin, cardY + 27);
+
+      // VS center
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...gold);
+      doc.text('VS', pageWidth / 2, cardY + 22, { align: 'center' });
+
+      // Fighter 2 right
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(fighter2?.identifier || 'Combattant 2', pageWidth - margin, cardY + 20, { align: 'right' });
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 180, 180);
+      doc.text(fighter2?.style || 'Style non identifié', pageWidth - margin, cardY + 27, { align: 'right' });
+
+      // Meta row
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+      doc.text(`VIDÉO  ${videoName}`, margin, pageHeight - 32);
+      doc.text(`DURÉE  ${analysis.duration_estimate}`, margin, pageHeight - 26);
+      doc.text(`ANALYSÉ LE  ${new Date(analysisDate).toLocaleDateString('fr-FR')}`, margin, pageHeight - 20);
+
+      // Footer
+      doc.setFillColor(...gold);
+      doc.rect(0, pageHeight - 6, pageWidth, 6, 'F');
+      doc.setFontSize(7);
+      doc.setTextColor(15, 15, 18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CONFIDENTIEL • USAGE PERSONNEL', pageWidth / 2, pageHeight - 2, { align: 'center' });
+
+      // ============= CONTENT PAGES =============
+      doc.addPage();
+      let yPosition = margin + 10;
+
+      // Page header band
+      const drawPageHeader = () => {
+        doc.setFillColor(...gold);
+        doc.rect(0, 0, pageWidth, 1.5, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...gold);
+        doc.text('KOREV AI', margin, 8);
+        doc.setTextColor(...subtle);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Rapport d\'Analyse de Sparring', pageWidth - margin, 8, { align: 'right' });
       };
+      drawPageHeader();
 
-      const addLine = (y: number, color: [number, number, number] = [212, 175, 55]) => {
-        doc.setDrawColor(...color);
-        doc.setLineWidth(0.5);
-        doc.line(margin, y, pageWidth - margin, y);
-        return y + 5;
+      const sectionTitle = (label: string) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...gold);
+        doc.text(label, margin, yPosition);
+        doc.setDrawColor(...gold);
+        doc.setLineWidth(0.4);
+        doc.line(margin, yPosition + 2, margin + 18, yPosition + 2);
+        yPosition += 9;
       };
 
       const checkNewPage = (requiredSpace: number) => {
-        if (yPosition + requiredSpace > pageHeight - margin) {
+        if (yPosition + requiredSpace > pageHeight - 25) {
           doc.addPage();
-          yPosition = margin;
-          return true;
+          drawPageHeader();
+          yPosition = margin + 10;
         }
-        return false;
       };
 
-      // Colors
-      const gold: [number, number, number] = [212, 175, 55];
-      const darkGray: [number, number, number] = [50, 50, 50];
-      const red: [number, number, number] = [220, 53, 69];
-      const blue: [number, number, number] = [13, 110, 253];
-      const green: [number, number, number] = [25, 135, 84];
-
-      // Header Background
-      doc.setFillColor(20, 20, 25);
-      doc.rect(0, 0, pageWidth, 50, 'F');
-
-      // Logo / Title
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...gold);
-      doc.text('KOREV AI', margin, 25);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(255, 255, 255);
-      doc.text('Rapport d\'Analyse de Sparring', margin, 35);
-
-      // Date
-      doc.setFontSize(10);
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth - margin - 70, 35);
-
-      yPosition = 65;
-
-      // Video Info
-      doc.setFillColor(240, 240, 240);
-      doc.roundedRect(margin, yPosition - 5, pageWidth - 2 * margin, 20, 3, 3, 'F');
-      
-      addText(`📹 ${videoName}`, margin + 5, yPosition + 5, { fontSize: 11, fontStyle: 'bold', color: darkGray });
-      addText(`Durée: ${analysis.duration_estimate} | Date d'analyse: ${new Date(analysisDate).toLocaleDateString('fr-FR')}`, margin + 5, yPosition + 12, { fontSize: 9, color: [100, 100, 100] });
-      
-      yPosition += 30;
-
-      // Summary Section
-      addText('RÉSUMÉ DU COMBAT', margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: gold });
-      yPosition += 8;
-      yPosition = addLine(yPosition, gold);
-      
-      const summaryLines = doc.splitTextToSize(analysis.summary, pageWidth - 2 * margin);
+      // SUMMARY
+      sectionTitle('RÉSUMÉ DU COMBAT');
+      const summaryLines = doc.splitTextToSize(analysis.summary || '', pageWidth - 2 * margin);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...darkGray);
       doc.text(summaryLines, margin, yPosition);
       yPosition += summaryLines.length * 5 + 10;
 
-      // Performance Scores
-      checkNewPage(80);
-      addText('SCORES DE PERFORMANCE', margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: gold });
-      yPosition += 8;
-      yPosition = addLine(yPosition, gold);
-
-      const fighter1 = analysis.fighters?.[0];
-      const fighter2 = analysis.fighters?.[1];
-      const scores1 = analysis.performance_scores?.fighter_1;
-      const scores2 = analysis.performance_scores?.fighter_2;
-
+      // PERFORMANCE SCORES with bars
       if (scores1 && scores2) {
-        // Fighter 1 scores
-        const colWidth = (pageWidth - 2 * margin - 20) / 2;
-        
-        // Fighter 1 Box
-        doc.setFillColor(255, 240, 240);
-        doc.roundedRect(margin, yPosition, colWidth, 55, 3, 3, 'F');
-        addText(fighter1?.identifier || 'Combattant 1', margin + 5, yPosition + 10, { fontSize: 11, fontStyle: 'bold', color: red });
-        addText(`Score Global: ${scores1.overall}/100`, margin + 5, yPosition + 20, { fontSize: 12, fontStyle: 'bold', color: darkGray });
-        addText(`Striking: ${scores1.striking}  |  Grappling: ${scores1.grappling}`, margin + 5, yPosition + 30, { fontSize: 9, color: darkGray });
-        addText(`Défense: ${scores1.defense}  |  Cardio: ${scores1.cardio}`, margin + 5, yPosition + 38, { fontSize: 9, color: darkGray });
-        addText(`Style: ${fighter1?.style || 'N/A'}`, margin + 5, yPosition + 48, { fontSize: 8, color: [100, 100, 100] });
+        checkNewPage(100);
+        sectionTitle('SCORES DE PERFORMANCE');
 
-        // Fighter 2 Box
-        doc.setFillColor(240, 248, 255);
-        doc.roundedRect(margin + colWidth + 20, yPosition, colWidth, 55, 3, 3, 'F');
-        addText(fighter2?.identifier || 'Combattant 2', margin + colWidth + 25, yPosition + 10, { fontSize: 11, fontStyle: 'bold', color: blue });
-        addText(`Score Global: ${scores2.overall}/100`, margin + colWidth + 25, yPosition + 20, { fontSize: 12, fontStyle: 'bold', color: darkGray });
-        addText(`Striking: ${scores2.striking}  |  Grappling: ${scores2.grappling}`, margin + colWidth + 25, yPosition + 30, { fontSize: 9, color: darkGray });
-        addText(`Défense: ${scores2.defense}  |  Cardio: ${scores2.cardio}`, margin + colWidth + 25, yPosition + 38, { fontSize: 9, color: darkGray });
-        addText(`Style: ${fighter2?.style || 'N/A'}`, margin + colWidth + 25, yPosition + 48, { fontSize: 8, color: [100, 100, 100] });
+        // Overall scores big numbers
+        doc.setFillColor(...bgSoft);
+        doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 30, 2, 2, 'F');
 
-        yPosition += 65;
-      }
-
-      // Statistics
-      checkNewPage(100);
-      addText('STATISTIQUES DÉTAILLÉES', margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: gold });
-      yPosition += 8;
-      yPosition = addLine(yPosition, gold);
-
-      const stats1 = analysis.statistics?.fighter_1;
-      const stats2 = analysis.statistics?.fighter_2;
-
-      if (stats1 && stats2) {
-        // Table header
-        doc.setFillColor(50, 50, 55);
-        doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
-        doc.setTextColor(255, 255, 255);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.text('Statistique', margin + 5, yPosition + 7);
-        doc.text('Rouge', margin + 80, yPosition + 7);
-        doc.text('Bleu', margin + 120, yPosition + 7);
-        yPosition += 12;
+        doc.setTextColor(...red);
+        doc.text(fighter1?.identifier || 'Combattant 1', margin + 6, yPosition + 8);
+        doc.setFontSize(28);
+        doc.setTextColor(...ink);
+        doc.text(`${scores1.overall}`, margin + 6, yPosition + 24);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...subtle);
+        doc.text('/100', margin + 26, yPosition + 24);
 
-        const statsRows = [
-          ['Coups de poing portés', `${stats1.punches_landed}/${stats1.punches_thrown}`, `${stats2.punches_landed}/${stats2.punches_thrown}`],
-          ['Coups de pied portés', `${stats1.kicks_landed}/${stats1.kicks_thrown}`, `${stats2.kicks_landed}/${stats2.kicks_thrown}`],
-          ['Takedowns réussis', `${stats1.takedowns_successful}/${stats1.takedowns_attempted}`, `${stats2.takedowns_successful}/${stats2.takedowns_attempted}`],
-          ['Frappes à la tête', `${stats1.head_strikes}`, `${stats2.head_strikes}`],
-          ['Frappes au corps', `${stats1.body_strikes}`, `${stats2.body_strikes}`],
-          ['Frappes aux jambes', `${stats1.leg_strikes}`, `${stats2.leg_strikes}`],
-          ['Temps au clinch', `${stats1.clinch_time_percent}%`, `${stats2.clinch_time_percent}%`],
+        // center label
+        doc.setFontSize(8);
+        doc.setTextColor(...subtle);
+        doc.text('SCORE GLOBAL', pageWidth / 2, yPosition + 18, { align: 'center' });
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...blue);
+        doc.text(fighter2?.identifier || 'Combattant 2', pageWidth - margin - 6, yPosition + 8, { align: 'right' });
+        doc.setFontSize(28);
+        doc.setTextColor(...ink);
+        doc.text(`${scores2.overall}`, pageWidth - margin - 6, yPosition + 24, { align: 'right' });
+
+        yPosition += 38;
+
+        // Per-axis bars
+        const axes: Array<[string, number, number]> = [
+          ['Striking', scores1.striking, scores2.striking],
+          ['Grappling', scores1.grappling, scores2.grappling],
+          ['Défense', scores1.defense, scores2.defense],
+          ['Cardio', scores1.cardio, scores2.cardio],
+        ];
+        const barW = (pageWidth - 2 * margin) / 2 - 30;
+        axes.forEach(([label, v1, v2]) => {
+          checkNewPage(14);
+          // Label center
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...darkGray);
+          doc.text(label, pageWidth / 2, yPosition + 4, { align: 'center' });
+
+          // Values
+          doc.setFontSize(9);
+          doc.setTextColor(...red);
+          doc.text(`${v1}`, margin, yPosition + 4);
+          doc.setTextColor(...blue);
+          doc.text(`${v2}`, pageWidth - margin, yPosition + 4, { align: 'right' });
+
+          // Bars
+          const barY = yPosition + 6;
+          // Fighter 1 bar (right-to-left from center)
+          doc.setFillColor(245, 245, 245);
+          doc.rect(pageWidth / 2 - barW - 8, barY, barW, 3, 'F');
+          doc.setFillColor(...red);
+          const w1 = (Math.max(0, Math.min(100, v1)) / 100) * barW;
+          doc.rect(pageWidth / 2 - 8 - w1, barY, w1, 3, 'F');
+          // Fighter 2 bar (left-to-right from center)
+          doc.setFillColor(245, 245, 245);
+          doc.rect(pageWidth / 2 + 8, barY, barW, 3, 'F');
+          doc.setFillColor(...blue);
+          const w2 = (Math.max(0, Math.min(100, v2)) / 100) * barW;
+          doc.rect(pageWidth / 2 + 8, barY, w2, 3, 'F');
+
+          yPosition += 13;
+        });
+
+        yPosition += 4;
+      }
+
+      // STATISTICS TABLE
+      if (stats1 && stats2) {
+        checkNewPage(80);
+        sectionTitle('STATISTIQUES DÉTAILLÉES');
+
+        // Table header
+        doc.setFillColor(...ink);
+        doc.rect(margin, yPosition, pageWidth - 2 * margin, 9, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('STATISTIQUE', margin + 4, yPosition + 6);
+        doc.setTextColor(...goldSoft);
+        doc.text(fighter1?.identifier || 'Rouge', pageWidth - margin - 50, yPosition + 6, { align: 'center' });
+        doc.text(fighter2?.identifier || 'Bleu', pageWidth - margin - 15, yPosition + 6, { align: 'center' });
+        yPosition += 11;
+
+        const statsRows: [string, string, string][] = [
+          ['Coups de poing', `${stats1.punches_landed}/${stats1.punches_thrown}`, `${stats2.punches_landed}/${stats2.punches_thrown}`],
+          ['Coups de pied', `${stats1.kicks_landed}/${stats1.kicks_thrown}`, `${stats2.kicks_landed}/${stats2.kicks_thrown}`],
+          ['Takedowns', `${stats1.takedowns_successful}/${stats1.takedowns_attempted}`, `${stats2.takedowns_successful}/${stats2.takedowns_attempted}`],
+          ['Frappes tête', `${stats1.head_strikes}`, `${stats2.head_strikes}`],
+          ['Frappes corps', `${stats1.body_strikes}`, `${stats2.body_strikes}`],
+          ['Frappes jambes', `${stats1.leg_strikes}`, `${stats2.leg_strikes}`],
+          ['Temps clinch', `${stats1.clinch_time_percent}%`, `${stats2.clinch_time_percent}%`],
           ['Temps au sol', `${stats1.ground_time_percent}%`, `${stats2.ground_time_percent}%`],
           ['Taux de défense', `${stats1.defense_rate}%`, `${stats2.defense_rate}%`],
         ];
 
-        doc.setTextColor(...darkGray);
-        doc.setFont('helvetica', 'normal');
-        
         statsRows.forEach((row, index) => {
+          checkNewPage(10);
           if (index % 2 === 0) {
-            doc.setFillColor(248, 248, 248);
+            doc.setFillColor(...bgSoft);
             doc.rect(margin, yPosition - 3, pageWidth - 2 * margin, 8, 'F');
           }
-          doc.text(row[0], margin + 5, yPosition + 3);
-          doc.setTextColor(...red);
-          doc.text(row[1], margin + 80, yPosition + 3);
-          doc.setTextColor(...blue);
-          doc.text(row[2], margin + 120, yPosition + 3);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
           doc.setTextColor(...darkGray);
+          doc.text(row[0], margin + 4, yPosition + 2);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...red);
+          doc.text(row[1], pageWidth - margin - 50, yPosition + 2, { align: 'center' });
+          doc.setTextColor(...blue);
+          doc.text(row[2], pageWidth - margin - 15, yPosition + 2, { align: 'center' });
           yPosition += 8;
         });
 
-        yPosition += 10;
-      }
-
-      // Recommendations
-      checkNewPage(80);
-      addText('RECOMMANDATIONS D\'ENTRAÎNEMENT', margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: gold });
-      yPosition += 8;
-      yPosition = addLine(yPosition, gold);
-
-      // Fighter 1 Recommendations
-      if (analysis.recommendations?.fighter_1?.length > 0) {
-        addText(`${fighter1?.identifier || 'Combattant 1'}:`, margin, yPosition + 5, { fontSize: 11, fontStyle: 'bold', color: red });
-        yPosition += 12;
-        
-        analysis.recommendations.fighter_1.forEach((rec, i) => {
-          checkNewPage(15);
-          const recLines = doc.splitTextToSize(`${i + 1}. ${rec}`, pageWidth - 2 * margin - 10);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(...darkGray);
-          doc.text(recLines, margin + 5, yPosition);
-          yPosition += recLines.length * 4 + 4;
-        });
-        yPosition += 5;
-      }
-
-      // Fighter 2 Recommendations
-      if (analysis.recommendations?.fighter_2?.length > 0) {
-        checkNewPage(40);
-        addText(`${fighter2?.identifier || 'Combattant 2'}:`, margin, yPosition + 5, { fontSize: 11, fontStyle: 'bold', color: blue });
-        yPosition += 12;
-        
-        analysis.recommendations.fighter_2.forEach((rec, i) => {
-          checkNewPage(15);
-          const recLines = doc.splitTextToSize(`${i + 1}. ${rec}`, pageWidth - 2 * margin - 10);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(...darkGray);
-          doc.text(recLines, margin + 5, yPosition);
-          yPosition += recLines.length * 4 + 4;
-        });
-      }
-
-      // Overall Analysis
-      if (analysis.overall_analysis) {
-        checkNewPage(50);
-        yPosition += 10;
-        addText('ANALYSE GLOBALE', margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: gold });
         yPosition += 8;
-        yPosition = addLine(yPosition, gold);
-        
-        const analysisLines = doc.splitTextToSize(analysis.overall_analysis, pageWidth - 2 * margin);
+      }
+
+      // RECOMMENDATIONS
+      const drawRecs = (
+        label: string,
+        recs: string[] | undefined,
+        color: [number, number, number],
+      ) => {
+        if (!recs?.length) return;
+        checkNewPage(20);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...color);
+        doc.text(label, margin, yPosition);
+        yPosition += 6;
+
+        recs.forEach((rec, i) => {
+          const lines = doc.splitTextToSize(rec, pageWidth - 2 * margin - 10);
+          checkNewPage(lines.length * 5 + 4);
+          // Bullet number
+          doc.setFillColor(...color);
+          doc.circle(margin + 2, yPosition + 1, 1.6, 'F');
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(255, 255, 255);
+          doc.text(`${i + 1}`, margin + 2, yPosition + 2.2, { align: 'center' });
+          // Body
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...darkGray);
+          doc.text(lines, margin + 8, yPosition + 2);
+          yPosition += lines.length * 5 + 3;
+        });
+        yPosition += 6;
+      };
+
+      checkNewPage(40);
+      sectionTitle('RECOMMANDATIONS D\'ENTRAÎNEMENT');
+      drawRecs(fighter1?.identifier || 'Combattant 1', analysis.recommendations?.fighter_1, red);
+      drawRecs(fighter2?.identifier || 'Combattant 2', analysis.recommendations?.fighter_2, blue);
+
+      // OVERALL
+      if (analysis.overall_analysis) {
+        checkNewPage(40);
+        sectionTitle('ANALYSE GLOBALE');
+        const lines = doc.splitTextToSize(analysis.overall_analysis, pageWidth - 2 * margin);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...darkGray);
-        doc.text(analysisLines, margin, yPosition);
+        doc.text(lines, margin, yPosition);
+        yPosition += lines.length * 5;
       }
 
-      // Footer on each page
+      // Footer on every page (skip cover)
       const totalPages = doc.internal.pages.length - 1;
-      for (let i = 1; i <= totalPages; i++) {
+      for (let i = 2; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFillColor(20, 20, 25);
-        doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
-        doc.setFontSize(8);
+        doc.setDrawColor(...gold);
+        doc.setLineWidth(0.3);
+        doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(...gold);
-        doc.text('KOREV AI - Performance Center', margin, pageHeight - 6);
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Page ${i}/${totalPages}`, pageWidth - margin - 20, pageHeight - 6);
+        doc.text('KOREV AI — PERFORMANCE CENTER', margin, pageHeight - 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...subtle);
+        doc.text(`Page ${i - 1} / ${totalPages - 1}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
       }
 
-      // Save the PDF
-      const fileName = `analyse-sparring-${new Date().toISOString().split('T')[0]}.pdf`;
+      // Save
+      const fileName = `korev-analyse-sparring-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-      
+
       toast.success('PDF exporté avec succès !');
     } catch (error) {
       console.error('Error generating PDF:', error);
