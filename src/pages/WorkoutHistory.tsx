@@ -33,12 +33,23 @@ interface HistoricalWorkout {
   }[];
 }
 
+interface SparringAnalysisRow {
+  id: string;
+  video_name: string;
+  video_url: string;
+  created_at: string;
+  status: string;
+  analysis: any;
+}
+
 export default function WorkoutHistory() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<HistoricalWorkout[]>([]);
+  const [sparrings, setSparrings] = useState<SparringAnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [selectedSparring, setSelectedSparring] = useState<SparringAnalysisRow | null>(null);
+
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
 
   const handleSignOut = async () => {
