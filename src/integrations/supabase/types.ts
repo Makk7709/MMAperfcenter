@@ -479,47 +479,107 @@ export type Database = {
         Row: {
           age: number | null
           avatar_url: string | null
+          belt_rank: string | null
+          body_fat_percent: number | null
+          competition_level: string | null
+          competitions_count: number | null
           created_at: string
+          dietary_restrictions: string[] | null
           email: string | null
+          equipment: string[] | null
           fitness_level: string | null
           full_name: string | null
           gender: string | null
+          goal_deadline: string | null
           goals: string[] | null
+          handedness: string | null
           height: number | null
           id: string
+          injuries: string[] | null
           martial_arts_discipline: string | null
+          morphotype: string | null
+          preferred_session_duration: number | null
+          primary_goal: string | null
+          secondary_disciplines: string[] | null
+          sleep_hours: number | null
+          stress_level: number | null
+          target_event: string | null
+          training_location: string | null
           updated_at: string
+          waist_cm: number | null
+          weekly_availability: number | null
           weight: number | null
+          years_practice: number | null
         }
         Insert: {
           age?: number | null
           avatar_url?: string | null
+          belt_rank?: string | null
+          body_fat_percent?: number | null
+          competition_level?: string | null
+          competitions_count?: number | null
           created_at?: string
+          dietary_restrictions?: string[] | null
           email?: string | null
+          equipment?: string[] | null
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
+          goal_deadline?: string | null
           goals?: string[] | null
+          handedness?: string | null
           height?: number | null
           id: string
+          injuries?: string[] | null
           martial_arts_discipline?: string | null
+          morphotype?: string | null
+          preferred_session_duration?: number | null
+          primary_goal?: string | null
+          secondary_disciplines?: string[] | null
+          sleep_hours?: number | null
+          stress_level?: number | null
+          target_event?: string | null
+          training_location?: string | null
           updated_at?: string
+          waist_cm?: number | null
+          weekly_availability?: number | null
           weight?: number | null
+          years_practice?: number | null
         }
         Update: {
           age?: number | null
           avatar_url?: string | null
+          belt_rank?: string | null
+          body_fat_percent?: number | null
+          competition_level?: string | null
+          competitions_count?: number | null
           created_at?: string
+          dietary_restrictions?: string[] | null
           email?: string | null
+          equipment?: string[] | null
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
+          goal_deadline?: string | null
           goals?: string[] | null
+          handedness?: string | null
           height?: number | null
           id?: string
+          injuries?: string[] | null
           martial_arts_discipline?: string | null
+          morphotype?: string | null
+          preferred_session_duration?: number | null
+          primary_goal?: string | null
+          secondary_disciplines?: string[] | null
+          sleep_hours?: number | null
+          stress_level?: number | null
+          target_event?: string | null
+          training_location?: string | null
           updated_at?: string
+          waist_cm?: number | null
+          weekly_availability?: number | null
           weight?: number | null
+          years_practice?: number | null
         }
         Relationships: []
       }

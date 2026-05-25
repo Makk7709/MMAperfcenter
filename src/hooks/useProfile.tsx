@@ -8,12 +8,42 @@ export interface Profile {
   email: string | null;
   full_name: string | null;
   avatar_url: string | null;
+  age: number | null;
+  gender: string | null;
   weight: number | null;
   height: number | null;
-  gender: string | null;
   fitness_level: string | null;
   martial_arts_discipline: string | null;
   goals: string[] | null;
+
+  // Physique avancé
+  body_fat_percent: number | null;
+  waist_cm: number | null;
+  morphotype: string | null;
+  handedness: string | null;
+  injuries: string[] | null;
+
+  // Expérience martiale
+  years_practice: number | null;
+  belt_rank: string | null;
+  secondary_disciplines: string[] | null;
+  competition_level: string | null;
+  competitions_count: number | null;
+
+  // Objectifs SMART
+  primary_goal: string | null;
+  goal_deadline: string | null;
+  target_event: string | null;
+
+  // Lifestyle & récupération
+  sleep_hours: number | null;
+  stress_level: number | null;
+  weekly_availability: number | null;
+  preferred_session_duration: number | null;
+  training_location: string | null;
+  equipment: string[] | null;
+  dietary_restrictions: string[] | null;
+
   created_at: string;
   updated_at: string;
 }
@@ -42,7 +72,7 @@ export const useProfile = () => {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data as unknown as Profile);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -61,7 +91,7 @@ export const useProfile = () => {
         .eq('id', user?.id);
 
       if (error) throw error;
-      
+
       toast.success('Profil mis à jour avec succès');
       await fetchProfile();
     } catch (error) {
