@@ -9,9 +9,21 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { SparringPDFExport } from "@/components/sparring/SparringPDFExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText } from "lucide-react";
+import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface HistoricalWorkout {
   id: string;
