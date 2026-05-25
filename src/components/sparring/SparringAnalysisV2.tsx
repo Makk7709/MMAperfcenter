@@ -144,6 +144,12 @@ interface SparringAnalysisData {
       cardio: number;
     };
   };
+  analysis_quality?: {
+    confidence: number;
+    stats_confidence: number;
+    video_quality: 'poor' | 'fair' | 'good' | 'excellent';
+    warnings: string[];
+  };
   raw_response?: boolean;
   error?: string;
 }
@@ -513,10 +519,10 @@ export const SparringAnalysisV2 = () => {
       setUploadProgress(10);
       
       const extractedFrames = await extractVideoFrames(file, {
-        frameInterval: 2, // Every 2 seconds
-        maxFrames: 20, // Max 20 frames to keep payload reasonable
-        quality: 0.7, // Good quality while keeping size down
-        maxWidth: 1024 // Reduce resolution for API
+        frameInterval: 1.5, // Plus dense → meilleure capture des actions rapides
+        maxFrames: 32,      // Doublé pour précision (était 20)
+        quality: 0.75,
+        maxWidth: 1280,
       });
       
       console.log(`[Sparring] Extracted ${extractedFrames.length} frames`);
@@ -559,11 +565,12 @@ export const SparringAnalysisV2 = () => {
       const result = await retryWithBackoff(
         async () => {
           const { data, error } = await supabase.functions.invoke('analyze-sparring', {
-            body: { 
+            body: {
               frames,
               totalDuration,
               analysisId: recordId,
-              videoName: file.name
+              videoName: file.name,
+              qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
             }
           });
 
@@ -971,10 +978,36 @@ export const SparringAnalysisV2 = () => {
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <p className="text-muted-foreground leading-relaxed">
                   {currentAnalysis.summary}
                 </p>
+                {currentAnalysis.analysis_quality && (() => {
+                  const q = currentAnalysis.analysis_quality;
+                  const conf = q.confidence;
+                  const tone = conf >= 75 ? 'text-green-600 border-green-500/30 bg-green-500/10'
+                    : conf >= 50 ? 'text-yellow-600 border-yellow-500/30 bg-yellow-500/10'
+                    : 'text-red-600 border-red-500/30 bg-red-500/10';
+                  const qualityLabel = { poor: 'Médiocre', fair: 'Correcte', good: 'Bonne', excellent: 'Excellente' }[q.video_quality];
+                  return (
+                    <div className={`rounded-lg border p-3 space-y-2 ${tone}`}>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold">
+                          <span>Fiabilité de l'analyse : {conf}/100</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="text-foreground">Stats: {q.stats_confidence}/100</Badge>
+                          <Badge variant="outline" className="text-foreground">Vidéo: {qualityLabel}</Badge>
+                        </div>
+                      </div>
+                      {q.warnings.length > 0 && (
+                        <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                          {q.warnings.slice(0, 3).map((w, i) => <li key={i}>{w}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
