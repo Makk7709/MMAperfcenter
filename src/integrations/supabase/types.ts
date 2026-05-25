@@ -635,6 +635,33 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_webhook_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json | null
+          processed_at: string
+          stripe_event_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -907,6 +934,16 @@ export type Database = {
           remaining: number
         }[]
       }
+      check_subscription_access: {
+        Args: { p_user_id: string }
+        Returns: {
+          cancel_at_period_end: boolean
+          current_period_end: string
+          has_access: boolean
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: string
+        }[]
+      }
       create_notification: {
         Args: {
           p_message: string
@@ -926,6 +963,10 @@ export type Database = {
       get_feature_usage: {
         Args: { _feature_name: string; _user_id: string }
         Returns: number
+      }
+      get_user_id_by_stripe_customer: {
+        Args: { p_stripe_customer_id: string }
+        Returns: string
       }
       has_feature_access: {
         Args: { _feature: string; _user_id: string }
@@ -947,6 +988,11 @@ export type Database = {
         Returns: undefined
       }
       increment_video_views: { Args: { video_id: string }; Returns: undefined }
+      is_webhook_processed: { Args: { p_event_id: string }; Returns: boolean }
+      mark_webhook_processed: {
+        Args: { p_event_id: string; p_event_type: string; p_payload: Json }
+        Returns: undefined
+      }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -957,6 +1003,20 @@ export type Database = {
         }[]
       }
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
+      sync_stripe_subscription: {
+        Args: {
+          p_cancel_at_period_end: boolean
+          p_current_period_end: string
+          p_current_period_start: string
+          p_plan: Database["public"]["Enums"]["subscription_plan"]
+          p_status: string
+          p_stripe_customer_id: string
+          p_stripe_price_id: string
+          p_stripe_subscription_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "coach"
