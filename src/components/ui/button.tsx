@@ -9,17 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-primary text-primary-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
+        default: "bg-gradient-primary text-primary-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300 liquid-glass-solid",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 liquid-glass-solid",
         outline:
-          "border-2 border-primary/40 bg-transparent hover:bg-primary/10 hover:border-primary text-foreground hover:scale-105 transform transition-all duration-300",
+          "border-2 border-primary/40 bg-transparent hover:bg-primary/10 hover:border-primary text-foreground hover:scale-105 transform transition-all duration-300 liquid-glass",
         secondary:
-          "bg-card border border-border hover:bg-muted hover:border-primary/30 text-foreground hover:scale-105 transform transition-all duration-300",
-        ghost: "bg-muted hover:bg-muted/80 text-foreground hover:scale-105 transform transition-all duration-300",
+          "bg-card/60 border border-border hover:bg-muted/80 hover:border-primary/30 text-foreground hover:scale-105 transform transition-all duration-300 liquid-glass",
+        ghost: "bg-muted/40 hover:bg-muted/80 text-foreground hover:scale-105 transform transition-all duration-300 liquid-glass",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold",
-        fitness: "bg-accent text-accent-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300",
+        hero: "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 hover:shadow-glow transform transition-all duration-300 font-semibold liquid-glass-solid",
+        fitness: "bg-accent text-accent-foreground hover:scale-105 hover:shadow-primary transform transition-all duration-300 liquid-glass-solid",
       },
       size: {
         default: "h-10 px-4 py-2",
