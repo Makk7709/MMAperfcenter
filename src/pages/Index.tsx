@@ -86,11 +86,12 @@ const Index = () => {
               <Button 
                 variant="default" 
                 size="lg"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary group"
+                className="liquid-glass-btn group relative overflow-hidden text-primary-foreground font-semibold"
                 onClick={scrollToAICoach}
               >
-                <Brain className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-                Coach IA MMA
+                <span className="liquid-glass-shine" aria-hidden="true" />
+                <Brain className="h-5 w-5 mr-2 relative z-10 group-hover:scale-110 transition-transform" />
+                <span className="relative z-10">Coach IA MMA</span>
               </Button>
               
               {!isPremium && (
