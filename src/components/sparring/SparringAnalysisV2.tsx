@@ -519,10 +519,10 @@ export const SparringAnalysisV2 = () => {
       setUploadProgress(10);
       
       const extractedFrames = await extractVideoFrames(file, {
-        frameInterval: 2, // Every 2 seconds
-        maxFrames: 20, // Max 20 frames to keep payload reasonable
-        quality: 0.7, // Good quality while keeping size down
-        maxWidth: 1024 // Reduce resolution for API
+        frameInterval: 1.5, // Plus dense → meilleure capture des actions rapides
+        maxFrames: 32,      // Doublé pour précision (était 20)
+        quality: 0.75,
+        maxWidth: 1280,
       });
       
       console.log(`[Sparring] Extracted ${extractedFrames.length} frames`);
