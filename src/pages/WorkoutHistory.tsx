@@ -68,6 +68,17 @@ export default function WorkoutHistory() {
     await signOut();
   };
 
+  const handleDeleteSparring = async (id: string) => {
+    const { error } = await supabase.from("sparring_analyses").delete().eq("id", id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setSparrings((prev) => prev.filter((s) => s.id !== id));
+    if (selectedSparring?.id === id) setSelectedSparring(null);
+    toast.success("Analyse supprimée");
+  };
+
   useEffect(() => {
     if (!user) {
       navigate("/auth");
