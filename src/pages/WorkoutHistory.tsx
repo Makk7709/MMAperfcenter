@@ -62,31 +62,40 @@ export default function WorkoutHistory() {
       return;
     }
 
-    const loadWorkoutHistory = async () => {
-      const { data, error } = await supabase
-        .from("workouts")
-        .select(`
-          *,
-          workout_exercises (
-            exercise:exercises (name),
-            sets (weight_kg, reps, completed)
-          )
-        `)
-        .eq("user_id", user.id)
-        .eq("status", "completed")
-        .order("completed_at", { ascending: false })
-        .limit(20);
+    const loadHistory = async () => {
+      const [workoutsRes, sparringRes] = await Promise.all([
+        supabase
+          .from("workouts")
+          .select(`
+            *,
+            workout_exercises (
+              exercise:exercises (name),
+              sets (weight_kg, reps, completed)
+            )
+          `)
+          .eq("user_id", user.id)
+          .eq("status", "completed")
+          .order("completed_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("sparring_analyses")
+          .select("id, video_name, video_url, created_at, status, analysis")
+          .eq("user_id", user.id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
 
-      if (error) {
-        console.error("Error loading workout history:", error);
-        return;
-      }
+      if (workoutsRes.error) console.error("Error loading workouts:", workoutsRes.error);
+      else setWorkouts(workoutsRes.data as HistoricalWorkout[]);
 
-      setWorkouts(data as HistoricalWorkout[]);
+      if (sparringRes.error) console.error("Error loading sparrings:", sparringRes.error);
+      else setSparrings((sparringRes.data || []) as SparringAnalysisRow[]);
+
       setLoading(false);
     };
 
-    loadWorkoutHistory();
+    loadHistory();
   }, [user, navigate]);
 
   const calculateStats = () => {
