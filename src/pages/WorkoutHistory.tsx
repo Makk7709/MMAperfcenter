@@ -9,9 +9,21 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { SparringPDFExport } from "@/components/sparring/SparringPDFExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText } from "lucide-react";
+import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface HistoricalWorkout {
   id: string;
@@ -54,6 +66,17 @@ export default function WorkoutHistory() {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleDeleteSparring = async (id: string) => {
+    const { error } = await supabase.from("sparring_analyses").delete().eq("id", id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setSparrings((prev) => prev.filter((s) => s.id !== id));
+    if (selectedSparring?.id === id) setSelectedSparring(null);
+    toast.success("Analyse supprimée");
   };
 
   useEffect(() => {
@@ -302,6 +325,30 @@ export default function WorkoutHistory() {
                             analysisDate={s.created_at}
                           />
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="gap-1 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" /> Supprimer
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer cette analyse ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action est irréversible. Pensez à télécharger le PDF si vous souhaitez le conserver.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSparring(s.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </CardContent>
                   </Card>
