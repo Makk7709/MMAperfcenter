@@ -107,7 +107,7 @@ export const NutritionTracker = () => {
   };
 
   return (
-    <Card className="bg-gradient-card border-0 shadow-card">
+    <Card className="liquid-glass-solid border-0">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
