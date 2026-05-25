@@ -259,3 +259,50 @@
 .animate-scroll-left:hover {
   animation-play-state: paused;
 }
+
+/* Rotating yellow glow border (for FAB) */
+@keyframes glow-spin {
+  to { transform: rotate(360deg); }
+}
+.glow-ring {
+  position: relative;
+  isolation: isolate;
+}
+.glow-ring::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 3px;
+  background: conic-gradient(
+    from 0deg,
+    hsl(var(--primary)) 0deg,
+    hsl(var(--primary) / 0.1) 90deg,
+    hsl(var(--primary)) 180deg,
+    hsl(var(--primary) / 0.1) 270deg,
+    hsl(var(--primary)) 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: glow-spin 3s linear infinite;
+  filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.6));
+  z-index: -1;
+}
+.glow-ring::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    hsl(var(--primary) / 0.5),
+    transparent 40%,
+    hsl(var(--primary) / 0.5) 60%,
+    transparent
+  );
+  filter: blur(10px);
+  animation: glow-spin 3s linear infinite;
+  z-index: -2;
+  opacity: 0.7;
+}
