@@ -519,9 +519,9 @@ export const SparringAnalysisV2 = () => {
       setUploadProgress(10);
       
       const extractedFrames = await extractVideoFrames(file, {
-        frameInterval: 1.5, // Plus dense → meilleure capture des actions rapides
-        maxFrames: 32,      // Doublé pour précision (était 20)
-        quality: 0.75,
+        frameInterval: 1.0,  // Plus dense pour capturer les actions rapides (était 1.5s)
+        maxFrames: 60,       // 60 frames pour couvrir ~60% de plus de la vidéo (était 32)
+        quality: 0.70,      // Légèrement réduit pour garder la payload raisonnable
         maxWidth: 1280,
       });
       
