@@ -467,7 +467,7 @@ export const SparringAnalysisV2 = () => {
 
   if (authLoading) {
     return (
-      <Card className="bg-gradient-card border-border/50">
+      <Card className="liquid-glass-solid border-border/50">
         <CardContent className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
@@ -477,7 +477,7 @@ export const SparringAnalysisV2 = () => {
 
   if (!user) {
     return (
-      <Card className="bg-gradient-card border-border/50">
+      <Card className="liquid-glass-solid border-border/50">
         <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
           <AlertCircle className="h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground text-center">
@@ -1377,7 +1377,7 @@ export const SparringAnalysisV2 = () => {
   };
 
   return (
-    <Card className="bg-gradient-card border-border/50">
+    <Card className="liquid-glass-solid border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -110,28 +110,28 @@ export default function WorkoutHistory() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Entraînements</p>
               <p className="text-2xl font-bold text-primary">{stats.totalWorkouts}</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Volume Total</p>
               <p className="text-2xl font-bold text-secondary">{stats.totalVolume.toFixed(0)} kg</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Temps Total</p>
               <p className="text-2xl font-bold text-accent">{stats.totalTime} min</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Durée Moy.</p>
               <p className="text-2xl font-bold text-foreground">{stats.avgDuration} min</p>
@@ -141,7 +141,7 @@ export default function WorkoutHistory() {
 
         {/* Workout List */}
         {workouts.length === 0 ? (
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-8 text-center">
               <Dumbbell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Aucun entraînement terminé pour le moment.</p>
@@ -159,7 +159,7 @@ export default function WorkoutHistory() {
               );
 
               return (
-                <Card key={workout.id} className="bg-gradient-card border-0 shadow-card">
+                <Card key={workout.id} className="liquid-glass-solid border-0">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>

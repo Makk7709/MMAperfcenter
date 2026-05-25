@@ -152,7 +152,7 @@ export function AIStatsAnalysis() {
   };
 
   return (
-    <Card className="bg-gradient-card border-0 shadow-card overflow-hidden">
+    <Card className="liquid-glass-solid border-0 overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-border">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-3">

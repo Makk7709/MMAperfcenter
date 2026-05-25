@@ -103,7 +103,7 @@ export const RoundTimer = () => {
   };
 
   return (
-    <Card className="bg-gradient-card border-0 shadow-card p-6">
+    <Card className="liquid-glass-solid border-0 p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <TimerIcon className="h-5 w-5 text-primary" />

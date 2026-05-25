@@ -106,7 +106,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
   };
 
   return (
-    <Card className="bg-gradient-card border-0 shadow-card">
+    <Card className="liquid-glass-solid border-0">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" />

@@ -68,7 +68,7 @@ export const QuickStatsCards = () => {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <Card key={i} className="bg-gradient-card border-0 shadow-card animate-pulse">
+            <Card key={i} className="liquid-glass-solid border-0 animate-pulse">
               <CardContent className="p-4">
                 <div className="h-20 bg-muted rounded" />
               </CardContent>
@@ -137,7 +137,7 @@ export const QuickStatsCards = () => {
           return (
             <Card
               key={index}
-              className="bg-gradient-card border-0 shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
+              className="liquid-glass-solid border-0 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">

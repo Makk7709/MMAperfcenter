@@ -101,7 +101,7 @@ export const SparringAnalysis = () => {
   // Show loading state
   if (loading) {
     return (
-      <Card className="bg-gradient-card border-border/50">
+      <Card className="liquid-glass-solid border-border/50">
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
@@ -112,7 +112,7 @@ export const SparringAnalysis = () => {
   // Show message if not authenticated
   if (!user) {
     return (
-      <Card className="bg-gradient-card border-border/50">
+      <Card className="liquid-glass-solid border-border/50">
         <CardContent className="flex flex-col items-center justify-center py-8 gap-4">
           <AlertCircle className="h-10 w-10 text-muted-foreground" />
           <p className="text-muted-foreground text-center">
@@ -318,7 +318,7 @@ export const SparringAnalysis = () => {
   };
 
   return (
-    <Card className="bg-gradient-card border-border/50">
+    <Card className="liquid-glass-solid border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

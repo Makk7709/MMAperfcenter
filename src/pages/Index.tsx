@@ -170,7 +170,7 @@ const Index = () => {
               
               <TabsContent value="combat" className="space-y-6">
                 <RoundTimer />
-                <div className="relative overflow-hidden bg-gradient-card rounded-lg border border-border/50 shadow-card">
+                <div className="relative overflow-hidden liquid-glass-solid rounded-lg border border-border/50 shadow-card">
                   <div className="absolute inset-0 bg-gradient-gold-accent opacity-10" />
                   <div className="relative text-center py-16 px-6">
                     <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-primary/10 border border-primary/20">

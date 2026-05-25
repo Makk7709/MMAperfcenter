@@ -84,7 +84,7 @@ export const MeuteCard = () => {
 
   if (loading) {
     return (
-      <Card className="bg-gradient-card border-0 shadow-card p-6">
+      <Card className="liquid-glass-solid border-0 p-6">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Meute</h3>
@@ -109,7 +109,7 @@ export const MeuteCard = () => {
     const isOwner = selectedMeute.owner_id === user?.id;
     
     return (
-      <Card className="bg-gradient-card border-0 shadow-card overflow-hidden">
+      <Card className="liquid-glass-solid border-0 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-primary to-primary/80 p-4">
           <div className="flex items-center gap-3">
@@ -216,7 +216,7 @@ export const MeuteCard = () => {
 
   // Meutes List View
   return (
-    <Card className="bg-gradient-card border-0 shadow-card p-6">
+    <Card className="liquid-glass-solid border-0 p-6">
       <div className="flex items-center gap-2 mb-4">
         <Users className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Meute</h3>

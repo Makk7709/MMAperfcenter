@@ -143,28 +143,28 @@ export default function Statistics() {
 
         {/* Weekly Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Entraînements</p>
               <p className="text-2xl font-bold text-primary">{totalWorkouts}</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Temps Total</p>
               <p className="text-2xl font-bold text-secondary">{weeklyWorkoutTotal} min</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Volume</p>
               <p className="text-2xl font-bold text-accent">{weeklyVolumeTotal.toFixed(0)} kg</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-1">Calories</p>
               <p className="text-2xl font-bold text-foreground">{weeklyCaloriesTotal}</p>
@@ -173,7 +173,7 @@ export default function Statistics() {
         </div>
 
         {/* Workout Charts */}
-        <Card className="bg-gradient-card border-0 shadow-card">
+        <Card className="liquid-glass-solid border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -202,7 +202,7 @@ export default function Statistics() {
         </Card>
 
         {/* Nutrition Charts */}
-        <Card className="bg-gradient-card border-0 shadow-card">
+        <Card className="liquid-glass-solid border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-primary" />

@@ -61,7 +61,7 @@ export const MMAResultsFeed = () => {
 
   if (loading) {
     return (
-      <Card className="bg-gradient-card border-border/50 shadow-card">
+      <Card className="liquid-glass-solid border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
@@ -83,7 +83,7 @@ export const MMAResultsFeed = () => {
 
   if (error) {
     return (
-      <Card className="bg-gradient-card border-border/50 shadow-card">
+      <Card className="liquid-glass-solid border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
@@ -98,7 +98,7 @@ export const MMAResultsFeed = () => {
   }
 
   return (
-    <Card className="bg-gradient-card border-border/50 shadow-card">
+    <Card className="liquid-glass-solid border-border/50">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
