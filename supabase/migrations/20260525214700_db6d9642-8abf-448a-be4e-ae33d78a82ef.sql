@@ -1,0 +1,22 @@
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS body_fat_percent numeric,
+  ADD COLUMN IF NOT EXISTS waist_cm integer,
+  ADD COLUMN IF NOT EXISTS morphotype text,
+  ADD COLUMN IF NOT EXISTS handedness text,
+  ADD COLUMN IF NOT EXISTS injuries text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS years_practice integer,
+  ADD COLUMN IF NOT EXISTS belt_rank text,
+  ADD COLUMN IF NOT EXISTS secondary_disciplines text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS competition_level text,
+  ADD COLUMN IF NOT EXISTS competitions_count integer,
+  ADD COLUMN IF NOT EXISTS primary_goal text,
+  ADD COLUMN IF NOT EXISTS goal_deadline date,
+  ADD COLUMN IF NOT EXISTS target_event text,
+  ADD COLUMN IF NOT EXISTS sleep_hours numeric,
+  ADD COLUMN IF NOT EXISTS stress_level integer,
+  ADD COLUMN IF NOT EXISTS weekly_availability integer,
+  ADD COLUMN IF NOT EXISTS preferred_session_duration integer,
+  ADD COLUMN IF NOT EXISTS training_location text,
+  ADD COLUMN IF NOT EXISTS equipment text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS dietary_restrictions text[] DEFAULT '{}';
