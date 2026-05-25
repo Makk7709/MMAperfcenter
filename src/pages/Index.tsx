@@ -107,6 +107,9 @@ const Index = () => {
         </div>
       </section>
 
+      {/* MMA News Banner — entre Hero et Sparring */}
+      <MMANewsBanner />
+
       {/* Sparring Showcase Section */}
       <SparringShowcase />
       <div className="container px-4 py-12">
