@@ -763,9 +763,11 @@ export const SparringAnalysisV2 = () => {
                   MP4, MOV, WebM, AVI • Maximum 100MB • Durée recommandée: 3-15 min
                 </p>
               </div>
-              <Button variant="outline" className="mt-2">
-                <Upload className="h-4 w-4 mr-2" />
-                Parcourir les fichiers
+              <Button variant="outline" className="mt-2 pointer-events-none" type="button" tabIndex={-1} asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Parcourir les fichiers
+                </span>
               </Button>
             </>
           )}
