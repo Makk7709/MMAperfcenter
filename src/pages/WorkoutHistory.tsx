@@ -325,7 +325,35 @@ export default function WorkoutHistory() {
                             analysisDate={s.created_at}
                           />
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="gap-1 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" /> Supprimer
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer cette analyse ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action est irréversible. Pensez à télécharger le PDF si vous souhaitez le conserver.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSparring(s.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
                     </CardContent>
                   </Card>
                 );
