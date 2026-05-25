@@ -1,12 +1,6 @@
 /**
- * StartWorkoutDialogV2 - Killer Feature Workout Starter
- * 
- * Features:
- * - MMA-specific workout templates
- * - Duration & intensity configuration
- * - Round-based workout setup
- * - Quick start options
- * - Recent workouts history
+ * StartWorkoutDialogV2 — Refonte moderne KOREV
+ * Hiérarchie claire, labels FR uniquement, design dense mais lisible.
  */
 
 import { useState, useEffect } from "react";
@@ -20,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -31,7 +26,7 @@ import {
   Target,
   Clock,
   History,
-  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,15 +37,15 @@ import { cn } from "@/lib/utils";
 export interface WorkoutConfig {
   name: string;
   type: WorkoutType;
-  duration: number; // minutes
+  duration: number;
   intensity: IntensityLevel;
   rounds?: number;
-  roundDuration?: number; // seconds
-  restDuration?: number; // seconds
+  roundDuration?: number;
+  restDuration?: number;
 }
 
-export type WorkoutType = 'boxing' | 'mma' | 'strength' | 'cardio' | 'custom';
-export type IntensityLevel = 'light' | 'moderate' | 'intense';
+export type WorkoutType = "boxing" | "mma" | "strength" | "cardio" | "custom";
+export type IntensityLevel = "light" | "moderate" | "intense";
 
 export interface RecentWorkout {
   id: string;
@@ -67,10 +62,6 @@ export interface StartWorkoutDialogV2Props {
   recentWorkouts?: RecentWorkout[];
 }
 
-// ============================================
-// WORKOUT TEMPLATES
-// ============================================
-
 interface WorkoutTemplate {
   name: string;
   type: WorkoutType;
@@ -80,142 +71,54 @@ interface WorkoutTemplate {
   roundDuration?: number;
   restDuration?: number;
   icon: React.ElementType;
-  color: string;
+  accent: string; // tailwind text color class
 }
 
-const BOXING_TEMPLATES: WorkoutTemplate[] = [
-  { 
-    name: "Shadow Boxing", 
-    type: "boxing", 
-    duration: 15, 
-    intensity: "moderate",
-    rounds: 5,
-    roundDuration: 180,
-    restDuration: 60,
-    icon: Target,
-    color: "text-red-500"
-  },
-  { 
-    name: "Heavy Bag - Sac de Frappe", 
-    type: "boxing", 
-    duration: 20, 
-    intensity: "intense",
-    rounds: 6,
-    roundDuration: 180,
-    restDuration: 60,
-    icon: Flame,
-    color: "text-orange-500"
-  },
-  { 
-    name: "Pads Work", 
-    type: "boxing", 
-    duration: 25, 
-    intensity: "intense",
-    rounds: 8,
-    roundDuration: 180,
-    restDuration: 60,
-    icon: Zap,
-    color: "text-yellow-500"
-  },
+// ============================================
+// DATA
+// ============================================
+
+const TEMPLATES: Record<Exclude<WorkoutType, "custom">, WorkoutTemplate[]> = {
+  boxing: [
+    { name: "Shadow Boxing", type: "boxing", duration: 15, intensity: "moderate", rounds: 5, roundDuration: 180, restDuration: 60, icon: Target, accent: "text-red-400" },
+    { name: "Sac de frappe", type: "boxing", duration: 20, intensity: "intense", rounds: 6, roundDuration: 180, restDuration: 60, icon: Flame, accent: "text-orange-400" },
+    { name: "Pattes d'ours", type: "boxing", duration: 25, intensity: "intense", rounds: 8, roundDuration: 180, restDuration: 60, icon: Zap, accent: "text-yellow-400" },
+  ],
+  mma: [
+    { name: "Grappling Drills", type: "mma", duration: 30, intensity: "moderate", icon: Dumbbell, accent: "text-blue-400" },
+    { name: "Sparring", type: "mma", duration: 25, intensity: "intense", rounds: 5, roundDuration: 300, restDuration: 60, icon: Target, accent: "text-purple-400" },
+    { name: "Technique MMA", type: "mma", duration: 45, intensity: "moderate", icon: Target, accent: "text-indigo-400" },
+  ],
+  strength: [
+    { name: "Haut du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell, accent: "text-emerald-400" },
+    { name: "Bas du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell, accent: "text-teal-400" },
+    { name: "Full Body", type: "strength", duration: 60, intensity: "moderate", icon: Dumbbell, accent: "text-cyan-400" },
+  ],
+  cardio: [
+    { name: "HIIT", type: "cardio", duration: 20, intensity: "intense", icon: Flame, accent: "text-red-400" },
+    { name: "Endurance", type: "cardio", duration: 40, intensity: "moderate", icon: Timer, accent: "text-pink-400" },
+    { name: "Circuit", type: "cardio", duration: 30, intensity: "intense", icon: Zap, accent: "text-amber-400" },
+  ],
+};
+
+const QUICK_START = [
+  { name: "Express", duration: 5, intensity: "intense" as IntensityLevel, icon: Zap },
+  { name: "Rapide", duration: 10, intensity: "moderate" as IntensityLevel, icon: Timer },
+  { name: "Standard", duration: 15, intensity: "moderate" as IntensityLevel, icon: Flame },
 ];
 
-const MMA_TEMPLATES: WorkoutTemplate[] = [
-  { 
-    name: "Grappling Drills - Lutte", 
-    type: "mma", 
-    duration: 30, 
-    intensity: "moderate",
-    icon: Dumbbell,
-    color: "text-blue-500"
-  },
-  { 
-    name: "Sparring Session", 
-    type: "mma", 
-    duration: 25, 
-    intensity: "intense",
-    rounds: 5,
-    roundDuration: 300,
-    restDuration: 60,
-    icon: Target,
-    color: "text-purple-500"
-  },
-  { 
-    name: "MMA Technique", 
-    type: "mma", 
-    duration: 45, 
-    intensity: "moderate",
-    icon: Target,
-    color: "text-indigo-500"
-  },
+const INTENSITIES: { value: IntensityLevel; label: string; color: string }[] = [
+  { value: "light", label: "Léger", color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  { value: "moderate", label: "Modéré", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  { value: "intense", label: "Intense", color: "bg-red-500/20 text-red-400 border-red-500/30" },
 ];
 
-const STRENGTH_TEMPLATES: WorkoutTemplate[] = [
-  { 
-    name: "Force - Upper Body", 
-    type: "strength", 
-    duration: 45, 
-    intensity: "intense",
-    icon: Dumbbell,
-    color: "text-emerald-500"
-  },
-  { 
-    name: "Force - Lower Body", 
-    type: "strength", 
-    duration: 45, 
-    intensity: "intense",
-    icon: Dumbbell,
-    color: "text-teal-500"
-  },
-  { 
-    name: "Full Body Strength", 
-    type: "strength", 
-    duration: 60, 
-    intensity: "moderate",
-    icon: Dumbbell,
-    color: "text-cyan-500"
-  },
+const TYPE_TABS: { value: Exclude<WorkoutType, "custom">; icon: string; label: string }[] = [
+  { value: "boxing", icon: "🥊", label: "Boxe" },
+  { value: "mma", icon: "🥋", label: "MMA" },
+  { value: "strength", icon: "💪", label: "Force" },
+  { value: "cardio", icon: "🔥", label: "Cardio" },
 ];
-
-const CARDIO_TEMPLATES: WorkoutTemplate[] = [
-  { 
-    name: "HIIT Conditioning", 
-    type: "cardio", 
-    duration: 20, 
-    intensity: "intense",
-    icon: Flame,
-    color: "text-red-400"
-  },
-  { 
-    name: "Cardio Endurance", 
-    type: "cardio", 
-    duration: 40, 
-    intensity: "moderate",
-    icon: Timer,
-    color: "text-pink-500"
-  },
-  { 
-    name: "Circuit Training", 
-    type: "cardio", 
-    duration: 30, 
-    intensity: "intense",
-    icon: Zap,
-    color: "text-amber-500"
-  },
-];
-
-const QUICK_START_OPTIONS = [
-  { name: "Express 5min", duration: 5, type: "cardio" as WorkoutType, intensity: "intense" as IntensityLevel },
-  { name: "Rapide 10min", duration: 10, type: "cardio" as WorkoutType, intensity: "moderate" as IntensityLevel },
-  { name: "Quick 15min", duration: 15, type: "cardio" as WorkoutType, intensity: "moderate" as IntensityLevel },
-];
-
-const INTENSITY_OPTIONS: { value: IntensityLevel; label: string; description: string }[] = [
-  { value: "light", label: "Léger - Light", description: "Récupération active" },
-  { value: "moderate", label: "Modéré - Moderate", description: "Entraînement standard" },
-  { value: "intense", label: "Intense - Hard", description: "Haute intensité" },
-];
-
-const DURATION_OPTIONS = [15, 30, 45, 60, 90];
 
 // ============================================
 // COMPONENT
@@ -234,8 +137,9 @@ export const StartWorkoutDialogV2 = ({
   const [intensity, setIntensity] = useState<IntensityLevel>("moderate");
   const [rounds, setRounds] = useState(5);
   const [showRoundConfig, setShowRoundConfig] = useState(false);
+  const [restDuration, setRestDuration] = useState(60);
+  const [activeTab, setActiveTab] = useState<Exclude<WorkoutType, "custom">>("boxing");
 
-  // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       setWorkoutName("");
@@ -244,41 +148,39 @@ export const StartWorkoutDialogV2 = ({
       setIntensity("moderate");
       setRounds(5);
       setShowRoundConfig(false);
+      setRestDuration(60);
+      setActiveTab("boxing");
     }
   }, [open]);
 
-  const handleTemplateSelect = (template: WorkoutTemplate) => {
-    setWorkoutName(template.name);
-    setSelectedType(template.type);
-    setDuration(template.duration);
-    setIntensity(template.intensity);
-    if (template.rounds) {
-      setRounds(template.rounds);
+  const handleTemplateSelect = (t: WorkoutTemplate) => {
+    setWorkoutName(t.name);
+    setSelectedType(t.type);
+    setDuration(t.duration);
+    setIntensity(t.intensity);
+    if (t.rounds) {
+      setRounds(t.rounds);
       setShowRoundConfig(true);
+      if (t.restDuration) setRestDuration(t.restDuration);
+    } else {
+      setShowRoundConfig(false);
     }
   };
 
-  const handleQuickStart = (option: typeof QUICK_START_OPTIONS[0]) => {
-    const config: WorkoutConfig = {
-      name: option.name,
-      type: option.type,
-      duration: option.duration,
-      intensity: option.intensity,
-    };
-    onStartWorkout(config);
+  const handleQuickStart = (q: typeof QUICK_START[0]) => {
+    onStartWorkout({
+      name: q.name,
+      type: "cardio",
+      duration: q.duration,
+      intensity: q.intensity,
+    });
     onOpenChange(false);
-  };
-
-  const handleRecentSelect = (workout: RecentWorkout) => {
-    setWorkoutName(workout.name);
-    setSelectedType(workout.type as WorkoutType);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!workoutName.trim()) return;
-
-    const config: WorkoutConfig = {
+    onStartWorkout({
       name: workoutName.trim(),
       type: selectedType,
       duration,
@@ -286,261 +188,270 @@ export const StartWorkoutDialogV2 = ({
       ...(showRoundConfig && {
         rounds,
         roundDuration: 180,
-        restDuration: 60,
+        restDuration,
       }),
-    };
-
-    onStartWorkout(config);
+    });
     onOpenChange(false);
   };
-
-  const handleCancel = () => {
-    onOpenChange(false);
-  };
-
-  const renderTemplates = (templates: WorkoutTemplate[]) => (
-    <div className="grid grid-cols-1 gap-2">
-      {templates.map((template) => {
-        const Icon = template.icon;
-        return (
-          <Button
-            key={template.name}
-            type="button"
-            variant="outline"
-            className={cn(
-              "justify-start h-auto py-3 px-4 text-left",
-              workoutName === template.name && "border-primary bg-primary/5"
-            )}
-            onClick={() => handleTemplateSelect(template)}
-          >
-            <Icon className={cn("h-5 w-5 mr-3 flex-shrink-0", template.color)} />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{template.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {template.duration}min • {template.intensity}
-                {template.rounds && ` • ${template.rounds} rounds`}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          </Button>
-        );
-      })}
-    </div>
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5 text-primary" />
-            Nouveau Workout
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Hero header */}
+        <div className="relative px-6 pt-6 pb-5 border-b border-border bg-gradient-to-br from-primary/10 via-transparent to-transparent">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 text-xl">
+              <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                <Dumbbell className="h-5 w-5 text-primary" />
+              </div>
+              Nouvelle séance
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mt-1.5 ml-12">
+            Choisis un template ou personnalise ton entraînement
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          {/* Quick Start */}
-          <div className="mb-4">
-            <Label className="text-xs text-muted-foreground mb-2 block">
-              Démarrage Rapide - Quick Start Express
-            </Label>
-            <div className="flex gap-2">
-              {QUICK_START_OPTIONS.map((option) => (
-                <Button
-                  key={option.name}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleQuickStart(option)}
-                  disabled={loading}
-                >
-                  <Play className="h-3 w-3 mr-1" />
-                  {option.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Workout Name */}
-          <div className="mb-4">
-            <Label htmlFor="workout-name">Nom de l'entraînement</Label>
-            <Input
-              id="workout-name"
-              value={workoutName}
-              onChange={(e) => setWorkoutName(e.target.value)}
-              placeholder="Nom de votre entraînement ou workout"
-              className="mt-1"
-              disabled={loading}
-            />
-          </div>
-
-          {/* Templates Tabs */}
-          <div className="flex-1 min-h-0 mb-4">
-            <Tabs defaultValue="boxing" className="h-full flex flex-col">
-              <TabsList className="grid grid-cols-4 mb-2">
-                <TabsTrigger value="boxing" className="text-xs">
-                  🥊 Boxing Boxe
-                </TabsTrigger>
-                <TabsTrigger value="mma" className="text-xs">
-                  🥋 MMA Combat
-                </TabsTrigger>
-                <TabsTrigger value="strength" className="text-xs">
-                  💪 Force Strength
-                </TabsTrigger>
-                <TabsTrigger value="cardio" className="text-xs">
-                  🔥 Conditioning Cardio
-                </TabsTrigger>
-              </TabsList>
-
-              <ScrollArea className="flex-1 pr-2">
-                <TabsContent value="boxing" className="mt-0">
-                  {renderTemplates(BOXING_TEMPLATES)}
-                </TabsContent>
-                <TabsContent value="mma" className="mt-0">
-                  {renderTemplates(MMA_TEMPLATES)}
-                </TabsContent>
-                <TabsContent value="strength" className="mt-0">
-                  {renderTemplates(STRENGTH_TEMPLATES)}
-                </TabsContent>
-                <TabsContent value="cardio" className="mt-0">
-                  {renderTemplates(CARDIO_TEMPLATES)}
-                </TabsContent>
-              </ScrollArea>
-            </Tabs>
-          </div>
-
-          {/* Configuration */}
-          <div className="space-y-3 mb-4">
-            {/* Duration */}
-            <div>
-              <Label className="text-xs">Durée Duration Temps</Label>
-              <div className="flex gap-1 mt-1">
-                {DURATION_OPTIONS.map((d) => (
-                  <Button
-                    key={d}
-                    type="button"
-                    variant={duration === d ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setDuration(d)}
-                    disabled={loading}
-                  >
-                    {d}min
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Intensity */}
-            <div>
-              <Label className="text-xs">Intensité - Intensity</Label>
-              <div className="flex gap-1 mt-1">
-                {INTENSITY_OPTIONS.map((opt) => (
-                  <Button
-                    key={opt.value}
-                    type="button"
-                    variant={intensity === opt.value ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setIntensity(opt.value)}
-                    disabled={loading}
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Rounds Config */}
-            {showRoundConfig && (
-              <div>
-                <Label className="text-xs">Rounds</Label>
-                <div className="flex gap-1 mt-1">
-                  {[3, 5, 8, 10, 12].map((r) => (
-                    <Button
-                      key={r}
-                      type="button"
-                      variant={rounds === r ? "default" : "outline"}
-                      size="sm"
-                      className="flex-1 text-xs"
-                      onClick={() => setRounds(r)}
-                      disabled={loading}
-                    >
-                      {r}
-                    </Button>
-                  ))}
+          <ScrollArea className="flex-1 px-6">
+            <div className="py-5 space-y-6">
+              {/* Quick Start cards */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Démarrage express
+                  </Label>
                 </div>
-              </div>
-            )}
+                <div className="grid grid-cols-3 gap-2">
+                  {QUICK_START.map((q) => {
+                    const Icon = q.icon;
+                    return (
+                      <button
+                        key={q.name}
+                        type="button"
+                        onClick={() => handleQuickStart(q)}
+                        disabled={loading}
+                        className={cn(
+                          "group relative overflow-hidden rounded-xl border border-border bg-card/50",
+                          "p-3 text-left transition-all hover:border-primary/50 hover:bg-primary/5",
+                          "disabled:opacity-50"
+                        )}
+                      >
+                        <Icon className="h-4 w-4 text-primary mb-2" />
+                        <div className="text-sm font-semibold text-foreground">{q.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{q.duration} min</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
-            {/* Rest Time */}
-            <div>
-              <Label className="text-xs">Temps de Repos - Rest</Label>
-              <div className="flex gap-1 mt-1">
-                {[30, 60, 90, 120].map((r) => (
-                  <Button
-                    key={r}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs"
+              {/* Custom name */}
+              <section>
+                <Label htmlFor="workout-name" className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 block">
+                  Nom de la séance
+                </Label>
+                <Input
+                  id="workout-name"
+                  value={workoutName}
+                  onChange={(e) => setWorkoutName(e.target.value)}
+                  placeholder="Ex : Boxe technique"
+                  disabled={loading}
+                  className="h-11 text-base"
+                />
+              </section>
+
+              {/* Templates */}
+              <section>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3 block">
+                  Templates
+                </Label>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+                  <TabsList className="grid grid-cols-4 h-auto p-1 bg-muted/50">
+                    {TYPE_TABS.map((t) => (
+                      <TabsTrigger
+                        key={t.value}
+                        value={t.value}
+                        className="flex-col gap-0.5 py-2 data-[state=active]:bg-background"
+                      >
+                        <span className="text-lg leading-none">{t.icon}</span>
+                        <span className="text-[11px] font-medium">{t.label}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+
+                  {TYPE_TABS.map((t) => (
+                    <TabsContent key={t.value} value={t.value} className="mt-3 space-y-2">
+                      {TEMPLATES[t.value].map((tpl) => {
+                        const Icon = tpl.icon;
+                        const isSelected = workoutName === tpl.name;
+                        const intensityMeta = INTENSITIES.find((i) => i.value === tpl.intensity)!;
+                        return (
+                          <button
+                            key={tpl.name}
+                            type="button"
+                            onClick={() => handleTemplateSelect(tpl)}
+                            className={cn(
+                              "w-full rounded-xl border p-3 flex items-center gap-3 transition-all text-left",
+                              isSelected
+                                ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]"
+                                : "border-border bg-card/30 hover:border-primary/40 hover:bg-card/60"
+                            )}
+                          >
+                            <div className={cn("h-10 w-10 rounded-lg bg-background/80 flex items-center justify-center flex-shrink-0", tpl.accent)}>
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm text-foreground truncate">{tpl.name}</div>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>{tpl.duration} min</span>
+                                {tpl.rounds && <span>• {tpl.rounds} rounds</span>}
+                              </div>
+                            </div>
+                            <span className={cn("px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide", intensityMeta.color)}>
+                              {intensityMeta.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </section>
+
+              {/* Config */}
+              <section className="space-y-5 rounded-xl border border-border bg-card/30 p-4">
+                {/* Duration slider */}
+                <div>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Durée</Label>
+                    <span className="text-2xl font-bold text-primary tabular-nums">
+                      {duration}<span className="text-sm text-muted-foreground font-normal ml-1">min</span>
+                    </span>
+                  </div>
+                  <Slider
+                    value={[duration]}
+                    onValueChange={([v]) => setDuration(v)}
+                    min={5}
+                    max={120}
+                    step={5}
                     disabled={loading}
-                  >
-                    {r}s
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                    <span>5min</span><span>60min</span><span>120min</span>
+                  </div>
+                </div>
 
-          {/* Recent Workouts */}
-          {recentWorkouts.length > 0 && (
-            <div className="mb-4">
-              <Label className="text-xs flex items-center gap-1 mb-2">
-                <History className="h-3 w-3" />
-                Récent - Recent History
-              </Label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {recentWorkouts.slice(0, 3).map((workout) => (
-                  <Badge
-                    key={workout.id}
-                    variant="secondary"
-                    className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap"
-                    onClick={() => handleRecentSelect(workout)}
-                  >
-                    {workout.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+                {/* Intensity */}
+                <div>
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 block">
+                    Intensité
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {INTENSITIES.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setIntensity(opt.value)}
+                        disabled={loading}
+                        className={cn(
+                          "rounded-lg border py-2 text-xs font-semibold transition-all",
+                          intensity === opt.value
+                            ? `${opt.color} ring-1 ring-current`
+                            : "border-border bg-background/40 text-muted-foreground hover:border-primary/30"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              className="flex-1"
-              disabled={loading}
-            >
+                {/* Rounds toggle + config */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRoundConfig(!showRoundConfig)}
+                    className="flex items-center justify-between w-full text-left"
+                  >
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer">
+                      Mode rounds
+                    </Label>
+                    <span className={cn(
+                      "h-5 w-9 rounded-full border transition-colors relative",
+                      showRoundConfig ? "bg-primary border-primary" : "bg-muted border-border"
+                    )}>
+                      <span className={cn(
+                        "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-background transition-transform",
+                        showRoundConfig ? "translate-x-4" : "translate-x-0.5"
+                      )} />
+                    </span>
+                  </button>
+                  {showRoundConfig && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span className="text-[10px] text-muted-foreground">Rounds</span>
+                          <span className="text-lg font-bold text-foreground tabular-nums">{rounds}</span>
+                        </div>
+                        <Slider value={[rounds]} onValueChange={([v]) => setRounds(v)} min={1} max={15} step={1} disabled={loading} />
+                      </div>
+                      <div>
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span className="text-[10px] text-muted-foreground">Repos</span>
+                          <span className="text-lg font-bold text-foreground tabular-nums">{restDuration}s</span>
+                        </div>
+                        <Slider value={[restDuration]} onValueChange={([v]) => setRestDuration(v)} min={15} max={180} step={15} disabled={loading} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Recent */}
+              {recentWorkouts.length > 0 && (
+                <section>
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
+                    <History className="h-3 w-3" /> Récents
+                  </Label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {recentWorkouts.slice(0, 5).map((w) => (
+                      <Badge
+                        key={w.id}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap py-1.5 px-3"
+                        onClick={() => { setWorkoutName(w.name); setSelectedType(w.type as WorkoutType); }}
+                      >
+                        {w.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          </ScrollArea>
+
+          {/* Footer actions */}
+          <div className="px-6 py-4 border-t border-border bg-background flex gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={!workoutName.trim() || loading}
-              className="flex-1"
+              className="flex-1 h-11 text-base font-semibold"
             >
               {loading ? (
                 <>
                   <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Chargement Démarrage Loading...
+                  Démarrage…
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Démarrer Commencer
+                  <Play className="h-4 w-4 mr-2 fill-current" />
+                  Démarrer la séance
                 </>
               )}
             </Button>
@@ -552,4 +463,3 @@ export const StartWorkoutDialogV2 = ({
 };
 
 export default StartWorkoutDialogV2;
-
