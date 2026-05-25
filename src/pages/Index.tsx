@@ -45,8 +45,7 @@ const Index = () => {
       {/* Header */}
       <DashboardHeader userName={userName} isPremium={isPremium} onSignOut={handleSignOut} />
       
-      {/* MMA News Banner */}
-      <MMANewsBanner />
+      
       
       {/* Hero Section - Uses video background, no additional image needed */}
       <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
