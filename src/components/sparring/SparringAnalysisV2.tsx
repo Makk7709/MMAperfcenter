@@ -565,11 +565,12 @@ export const SparringAnalysisV2 = () => {
       const result = await retryWithBackoff(
         async () => {
           const { data, error } = await supabase.functions.invoke('analyze-sparring', {
-            body: { 
+            body: {
               frames,
               totalDuration,
               analysisId: recordId,
-              videoName: file.name
+              videoName: file.name,
+              qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
             }
           });
 
