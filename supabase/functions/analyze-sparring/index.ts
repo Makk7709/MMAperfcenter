@@ -227,10 +227,11 @@ CONTEXTE TECHNIQUE:
 - ${frameCount} images extraites d'un sparring (échantillonnage discret, pas une vidéo continue)
 - Durée totale: ${durationStr} (${Math.round(totalDuration)}s)
 - Intervalle moyen: ~${intervalSeconds}s entre chaque frame
+- Avec ${frameCount} frames, tu as une couverture temporelle significative — utilise-la pour estimer le rythme et l'activité globale.
 
 RÈGLES D'ANALYSE:
 1. Tu DOIS appeler la fonction submit_sparring_analysis - aucune autre réponse acceptée.
-2. Sois RÉALISTE: tu ne vois que ${frameCount} instants. Les stats sont des ESTIMATIONS basées sur l'activité observée entre frames, pas des comptes exacts.
+2. Sois RÉALISTE: tu vois ${frameCount} instants. Les stats sont des ESTIMATIONS basées sur l'activité observée entre frames.
 3. Si tu ne peux PAS distinguer clairement les 2 combattants (angle, qualité), mets video_quality="poor" et confidence < 40.
 4. Préfère des chiffres BAS et HONNÊTES plutôt que des estimations gonflées.
 5. Si une action est ambiguë (coup raté vs touché), ne la compte PAS comme "landed".
