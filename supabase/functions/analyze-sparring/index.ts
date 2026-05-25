@@ -17,7 +17,7 @@ const AI_CONFIG = {
   modelFast: 'google/gemini-2.5-flash',
   maxTokens: 8000,
   temperature: 0.15,
-  maxFrames: 32, // était 16 → x2 pour mieux capturer les actions
+  maxFrames: 60, // 60 frames = ~2x plus de couverture temporelle (était 32)
   apiUrl: 'https://ai-gateway.internal/v1/chat/completions',
 };
 
