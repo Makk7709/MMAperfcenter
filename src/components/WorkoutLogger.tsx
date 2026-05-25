@@ -57,7 +57,7 @@ export const WorkoutLogger = () => {
   if (!currentWorkout) {
     return (
       <div className="space-y-4">
-        <Card className="bg-gradient-card border-0 shadow-card">
+        <Card className="liquid-glass-solid border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Dumbbell className="h-5 w-5 text-primary" />
@@ -78,7 +78,7 @@ export const WorkoutLogger = () => {
   return (
     <div className="space-y-4">
       {/* En-tête workout actuel */}
-      <Card className="bg-gradient-card border-0 shadow-card">
+      <Card className="liquid-glass-solid border-0">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export const WorkoutLogger = () => {
 
       {/* Exercices */}
       {currentWorkout.workout_exercises.map((workoutExercise) => (
-        <Card key={workoutExercise.id} className="bg-gradient-card border-0 shadow-card">
+        <Card key={workoutExercise.id} className="liquid-glass-solid border-0">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
               {workoutExercise.exercise.name}

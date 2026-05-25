@@ -26,7 +26,7 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
   const { hasAdminAccess } = useUserRole();
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-gradient-card backdrop-blur-md border-b border-border/50 shadow-card">
+    <header className="sticky top-0 z-50 w-full liquid-glass-solid backdrop-blur-md border-b border-border/50 shadow-card">
       <div className="container flex items-center justify-between h-16 px-4">
         {/* Logo & Brand */}
         <div className="flex items-center gap-3">

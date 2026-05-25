@@ -69,7 +69,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-gradient-card border-b border-border sticky top-0 z-10">
+      <div className="liquid-glass-solid border-b border-border sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button
@@ -92,7 +92,7 @@ const Profile = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informations personnelles */}
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardHeader>
               <CardTitle>Informations personnelles</CardTitle>
               <CardDescription>Vos informations de base</CardDescription>
@@ -162,7 +162,7 @@ const Profile = () => {
           </Card>
 
           {/* Fitness et Arts Martiaux */}
-          <Card className="bg-gradient-card border-0 shadow-card">
+          <Card className="liquid-glass-solid border-0">
             <CardHeader>
               <CardTitle>Fitness & Arts Martiaux</CardTitle>
               <CardDescription>Votre niveau et discipline</CardDescription>

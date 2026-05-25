@@ -161,7 +161,7 @@ export const SparringShowcase = () => {
               {/* Glow effect */}
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-3xl blur-2xl opacity-50" />
               
-              <div className="relative bg-gradient-card border border-primary/20 rounded-2xl p-6 shadow-2xl">
+              <div className="relative liquid-glass-solid border border-primary/20 rounded-2xl p-6 shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
