@@ -39,7 +39,7 @@ export function WolfRankDisplay({
     <div
       data-testid="wolf-rank-display"
       className={cn(
-        'flex flex-col gap-3 p-4 rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 border border-amber-500/20',
+        'liquid-glass-solid flex flex-col gap-3 p-4 rounded-lg border border-amber-500/20',
         variant === 'compact' && 'compact p-2 gap-2',
         variant === 'full' && 'full',
         showAnimation && 'animate animate-pulse',
