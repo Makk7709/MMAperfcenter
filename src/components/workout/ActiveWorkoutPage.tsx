@@ -1,33 +1,18 @@
 /**
- * ActiveWorkoutPage Component
- * 
- * Full-screen workout view with:
- * - Wolf-themed timer
- * - Round tracking
- * - Session summary on completion
+ * ActiveWorkoutPage — Refonte moderne KOREV
+ * Plein écran, focus immersif, design system aligné.
  */
 
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { WolfTimerDisplay } from '@/components/gamification/WolfTimerDisplay';
-import { WolfSessionSummary } from '@/components/gamification/WolfSessionSummary';
-import { WolfRankDisplay } from '@/components/gamification/WolfRankDisplay';
-import type { WorkoutConfig } from './StartWorkoutDialogV2';
-import type { SessionSummary } from '@/utils/gamification/wolfTracking';
-import { 
-  ArrowLeft, 
-  Trophy,
-  Flame,
-  Target,
-  Dumbbell 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-// ============================================
-// TYPES
-// ============================================
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { WolfTimerDisplay } from "@/components/gamification/WolfTimerDisplay";
+import { WolfSessionSummary } from "@/components/gamification/WolfSessionSummary";
+import { WolfRankDisplay } from "@/components/gamification/WolfRankDisplay";
+import type { WorkoutConfig } from "./StartWorkoutDialogV2";
+import type { SessionSummary } from "@/utils/gamification/wolfTracking";
+import { ArrowLeft, Trophy, Flame, Target, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ActiveWorkoutPageProps {
   config: WorkoutConfig;
@@ -36,11 +21,9 @@ interface ActiveWorkoutPageProps {
   currentXP?: number;
 }
 
-type WorkoutPhase = 'warmup' | 'active' | 'cooldown' | 'completed';
+type WorkoutPhase = "warmup" | "active" | "cooldown" | "completed";
 
-// ============================================
-// COMPONENT
-// ============================================
+const PHASES: WorkoutPhase[] = ["warmup", "active", "cooldown"];
 
 export function ActiveWorkoutPage({
   config,
@@ -48,22 +31,17 @@ export function ActiveWorkoutPage({
   onCancel,
   currentXP = 0,
 }: ActiveWorkoutPageProps) {
-  const [phase, setPhase] = useState<WorkoutPhase>('warmup');
+  const [phase, setPhase] = useState<WorkoutPhase>("warmup");
   const [completedRounds, setCompletedRounds] = useState(0);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [startTime] = useState(Date.now());
 
-  // Determine if this is a round-based workout
   const hasRounds = Boolean(config.rounds && config.roundDuration);
 
-  // Handle timer completion
   const handleTimerComplete = useCallback(() => {
-    if (phase === 'warmup') {
-      setPhase('active');
-    } else if (phase === 'active') {
-      setPhase('cooldown');
-    } else if (phase === 'cooldown') {
-      // Generate session summary
+    if (phase === "warmup") setPhase("active");
+    else if (phase === "active") setPhase("cooldown");
+    else if (phase === "cooldown") {
       const duration = Math.round((Date.now() - startTime) / 1000);
       const summary: SessionSummary = {
         totalExercises: hasRounds ? completedRounds : 1,
@@ -73,73 +51,44 @@ export function ActiveWorkoutPage({
         totalVolume: 0,
         duration,
         personalRecords: [],
-        caloriesEstimate: Math.round(duration / 60 * 8), // ~8 kcal/min
-        intensityScore: config.intensity === 'intense' ? 85 : config.intensity === 'moderate' ? 65 : 45,
-        muscleGroups: ['full-body'],
+        caloriesEstimate: Math.round((duration / 60) * 8),
+        intensityScore: config.intensity === "intense" ? 85 : config.intensity === "moderate" ? 65 : 45,
+        muscleGroups: ["full-body"],
         badges: [],
-        xpEarned: 50 + (completedRounds * 10),
+        xpEarned: 50 + completedRounds * 10,
       };
       setSessionSummary(summary);
-      setPhase('completed');
+      setPhase("completed");
     }
   }, [phase, startTime, hasRounds, completedRounds, config.intensity]);
 
-  // Handle round changes
   const handleRoundChange = useCallback((round: number) => {
     setCompletedRounds(round - 1);
   }, []);
 
-  // Handle session complete
-  const handleSessionClose = useCallback(() => {
-    if (sessionSummary) {
-      onComplete(sessionSummary);
-    }
-  }, [sessionSummary, onComplete]);
-
-  // Get phase configuration
-  const getPhaseConfig = () => {
+  const phaseConfig = (() => {
     switch (phase) {
-      case 'warmup':
+      case "warmup":
+        return { title: "Échauffement", subtitle: "Prépare ton corps", duration: 60, badge: "🔥 PHASE 1/3" };
+      case "active":
         return {
-          title: '🔥 Échauffement',
-          subtitle: 'Prépare ton corps pour la chasse',
-          duration: 60, // 1 minute warmup
-          color: 'from-orange-500 to-yellow-500',
+          title: config.name,
+          subtitle: hasRounds ? `Round ${completedRounds + 1} sur ${config.rounds}` : "En pleine séance",
+          duration: hasRounds ? (config.roundDuration || 180) : config.duration * 60,
+          badge: "⚡ PHASE 2/3",
         };
-      case 'active':
-        return {
-          title: `🐺 ${config.name}`,
-          subtitle: hasRounds ? `Round ${completedRounds + 1}/${config.rounds}` : 'En pleine chasse !',
-          duration: hasRounds 
-            ? (config.roundDuration || 180)
-            : config.duration * 60,
-          color: 'from-amber-500 to-red-500',
-        };
-      case 'cooldown':
-        return {
-          title: '❄️ Récupération',
-          subtitle: 'La meute se repose...',
-          duration: 60,
-          color: 'from-blue-500 to-cyan-500',
-        };
+      case "cooldown":
+        return { title: "Récupération", subtitle: "Respire, étire-toi", duration: 60, badge: "❄️ PHASE 3/3" };
       default:
-        return {
-          title: '',
-          subtitle: '',
-          duration: 0,
-          color: '',
-        };
+        return { title: "", subtitle: "", duration: 0, badge: "" };
     }
-  };
+  })();
 
-  const phaseConfig = getPhaseConfig();
-
-  // Show session summary when completed
-  if (phase === 'completed' && sessionSummary) {
+  if (phase === "completed" && sessionSummary) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-amber-900/20 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-2xl"
         >
@@ -147,11 +96,8 @@ export function ActiveWorkoutPage({
             summary={sessionSummary}
             showActions
             animate
-            onClose={handleSessionClose}
-            onShare={() => {
-              // TODO: Implement share functionality
-              console.log('Share workout');
-            }}
+            onClose={() => onComplete(sessionSummary)}
+            onShare={() => console.log("Share workout")}
           />
         </motion.div>
       </div>
@@ -159,59 +105,75 @@ export function ActiveWorkoutPage({
   }
 
   return (
-    <div className={cn(
-      "min-h-screen flex flex-col",
-      "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
-    )}>
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 bg-gradient-radial from-primary/10 via-transparent to-transparent pointer-events-none" />
+
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-amber-500/20">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onCancel}
-          className="text-slate-400 hover:text-white"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+      <header className="relative flex items-center justify-between px-4 py-3 border-b border-border/50 backdrop-blur-sm">
+        <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
           Quitter
         </Button>
 
-        <div className="flex items-center gap-2">
-          <Badge type={config.type} />
-          <span className="text-sm font-medium text-amber-400">
-            {config.intensity.toUpperCase()}
-          </span>
+        {/* Phase progress dots */}
+        <div className="flex items-center gap-1.5">
+          {PHASES.map((p, i) => {
+            const currentIdx = PHASES.indexOf(phase);
+            const isActive = i === currentIdx;
+            const isDone = i < currentIdx;
+            return (
+              <div
+                key={p}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-500",
+                  isActive ? "w-8 bg-primary" : isDone ? "w-5 bg-primary/50" : "w-5 bg-muted"
+                )}
+              />
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs">
+          <TypeBadge type={config.type} />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
-        {/* Phase Title */}
-        <motion.div
-          key={phase}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center"
-        >
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            {phaseConfig.title}
-          </h1>
-          <p className="text-lg text-amber-400">
-            {phaseConfig.subtitle}
-          </p>
-        </motion.div>
+      {/* Main */}
+      <main className="relative flex-1 flex flex-col items-center justify-center px-4 py-6 gap-6">
+        {/* Phase header */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={phase}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3 }}
+            className="text-center space-y-2"
+          >
+            <div className="inline-block text-[10px] font-bold uppercase tracking-widest text-primary px-3 py-1 rounded-full border border-primary/30 bg-primary/5">
+              {phaseConfig.badge}
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+              {phaseConfig.title}
+            </h1>
+            <p className="text-base text-muted-foreground">{phaseConfig.subtitle}</p>
+          </motion.div>
+        </AnimatePresence>
 
-        {/* Wolf Timer */}
+        {/* Timer */}
         <AnimatePresence mode="wait">
           <motion.div
             key={phase}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.4 }}
             className="w-full max-w-md"
           >
             <WolfTimerDisplay
               initialTime={phaseConfig.duration}
-              mode={hasRounds && phase === 'active' ? 'rounds' : 'simple'}
+              mode={hasRounds && phase === "active" ? "rounds" : "simple"}
               rounds={config.rounds}
               roundDuration={config.roundDuration}
               restDuration={config.restDuration || 60}
@@ -223,30 +185,20 @@ export function ActiveWorkoutPage({
           </motion.div>
         </AnimatePresence>
 
-        {/* Stats Bar */}
-        <div className="flex gap-4 text-center">
-          <StatCard
-            icon={<Flame className="w-5 h-5 text-orange-400" />}
-            label="Temps"
-            value={`${config.duration}min`}
-          />
-          {hasRounds && (
-            <StatCard
-              icon={<Target className="w-5 h-5 text-red-400" />}
-              label="Rounds"
-              value={`${completedRounds}/${config.rounds}`}
-            />
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 w-full max-w-md">
+          <StatCard icon={Clock} label="Durée" value={`${config.duration}min`} accent="text-orange-400" />
+          {hasRounds ? (
+            <StatCard icon={Target} label="Rounds" value={`${completedRounds}/${config.rounds}`} accent="text-red-400" />
+          ) : (
+            <StatCard icon={Flame} label="Intensité" value={config.intensity} accent="text-amber-400" capitalize />
           )}
-          <StatCard
-            icon={<Trophy className="w-5 h-5 text-amber-400" />}
-            label="XP"
-            value={`+${50 + completedRounds * 10}`}
-          />
+          <StatCard icon={Trophy} label="XP" value={`+${50 + completedRounds * 10}`} accent="text-primary" />
         </div>
       </main>
 
-      {/* Footer with Rank */}
-      <footer className="p-4 border-t border-amber-500/20">
+      {/* Footer */}
+      <footer className="relative px-4 py-3 border-t border-border/50 backdrop-blur-sm">
         <WolfRankDisplay currentXP={currentXP} variant="compact" />
       </footer>
     </div>
@@ -254,48 +206,43 @@ export function ActiveWorkoutPage({
 }
 
 // ============================================
-// SUB-COMPONENTS
+// Sub-components
 // ============================================
 
-function Badge({ type }: { type: string }) {
-  const getTypeIcon = () => {
-    switch (type) {
-      case 'boxing': return '🥊';
-      case 'mma': return '🥋';
-      case 'strength': return '💪';
-      case 'cardio': return '🔥';
-      default: return '🏋️';
-    }
+function TypeBadge({ type }: { type: string }) {
+  const icons: Record<string, string> = {
+    boxing: "🥊", mma: "🥋", strength: "💪", cardio: "🔥",
   };
-
+  const labels: Record<string, string> = {
+    boxing: "Boxe", mma: "MMA", strength: "Force", cardio: "Cardio",
+  };
   return (
-    <span className="px-2 py-1 bg-slate-700/50 rounded-full text-sm">
-      {getTypeIcon()} {type.toUpperCase()}
+    <span className="px-2.5 py-1 bg-muted/60 border border-border rounded-full text-[11px] font-semibold text-foreground">
+      {icons[type] || "🏋️"} {labels[type] || type}
     </span>
   );
 }
 
-function StatCard({ 
-  icon, 
-  label, 
-  value 
-}: { 
-  icon: React.ReactNode; 
-  label: string; 
+function StatCard({
+  icon: Icon, label, value, accent, capitalize,
+}: {
+  icon: React.ElementType;
+  label: string;
   value: string;
+  accent: string;
+  capitalize?: boolean;
 }) {
   return (
-    <Card className="px-4 py-2 bg-slate-800/50 border-slate-700">
-      <div className="flex items-center gap-2">
-        {icon}
-        <div>
-          <p className="text-xs text-slate-400">{label}</p>
-          <p className="font-bold text-white">{value}</p>
-        </div>
+    <div className="rounded-xl border border-border bg-card/40 backdrop-blur-sm px-3 py-2.5 text-center">
+      <Icon className={cn("h-4 w-4 mx-auto mb-1", accent)} />
+      <div className={cn("text-base font-bold text-foreground tabular-nums", capitalize && "capitalize")}>
+        {value}
       </div>
-    </Card>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+        {label}
+      </div>
+    </div>
   );
 }
 
 export default ActiveWorkoutPage;
-
