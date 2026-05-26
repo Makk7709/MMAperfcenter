@@ -155,23 +155,24 @@ const Pricing = () => {
             return (
               <Card 
                 key={plan.id}
-                className={`relative ${
+                className={`relative liquid-glass backdrop-blur-md bg-card/40 transition-all duration-300 hover:scale-[1.02] ${
                   plan.popular 
                     ? 'border-primary shadow-lg shadow-primary/20' 
-                    : ''
-                } ${isCurrentPlan ? 'border-accent' : ''}`}
+                    : 'border-border/50'
+                } ${isCurrentPlan ? 'border-accent ring-2 ring-accent/40' : ''}`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary">Plus populaire</Badge>
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                    <Badge className="bg-primary text-primary-foreground font-semibold shadow-md">Plus populaire</Badge>
                   </div>
                 )}
                 
                 {isCurrentPlan && (
-                  <div className="absolute -top-4 right-4">
-                    <Badge variant="secondary">Votre plan</Badge>
+                  <div className="absolute -top-4 right-4 z-10">
+                    <Badge className="bg-accent text-accent-foreground font-semibold shadow-md">Votre plan</Badge>
                   </div>
                 )}
+
 
                 <CardHeader>
                   <div className="flex items-center gap-2 mb-2">
