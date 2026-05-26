@@ -417,6 +417,7 @@ export const SparringAnalysisV2 = () => {
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('sparring_analysis');
   
   // États
   const [uploading, setUploading] = useState(false);
