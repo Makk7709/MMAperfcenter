@@ -504,9 +504,41 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ===== Auth + feature gating =====
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'User not authenticated' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+    const { data: isCoach } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'coach' });
+    const privileged = isAdmin === true || isCoach === true;
+    if (!privileged) {
+      const { data: allowed } = await supabase.rpc('has_feature_access', {
+        _user_id: user.id, _feature: 'sparring_analysis',
+      });
+      if (allowed !== true) {
+        return new Response(
+          JSON.stringify({ error: 'Limite mensuelle atteinte pour l\'analyse PRISM. Passe au plan Pro pour un accès illimité.', code: 'FEATURE_LIMIT_REACHED' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      await supabase.rpc('increment_feature_usage', { _user_id: user.id, _feature_name: 'sparring_analysis' });
+    }
+
     if (analysisId) {
       await supabase.from('sparring_analyses').update({ status: 'processing' }).eq('id', analysisId);
     }
+
 
     const model = qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
     console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model} — discipline=${profile.label}`);
