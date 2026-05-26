@@ -39,6 +39,7 @@ export const BarcodeScannerDialog = ({
   const [loading, setLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('barcode_scan');
 
   useEffect(() => {
     if (open && !codeReaderRef.current) {
