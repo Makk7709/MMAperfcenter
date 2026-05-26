@@ -366,7 +366,7 @@ const clampStat = (v: unknown, d = 0): number => {
   return Math.max(0, Math.round(v));
 };
 
-function validateAnalysis(data: any, totalDuration: number) {
+function validateAnalysis(data: any, totalDuration: number, profile: DisciplineProfile) {
   const minutes = Math.floor(totalDuration / 60);
   const seconds = Math.round(totalDuration % 60);
   const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
