@@ -216,6 +216,32 @@ export default function WorkoutHistory() {
               </Card>
             ) : (
               <div className="space-y-4">
+                <div className="flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="gap-1 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" /> Réinitialiser l'historique
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Réinitialiser tout l'historique ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action supprimera définitivement tous vos entraînements terminés. Elle est irréversible.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleResetWorkouts}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Tout supprimer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
                 {workouts.map((workout) => {
                   const totalSets = workout.workout_exercises.reduce(
                     (sum, we) => sum + we.sets.filter(s => s.completed).length,
