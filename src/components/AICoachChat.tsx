@@ -278,5 +278,8 @@ export const AICoachChat = () => {
         </div>
       </CardContent>
     </Card>
+    <FeaturePaywall feature="ai_coach" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
+
