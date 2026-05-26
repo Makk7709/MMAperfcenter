@@ -523,6 +523,10 @@ export const SparringAnalysisV2 = () => {
       return;
     }
 
+    // Gate accès (free = 3/mois) — incrémente le compteur côté DB
+    const allowed = await gate();
+    if (!allowed) return;
+
     setUploading(true);
     setUploadProgress(0);
     
