@@ -1540,6 +1540,8 @@ export const SparringAnalysisV2 = () => {
         {currentAnalysis ? renderAnalysisResults() : renderUploadSection()}
       </CardContent>
     </Card>
+    <FeaturePaywall feature="sparring_analysis" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
 
