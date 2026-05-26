@@ -10,6 +10,8 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
 import { Loader2, Camera, X } from "lucide-react";
 import type { NutritionLog } from "@/hooks/useNutrition";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "./FeaturePaywall";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
