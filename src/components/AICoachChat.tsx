@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { Bot, Send, Loader2, User, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -63,14 +63,17 @@ export const AICoachChat = () => {
 
       console.log("Calling ai-coach with token...");
       
+      // We use a raw fetch (not supabase.functions.invoke) because the
+      // ai-coach function streams Server-Sent Events. URL and anon key are
+      // imported from the centralized Supabase client to avoid duplication.
       const response = await fetch(
-        `https://vpvfkazmfvxbpffymodg.supabase.co/functions/v1/ai-coach`,
+        `${SUPABASE_URL}/functions/v1/ai-coach`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwdmZrYXptZnZ4YnBmZnltb2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzgwOTksImV4cCI6MjA3Mzk1NDA5OX0.v8tiUP7AptK5bjG4f16gRxSfyObJnEjJKXVpthSCbKg",
+            "apikey": SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
             messages: [...messages, userMessage],

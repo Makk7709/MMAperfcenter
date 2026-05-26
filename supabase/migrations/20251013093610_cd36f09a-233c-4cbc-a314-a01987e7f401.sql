@@ -35,9 +35,13 @@ AS $$
   )
 $$;
 
--- Set current user as admin
-INSERT INTO public.user_roles (user_id, role)
-VALUES ('3000d380-c9fe-4e37-88ce-e94096da347e', 'admin');
+-- NOTE: This migration historically inserted a hard-coded admin UUID for the
+-- founder account. For transmission/audit purposes this nominative INSERT
+-- has been moved to `supabase/seed/seed-admin.example.sql` (not run by the
+-- migration pipeline). The production database already contains the original
+-- row; this change does not affect existing data.
+-- To bootstrap a fresh environment, copy the seed file, fill in the target
+-- UUID and execute it manually via the Supabase SQL editor or CLI.
 
 -- Update RLS policies for training_videos to restrict to admins
 DROP POLICY IF EXISTS "Users can create their own training videos" ON public.training_videos;
