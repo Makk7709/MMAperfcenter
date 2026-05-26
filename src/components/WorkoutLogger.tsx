@@ -1,3 +1,11 @@
+/**
+ * @deprecated Legacy workout logger. The active product UI uses
+ * `WorkoutManager` + `ActiveWorkoutPage` + `StartWorkoutDialogV2`
+ * (see `src/components/workout/`). This component is kept as a
+ * fallback path on the dashboard while the V2 flow is being
+ * stabilised. Do not extend; new features must target the V2 stack.
+ * Scheduled for removal once the dashboard is fully migrated.
+ */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
