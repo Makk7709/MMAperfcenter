@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Lint • Test • Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Build-time defaults so `vite build` does not fail in CI.
+      # These are publishable (non-secret) placeholder values; the real public
+      # values are injected via repository / environment secrets when needed.
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'public-placeholder-key' }}
+      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'example' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint is run with `continue-on-error: true` while the legacy debt
+      # documented in docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md is being
+      # absorbed phase by phase. Failing lint MUST become blocking at phase 1.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Unit tests (Vitest)
+        run: npm run test:run
+
+      - name: Build (production)
+        run: npm run build
+
+      # Playwright is deliberately excluded from this minimal pipeline:
+      # it requires a running dev server + browsers and is documented as
+      # opt-in (`npm run test:e2e`) until a dedicated e2e job is added.
