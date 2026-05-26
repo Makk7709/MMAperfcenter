@@ -1024,6 +1024,10 @@ export type Database = {
         Args: { _feature_name: string; _user_id: string }
         Returns: number
       }
+      get_meute_member_role: {
+        Args: { _meute_id: string; _user_id: string }
+        Returns: string
+      }
       get_user_id_by_stripe_customer: {
         Args: { p_stripe_customer_id: string }
         Returns: string
@@ -1048,6 +1052,14 @@ export type Database = {
         Returns: undefined
       }
       increment_video_views: { Args: { video_id: string }; Returns: undefined }
+      is_meute_member: {
+        Args: { _meute_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_meute_owner: {
+        Args: { _meute_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_webhook_processed: { Args: { p_event_id: string }; Returns: boolean }
       mark_webhook_processed: {
         Args: { p_event_id: string; p_event_type: string; p_payload: Json }
