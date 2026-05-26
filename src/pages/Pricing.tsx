@@ -175,7 +175,7 @@ const Pricing = () => {
 
 
 
-                <CardHeader>
+                <CardHeader className={plan.popular || isCurrentPlan ? 'pt-12' : ''}>
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className="h-6 w-6 text-primary" />
                     <CardTitle>{plan.name}</CardTitle>
