@@ -22,8 +22,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
     title: "",
     description: "",
     category: "combat",
-    techniqueType: "",
-    difficultyLevel: "",
+    techniqueType: "none",
+    difficultyLevel: "none",
   });
 
   const [youtubeData, setYoutubeData] = useState({
@@ -31,21 +31,25 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
     title: "",
     description: "",
     category: "combat",
-    techniqueType: "",
-    difficultyLevel: "",
+    techniqueType: "none",
+    difficultyLevel: "none",
   });
 
   const handleUploadSubmit = () => {
     if (uploadData.file && uploadData.title) {
-      uploadVideo(uploadData, {
+      uploadVideo({
+        ...uploadData,
+        techniqueType: uploadData.techniqueType === "none" ? "" : uploadData.techniqueType,
+        difficultyLevel: uploadData.difficultyLevel === "none" ? "" : uploadData.difficultyLevel,
+      }, {
         onSuccess: () => {
           setUploadData({ 
             file: null, 
             title: "", 
             description: "", 
             category: "combat",
-            techniqueType: "",
-            difficultyLevel: "",
+            techniqueType: "none",
+            difficultyLevel: "none",
           });
           onOpenChange(false);
         },
@@ -60,8 +64,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
         title: youtubeData.title,
         description: youtubeData.description,
         category: youtubeData.category,
-        techniqueType: youtubeData.techniqueType,
-        difficultyLevel: youtubeData.difficultyLevel,
+        techniqueType: youtubeData.techniqueType === "none" ? "" : youtubeData.techniqueType,
+        difficultyLevel: youtubeData.difficultyLevel === "none" ? "" : youtubeData.difficultyLevel,
       }, {
         onSuccess: () => {
           setYoutubeData({ 
@@ -69,8 +73,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
             title: "", 
             description: "", 
             category: "combat",
-            techniqueType: "",
-            difficultyLevel: "",
+            techniqueType: "none",
+            difficultyLevel: "none",
           });
           onOpenChange(false);
         },
@@ -154,7 +158,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     <SelectItem value="pied">🦶 Pieds</SelectItem>
                     <SelectItem value="poings">👊 Poings</SelectItem>
                     <SelectItem value="combo">🥊 Combo</SelectItem>
@@ -170,7 +174,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   <SelectItem value="debutant">⭐ Débutant</SelectItem>
                   <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
                   <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
@@ -255,7 +259,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     <SelectItem value="pied">🦶 Pieds</SelectItem>
                     <SelectItem value="poings">👊 Poings</SelectItem>
                     <SelectItem value="combo">🥊 Combo</SelectItem>
@@ -271,7 +275,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   <SelectItem value="debutant">⭐ Débutant</SelectItem>
                   <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
                   <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
