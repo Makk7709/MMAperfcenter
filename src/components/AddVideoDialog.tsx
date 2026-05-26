@@ -22,8 +22,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
     title: "",
     description: "",
     category: "combat",
-    techniqueType: "",
-    difficultyLevel: "",
+    techniqueType: "none",
+    difficultyLevel: "none",
   });
 
   const [youtubeData, setYoutubeData] = useState({
@@ -31,8 +31,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
     title: "",
     description: "",
     category: "combat",
-    techniqueType: "",
-    difficultyLevel: "",
+    techniqueType: "none",
+    difficultyLevel: "none",
   });
 
   const handleUploadSubmit = () => {
