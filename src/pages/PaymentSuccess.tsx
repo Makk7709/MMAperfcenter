@@ -8,7 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
-  const { subscription, refetch } = useSubscription();
+  const { subscription, refreshSubscription } = useSubscription();
   const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function PaymentSuccess() {
         console.error('check-subscription failed', e);
       } finally {
         if (!cancelled) {
-          await refetch?.();
+          await refreshSubscription?.();
           setSyncing(false);
         }
       }
