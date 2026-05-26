@@ -716,7 +716,32 @@ export const SparringAnalysisV2 = () => {
   // Render Upload Section
   const renderUploadSection = () => (
     <div className="space-y-6">
-      {/* Upload Zone */}
+      {/* Discipline selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 rounded-xl bg-card/50 border border-border/50">
+        <div className="flex-1">
+          <Label className="text-sm font-semibold">Discipline analysée</Label>
+          <p className="text-xs text-muted-foreground">
+            Spécialise l'IA (stats adaptées, métriques non pertinentes masquées).
+          </p>
+        </div>
+        <Select value={discipline} onValueChange={setDiscipline} disabled={uploading || analyzing}>
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue placeholder="Choisir une discipline" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto (depuis mon profil)</SelectItem>
+            <SelectItem value="Boxe anglaise">Boxe anglaise</SelectItem>
+            <SelectItem value="Kickboxing">Kickboxing</SelectItem>
+            <SelectItem value="Muay Thai">Muay Thai</SelectItem>
+            <SelectItem value="MMA">MMA</SelectItem>
+            <SelectItem value="BJJ">BJJ / Grappling</SelectItem>
+            <SelectItem value="Judo">Judo / Lutte</SelectItem>
+            <SelectItem value="Karaté">Karaté</SelectItem>
+            <SelectItem value="Taekwondo">Taekwondo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className={cn(
         "relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300",
         "hover:border-primary/50 hover:bg-primary/5",
