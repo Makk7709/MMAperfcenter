@@ -411,6 +411,7 @@ const StatComparisonBar = ({
 // Composant principal
 export const SparringAnalysisV2 = () => {
   const { user, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // États
