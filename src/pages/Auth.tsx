@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ const authSchema = z.object({
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -65,6 +67,10 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      toast.error("Vous devez accepter les CGU et CGV pour créer un compte");
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -184,7 +190,22 @@ export default function Auth() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <div className="flex items-start gap-2 pt-1">
+                    <Checkbox
+                      id="signup-terms"
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="signup-terms" className="text-xs leading-snug text-muted-foreground font-normal cursor-pointer">
+                      J'ai lu et j'accepte les{' '}
+                      <Link to="/legal" target="_blank" className="text-primary underline">
+                        Conditions Générales d'Utilisation et de Vente
+                      </Link>{' '}
+                      ainsi que la politique de confidentialité.
+                    </Label>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading || !acceptedTerms}>
                     {isLoading ? 'Inscription...' : 'Créer un compte'}
                   </Button>
                 </form>
