@@ -22,6 +22,7 @@ export const AICoachChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('ai_coach');
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -31,6 +32,10 @@ export const AICoachChat = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
+    // Vérifie l'accès et incrémente le compteur (free = 3/mois)
+    const allowed = await gate();
+    if (!allowed) return;
 
     const userMessage: Message = { role: "user", content: input.trim() };
     setMessages(prev => [...prev, userMessage]);
