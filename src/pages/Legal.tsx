@@ -53,10 +53,13 @@ const Legal = () => {
           <div className="space-y-3 text-muted-foreground pl-7">
             <p><strong className="text-foreground">Raison sociale :</strong> KOREV AI — SASU</p>
             <p><strong className="text-foreground">Siège social :</strong> 20 Route d'Uriage, 38320 Herbeys, France</p>
-            <p><strong className="text-foreground">SIRET :</strong> [À compléter]</p>
+            {/* TODO juridique : remplacer par le SIRET définitif une fois l'immatriculation finalisée. */}
+            <p><strong className="text-foreground">SIRET :</strong> en cours d'immatriculation — informations communiquées sur demande à contact@korev-ai.com</p>
             <p><strong className="text-foreground">Email :</strong> contact@korev-ai.com</p>
-            <p><strong className="text-foreground">Directeur de la publication :</strong> [NOM_GÉRANT]</p>
-            <p><strong className="text-foreground">Hébergement :</strong> [HÉBERGEUR — À compléter]</p>
+            {/* TODO juridique : nommer le représentant légal effectif lors de la mise à jour des CGU. */}
+            <p><strong className="text-foreground">Directeur de la publication :</strong> Représentant légal de KOREV AI — SASU</p>
+            {/* TODO juridique : préciser l'hébergeur exact + RCS + adresse postale dans la politique de confidentialité définitive. */}
+            <p><strong className="text-foreground">Hébergement :</strong> Supabase Inc. (infrastructure cloud associée). Coordonnées détaillées disponibles dans la politique de confidentialité.</p>
           </div>
         </section>
 
@@ -243,18 +246,39 @@ const Legal = () => {
               des Données (RGPD - Règlement UE 2016/679) et à la loi Informatique et Libertés.
             </p>
             <p>
-              Les données collectées sont nécessaires à la fourniture du service et à son amélioration. 
-              Elles sont traitées de manière sécurisée et ne sont pas transmises à des tiers sans 
-              le consentement de l'utilisateur, sauf obligation légale.
+              <strong className="text-foreground">Catégories de données traitées :</strong> données 
+              d'identification (email, nom), données sportives et physiques (poids, taille, âge, 
+              discipline, niveau, objectifs, blessures, historique d'entraînement), données 
+              nutritionnelles (apports déclarés, scans de produits), médias (vidéos de sparring 
+              uploadées). Aucun diagnostic médical n'est produit par l'application.
             </p>
+            <p>
+              <strong className="text-foreground">Finalités :</strong> fourniture du service, 
+              personnalisation des recommandations sportives et nutritionnelles, suivi de 
+              progression, facturation des abonnements.
+            </p>
+            <p>
+              Les données ne sont pas transmises à des tiers sans le consentement de l'utilisateur, 
+              sauf obligation légale ou sous-traitants techniques nécessaires (hébergement, paiement, 
+              passerelle d'analyse IA).
+            </p>
+            {/* TODO juridique : publier la politique de confidentialité définitive et insérer son URL ci-dessous. */}
             <p>
               Pour plus d'informations sur le traitement des données personnelles, veuillez consulter 
-              notre <strong className="text-foreground">Politique de confidentialité</strong> : [URL_POLICY — À compléter]
+              notre <strong className="text-foreground">Politique de confidentialité</strong> 
+              (en cours de finalisation — disponible sur demande à contact@korev-ai.com).
             </p>
             <p>
-              L'utilisateur dispose d'un droit d'accès, de rectification, d'effacement, de portabilité 
-              et d'opposition sur ses données. Ces droits peuvent être exercés en contactant : 
-              contact@korev-ai.com
+              <strong className="text-foreground">Droits de l'utilisateur :</strong> accès, 
+              rectification, effacement, portabilité, opposition, limitation du traitement. 
+              Ces droits peuvent être exercés en contactant : contact@korev-ai.com.
+            </p>
+            <p>
+              <strong className="text-foreground">Rappel — application non médicale :</strong> les 
+              analyses produites par KOREV Performance Center (statistiques d'entraînement, retours 
+              IA, analyse vidéo de sparring) ont une valeur strictement indicative. En cas de 
+              blessure, pathologie ou doute sur l'aptitude à la pratique, l'avis d'un professionnel 
+              de santé reste impératif.
             </p>
           </div>
         </section>
