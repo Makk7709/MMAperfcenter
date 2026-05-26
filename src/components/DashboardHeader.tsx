@@ -52,52 +52,53 @@ export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignO
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-2">
           <Button 
-            variant={location.pathname === "/" ? "default" : "ghost"} 
+            variant="ghost"
             size="sm"
             onClick={() => navigate("/")}
-            className="gap-2"
+            className={`gap-2 ${location.pathname === "/" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
           >
             <Home className="h-4 w-4" />
             Accueil
           </Button>
           <Button 
-            variant={location.pathname === "/history" ? "default" : "ghost"} 
+            variant="ghost"
             size="sm"
             onClick={() => navigate("/history")}
-            className="gap-2"
+            className={`gap-2 ${location.pathname === "/history" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
           >
             <History className="h-4 w-4" />
             Historique
           </Button>
           <Button 
-            variant={location.pathname === "/statistics" ? "default" : "ghost"} 
+            variant="ghost"
             size="sm"
             onClick={() => navigate("/statistics")}
-            className="gap-2"
+            className={`gap-2 ${location.pathname === "/statistics" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
           >
             <BarChart3 className="h-4 w-4" />
             Stats
           </Button>
           <Button 
-            variant={location.pathname === "/pricing" ? "default" : "ghost"} 
+            variant="ghost"
             size="sm"
             onClick={() => navigate("/pricing")}
-            className="gap-2"
+            className={`gap-2 ${location.pathname === "/pricing" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
           >
             Abonnements
           </Button>
           {hasAdminAccess && (
             <Button 
-              variant={location.pathname.startsWith("/admin") ? "default" : "ghost"} 
+              variant="ghost"
               size="sm"
               onClick={() => navigate("/admin")}
-              className="gap-2"
+              className={`gap-2 ${location.pathname.startsWith("/admin") ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
             >
               <Shield className="h-4 w-4" />
               Admin
             </Button>
           )}
         </nav>
+
 
         {/* Search & Actions */}
         <div className="flex items-center gap-2">
