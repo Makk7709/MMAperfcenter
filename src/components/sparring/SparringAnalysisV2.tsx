@@ -818,6 +818,11 @@ export const SparringAnalysisV2 = () => {
     const stats2 = currentAnalysis.statistics?.fighter_2;
     const scores1 = currentAnalysis.performance_scores?.fighter_1;
     const scores2 = currentAnalysis.performance_scores?.fighter_2;
+    const applicable = currentAnalysis.applicable_metrics ?? ['striking', 'grappling', 'defense', 'cardio', 'technique'];
+    const showStriking = applicable.includes('striking');
+    const showGrappling = applicable.includes('grappling');
+    const showDefense = applicable.includes('defense');
+    const showCardio = applicable.includes('cardio');
 
     return (
       <div className="space-y-6">
