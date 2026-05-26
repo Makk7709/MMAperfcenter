@@ -46,6 +46,29 @@ serve(async (req) => {
     
     console.log("User authenticated:", user.id);
 
+    // ===== Feature gating (server-side enforcement) =====
+    // Admin/coach bypass
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    const { data: isCoach } = await supabase.rpc("has_role", { _user_id: user.id, _role: "coach" });
+    const privileged = isAdmin === true || isCoach === true;
+
+    if (!privileged) {
+      const { data: allowed, error: gateErr } = await supabase.rpc("has_feature_access", {
+        _user_id: user.id,
+        _feature: "ai_coach",
+      });
+      if (gateErr) console.error("has_feature_access error:", gateErr);
+      if (allowed !== true) {
+        return new Response(
+          JSON.stringify({ error: "Limite mensuelle atteinte pour Coach IA. Passe au plan Pro pour un accès illimité.", code: "FEATURE_LIMIT_REACHED" }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      await supabase.rpc("increment_feature_usage", { _user_id: user.id, _feature_name: "ai_coach" });
+    }
+
+
+
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
