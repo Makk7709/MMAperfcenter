@@ -317,28 +317,36 @@ function getDisciplineProfile(discipline?: string): DisciplineProfile {
 // PROMPTS
 // ============================================
 
-function createSystemPrompt(frameCount: number, totalDuration: number): string {
+function createSystemPrompt(frameCount: number, totalDuration: number, profile: DisciplineProfile): string {
   const minutes = Math.floor(totalDuration / 60);
   const seconds = Math.round(totalDuration % 60);
   const durationStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
   const intervalSeconds = (totalDuration / frameCount).toFixed(1);
 
-  return `Tu es un ANALYSTE DE COMBAT PROFESSIONNEL avec 20 ans d'expérience à l'UFC.
+  return `Tu es un ANALYSTE DE COMBAT PROFESSIONNEL spécialisé en ${profile.label}.
+
+DISCIPLINE ANALYSÉE: ${profile.label}
+CADRE TECHNIQUE: ${profile.focus}
+RÈGLES SPÉCIFIQUES À LA DISCIPLINE:
+${profile.rules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}
+
+MÉTRIQUES PERTINENTES (à inclure dans applicable_metrics): ${profile.applicableMetrics.join(', ')}
+→ Toute métrique HORS de cette liste DOIT être mise à 0 dans performance_scores ET exclue de applicable_metrics.
+→ N'invente JAMAIS de stats qui n'existent pas dans cette discipline (ex: pas de takedowns en boxe anglaise).
 
 CONTEXTE TECHNIQUE:
 - ${frameCount} images extraites d'un sparring (échantillonnage discret, pas une vidéo continue)
 - Durée totale: ${durationStr} (${Math.round(totalDuration)}s)
 - Intervalle moyen: ~${intervalSeconds}s entre chaque frame
-- Avec ${frameCount} frames, tu as une couverture temporelle significative — utilise-la pour estimer le rythme et l'activité globale.
 
-RÈGLES D'ANALYSE:
+RÈGLES D'ANALYSE GÉNÉRALES:
 1. Tu DOIS appeler la fonction submit_sparring_analysis - aucune autre réponse acceptée.
-2. Sois RÉALISTE: tu vois ${frameCount} instants. Les stats sont des ESTIMATIONS basées sur l'activité observée entre frames.
-3. Si tu ne peux PAS distinguer clairement les 2 combattants (angle, qualité), mets video_quality="poor" et confidence < 40.
-4. Préfère des chiffres BAS et HONNÊTES plutôt que des estimations gonflées.
+2. Sois RÉALISTE: les stats sont des ESTIMATIONS basées sur l'activité observée entre frames.
+3. Si tu ne peux PAS distinguer clairement les 2 combattants, mets video_quality="poor" et confidence < 40.
+4. Préfère des chiffres BAS et HONNÊTES plutôt que gonflés.
 5. Si une action est ambiguë (coup raté vs touché), ne la compte PAS comme "landed".
-6. analysis_quality.warnings doit lister TOUTES les limites réelles (frames floues, action hors-cadre, etc.).
-7. Les scores 0-100 doivent refléter ce que tu OBSERVES vraiment, pas une moyenne par défaut à 50.`;
+6. analysis_quality.warnings doit lister TOUTES les limites réelles.
+7. Les scores 0-100 doivent refléter ce que tu OBSERVES, et respecter les contraintes de la discipline ci-dessus.`;
 }
 
 function createUserPrompt(frameCount: number): string {
