@@ -89,6 +89,13 @@ export const BarcodeScannerDialog = ({
   };
 
   const fetchProductInfo = async (barcode: string) => {
+    // Gate accès (free = 3/mois)
+    const allowed = await gate();
+    if (!allowed) {
+      stopScanning();
+      onOpenChange(false);
+      return;
+    }
     setLoading(true);
     stopScanning();
 
