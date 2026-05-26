@@ -1,4 +1,4 @@
-import heroBackground from '@/assets/hero-background.png';
+import heroBackground from '@/assets/hero-mma.jpg';
 
 interface VideoBackgroundProps {
   /**
@@ -18,7 +18,7 @@ export function VideoBackground(_props: VideoBackgroundProps) {
         src={heroBackground}
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover object-bottom"
       />
       {/* Subtle dark overlay for readability */}
       <div className="absolute inset-0 bg-background/50" />
