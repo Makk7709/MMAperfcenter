@@ -37,15 +37,19 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
 
   const handleUploadSubmit = () => {
     if (uploadData.file && uploadData.title) {
-      uploadVideo(uploadData, {
+      uploadVideo({
+        ...uploadData,
+        techniqueType: uploadData.techniqueType === "none" ? "" : uploadData.techniqueType,
+        difficultyLevel: uploadData.difficultyLevel === "none" ? "" : uploadData.difficultyLevel,
+      }, {
         onSuccess: () => {
           setUploadData({ 
             file: null, 
             title: "", 
             description: "", 
             category: "combat",
-            techniqueType: "",
-            difficultyLevel: "",
+            techniqueType: "none",
+            difficultyLevel: "none",
           });
           onOpenChange(false);
         },
@@ -60,8 +64,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
         title: youtubeData.title,
         description: youtubeData.description,
         category: youtubeData.category,
-        techniqueType: youtubeData.techniqueType,
-        difficultyLevel: youtubeData.difficultyLevel,
+        techniqueType: youtubeData.techniqueType === "none" ? "" : youtubeData.techniqueType,
+        difficultyLevel: youtubeData.difficultyLevel === "none" ? "" : youtubeData.difficultyLevel,
       }, {
         onSuccess: () => {
           setYoutubeData({ 
@@ -69,8 +73,8 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
             title: "", 
             description: "", 
             category: "combat",
-            techniqueType: "",
-            difficultyLevel: "",
+            techniqueType: "none",
+            difficultyLevel: "none",
           });
           onOpenChange(false);
         },
