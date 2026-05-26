@@ -486,7 +486,8 @@ serve(async (req) => {
   let supabase: ReturnType<typeof createClient> | undefined;
 
   try {
-    const { frames, analysisId: aid, videoName, totalDuration, qualityMode } = await req.json();
+    const { frames, analysisId: aid, videoName, totalDuration, qualityMode, discipline } = await req.json();
+    const profile = getDisciplineProfile(discipline);
     analysisId = aid;
 
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
