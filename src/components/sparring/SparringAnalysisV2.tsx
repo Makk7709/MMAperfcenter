@@ -974,18 +974,26 @@ export const SparringAnalysisV2 = () => {
                           color={getPerformanceColor(scores2.overall)}
                         />
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="text-center">
-                            <CircularScore score={scores2.striking} label="Striking" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.grappling} label="Grappling" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.defense} label="Défense" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.cardio} label="Cardio" size="sm" />
-                          </div>
+                          {showStriking && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.striking} label="Striking" size="sm" />
+                            </div>
+                          )}
+                          {showGrappling && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.grappling} label="Grappling" size="sm" />
+                            </div>
+                          )}
+                          {showDefense && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.defense} label="Défense" size="sm" />
+                            </div>
+                          )}
+                          {showCardio && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.cardio} label="Cardio" size="sm" />
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
