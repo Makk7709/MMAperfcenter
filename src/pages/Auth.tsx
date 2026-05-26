@@ -190,7 +190,22 @@ export default function Auth() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <div className="flex items-start gap-2 pt-1">
+                    <Checkbox
+                      id="signup-terms"
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="signup-terms" className="text-xs leading-snug text-muted-foreground font-normal cursor-pointer">
+                      J'ai lu et j'accepte les{' '}
+                      <Link to="/legal" target="_blank" className="text-primary underline">
+                        Conditions Générales d'Utilisation et de Vente
+                      </Link>{' '}
+                      ainsi que la politique de confidentialité.
+                    </Label>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading || !acceptedTerms}>
                     {isLoading ? 'Inscription...' : 'Créer un compte'}
                   </Button>
                 </form>
