@@ -583,6 +583,7 @@ export const SparringAnalysisV2 = () => {
               analysisId: recordId,
               videoName: file.name,
               qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
+              discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
             }
           });
 
