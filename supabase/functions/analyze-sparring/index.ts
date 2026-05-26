@@ -509,7 +509,7 @@ serve(async (req) => {
     }
 
     const model = qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
-    console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model}`);
+    console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model} — discipline=${profile.label}`);
 
     // Limit frames
     const selectedFrames = frames.length > AI_CONFIG.maxFrames
