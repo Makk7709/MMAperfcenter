@@ -64,6 +64,8 @@ import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
 import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
 import { convertToSignedUrl } from "@/utils/storageUtils";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "@/components/FeaturePaywall";
 
 // Types améliorés
 interface FighterStats {
