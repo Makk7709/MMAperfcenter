@@ -162,19 +162,20 @@ const Pricing = () => {
                 } ${isCurrentPlan ? 'border-accent ring-2 ring-accent/40' : ''}`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
                     <Badge className="bg-primary text-primary-foreground font-semibold shadow-md">Plus populaire</Badge>
                   </div>
                 )}
                 
                 {isCurrentPlan && (
-                  <div className="absolute -top-4 right-4 z-10">
+                  <div className="absolute top-3 right-3 z-10">
                     <Badge className="bg-accent text-accent-foreground font-semibold shadow-md">Votre plan</Badge>
                   </div>
                 )}
 
 
-                <CardHeader>
+
+                <CardHeader className={plan.popular || isCurrentPlan ? 'pt-12' : ''}>
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className="h-6 w-6 text-primary" />
                     <CardTitle>{plan.name}</CardTitle>
