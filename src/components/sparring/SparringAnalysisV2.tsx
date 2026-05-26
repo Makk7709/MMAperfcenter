@@ -152,6 +152,8 @@ interface SparringAnalysisData {
     video_quality: 'poor' | 'fair' | 'good' | 'excellent';
     warnings: string[];
   };
+  discipline?: string;
+  applicable_metrics?: string[];
   raw_response?: boolean;
   error?: string;
 }
