@@ -154,7 +154,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     <SelectItem value="pied">🦶 Pieds</SelectItem>
                     <SelectItem value="poings">👊 Poings</SelectItem>
                     <SelectItem value="combo">🥊 Combo</SelectItem>
@@ -170,7 +170,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   <SelectItem value="debutant">⭐ Débutant</SelectItem>
                   <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
                   <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
@@ -255,7 +255,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     <SelectItem value="pied">🦶 Pieds</SelectItem>
                     <SelectItem value="poings">👊 Poings</SelectItem>
                     <SelectItem value="combo">🥊 Combo</SelectItem>
@@ -271,7 +271,7 @@ export const AddVideoDialog = ({ open, onOpenChange }: AddVideoDialogProps) => {
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   <SelectItem value="debutant">⭐ Débutant</SelectItem>
                   <SelectItem value="intermediaire">⭐⭐ Intermédiaire</SelectItem>
                   <SelectItem value="avance">⭐⭐⭐ Avancé</SelectItem>
