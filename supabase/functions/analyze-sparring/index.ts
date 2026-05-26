@@ -205,11 +205,113 @@ const submitAnalysisTool = {
           },
           required: ['confidence', 'stats_confidence', 'video_quality'],
         },
+        applicable_metrics: {
+          type: 'array',
+          description: 'Métriques de performance_scores pertinentes pour la discipline analysée (les autres seront masquées en UI).',
+          items: { type: 'string', enum: ['striking', 'grappling', 'defense', 'cardio', 'technique'] },
+        },
       },
-      required: ['summary', 'fighters', 'statistics', 'key_moments', 'rounds', 'recommendations', 'overall_analysis', 'performance_scores', 'analysis_quality'],
+      required: ['summary', 'fighters', 'statistics', 'key_moments', 'rounds', 'recommendations', 'overall_analysis', 'performance_scores', 'analysis_quality', 'applicable_metrics'],
     },
   },
 };
+
+// ============================================
+// DISCIPLINE-SPECIFIC GUIDANCE
+// ============================================
+
+interface DisciplineProfile {
+  label: string;
+  focus: string;
+  applicableMetrics: string[];
+  rules: string[];
+}
+
+function getDisciplineProfile(discipline?: string): DisciplineProfile {
+  const d = (discipline || '').toLowerCase().trim();
+
+  if (['boxe', 'boxe anglaise', 'boxing', 'english boxing'].some(k => d.includes(k))) {
+    return {
+      label: 'Boxe anglaise',
+      focus: 'Uniquement poings (jab, cross, hook, uppercut). PAS de coups de pied, PAS de grappling, PAS de takedown.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'kicks_thrown / kicks_landed / leg_strikes / takedowns_* DOIVENT être 0 (interdits en boxe).',
+        'grappling = 0 et NON pertinent: ne pas évaluer cette dimension.',
+        'Focus: travail des poings, jeu de jambes, esquives, garde, enchaînements.',
+      ],
+    };
+  }
+
+  if (['kickboxing', 'kick-boxing', 'k1', 'k-1'].some(k => d.includes(k))) {
+    return {
+      label: 'Kickboxing',
+      focus: 'Poings + coups de pied. Pas de grappling, pas de clinch prolongé, pas de takedown.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'takedowns_* = 0. grappling = 0 et NON pertinent.',
+        'Évaluer kicks et punches séparément dans les stats.',
+      ],
+    };
+  }
+
+  if (['muay', 'thai', 'boxe thai', 'thaï'].some(k => d.includes(k))) {
+    return {
+      label: 'Muay Thai',
+      focus: 'Poings, coups de pied, genoux, coudes, clinch debout. Pas de combat au sol.',
+      applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+      rules: [
+        'grappling = compétences de CLINCH (contrôle, projections debout, genoux en clinch), pas de sol.',
+        'takedowns_* peut refléter sweeps/dumps issus du clinch.',
+      ],
+    };
+  }
+
+  if (['mma', 'free fight', 'cage'].some(k => d.includes(k))) {
+    return {
+      label: 'MMA',
+      focus: 'Combat complet: striking debout + clinch + lutte + sol + soumissions.',
+      applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+      rules: ['Toutes les dimensions sont pertinentes.'],
+    };
+  }
+
+  if (['bjj', 'jiu-jitsu', 'jjb', 'grappling', 'lutte', 'wrestling', 'judo', 'sambo'].some(k => d.includes(k))) {
+    return {
+      label: 'Grappling / BJJ',
+      focus: 'Combat au sol et projections. Pas de frappe.',
+      applicableMetrics: ['grappling', 'defense', 'cardio', 'technique'],
+      rules: [
+        'punches_*, kicks_*, *_strikes DOIVENT être 0 (pas de frappes).',
+        'striking = 0 et NON pertinent.',
+        'Focus: takedowns, contrôle, passages de garde, soumissions, échappées.',
+      ],
+    };
+  }
+
+  if (['karate', 'karaté', 'taekwondo', 'tkd'].some(k => d.includes(k))) {
+    return {
+      label: 'Karaté / Taekwondo',
+      focus: 'Frappes pieds-poings au point (sport), distance et timing. Pas de grappling.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'takedowns_* = 0. grappling = 0 et NON pertinent.',
+        'Valoriser la distance, le timing, les contres et les techniques tournées.',
+      ],
+    };
+  }
+
+  // Fallback: générique (laisse l'IA décider)
+  return {
+    label: discipline || 'Non spécifiée',
+    focus: 'Discipline non spécifiée: déduis les métriques pertinentes des images observées.',
+    applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+    rules: [
+      'Si tu n\'observes AUCUN grappling/sol, mets grappling = 0 et exclus-le de applicable_metrics.',
+      'Si tu n\'observes AUCUNE frappe, mets striking = 0 et exclus-le de applicable_metrics.',
+    ],
+  };
+}
 
 // ============================================
 // PROMPTS
