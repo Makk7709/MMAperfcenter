@@ -532,7 +532,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration) },
+          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration, profile) },
           {
             role: 'user',
             content: [
