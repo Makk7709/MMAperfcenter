@@ -155,6 +155,7 @@ export const AICoachChat = () => {
   ];
 
   return (
+    <>
     <Card className={cn(
       "transition-all duration-300",
       isExpanded ? "fixed inset-4 z-50" : "h-[500px]"
