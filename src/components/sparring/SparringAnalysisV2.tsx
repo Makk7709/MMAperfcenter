@@ -429,6 +429,15 @@ export const SparringAnalysisV2 = () => {
   const [selectedFighter, setSelectedFighter] = useState<0 | 1>(0);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [currentVideoName, setCurrentVideoName] = useState<string>("");
+  const [discipline, setDiscipline] = useState<string>("auto");
+
+  // Sync default discipline from profile
+  useEffect(() => {
+    if (profile?.martial_arts_discipline && discipline === "auto") {
+      setDiscipline(profile.martial_arts_discipline);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.martial_arts_discipline]);
 
   // Charger les analyses précédentes
   useEffect(() => {
