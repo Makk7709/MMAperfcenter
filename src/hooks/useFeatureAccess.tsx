@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useUserRole } from '@/hooks/useUserRole';
 
-// Configuration des fonctionnalités par plan
+// Configuration des fonctionnalités par plan (UI uniquement — la source de vérité est côté DB)
 export const FEATURE_CONFIG = {
-  // Fonctionnalités Free avec limites
   ai_coach: {
     name: 'Coach IA',
     description: 'Conseils personnalisés par intelligence artificielle',
@@ -21,14 +21,12 @@ export const FEATURE_CONFIG = {
     counted: true,
   },
   sparring_analysis: {
-    name: 'Analyse Sparring IA',
+    name: 'Analyse Sparring PRISM',
     description: 'Analyse vidéo de vos combats par IA',
     limits: { free: 3, pro: -1, elite: -1, sensei: -1 },
     minPlan: 'free' as const,
     counted: true,
   },
-  
-  // Fonctionnalités Free illimitées
   basic_training: {
     name: 'Entraînement basique',
     description: 'Suivi des séances d\'entraînement',
@@ -50,8 +48,6 @@ export const FEATURE_CONFIG = {
     minPlan: 'free' as const,
     counted: false,
   },
-
-  // Fonctionnalités PRO+
   unlimited_ai: {
     name: 'Coach IA illimité',
     description: 'Accès illimité au coach IA',
@@ -80,11 +76,9 @@ export const FEATURE_CONFIG = {
     minPlan: 'pro' as const,
     counted: false,
   },
-
-  // Fonctionnalités ELITE+
   ai_videos: {
     name: 'Vidéos IA',
-    description: 'Bibliothèque vidéo premium avec analyse IA',
+    description: 'Bibliothèque vidéo premium',
     limits: { free: 0, pro: 0, elite: -1, sensei: -1 },
     minPlan: 'elite' as const,
     counted: false,
@@ -105,13 +99,11 @@ export const FEATURE_CONFIG = {
   },
   priority_support: {
     name: 'Support prioritaire',
-    description: 'Assistance prioritaire par l\'équipe KOREV',
+    description: 'Assistance prioritaire',
     limits: { free: 0, pro: 0, elite: -1, sensei: -1 },
     minPlan: 'elite' as const,
     counted: false,
   },
-
-  // Fonctionnalités SENSEI exclusives
   multi_athletes: {
     name: 'Multi-athlètes',
     description: 'Gestion de plusieurs profils athlètes',
@@ -121,7 +113,7 @@ export const FEATURE_CONFIG = {
   },
   team_dashboard: {
     name: 'Tableau de bord équipe',
-    description: 'Statistiques collectives et comparaisons',
+    description: 'Statistiques collectives',
     limits: { free: 0, pro: 0, elite: 0, sensei: -1 },
     minPlan: 'sensei' as const,
     counted: false,
@@ -135,7 +127,7 @@ export const FEATURE_CONFIG = {
   },
   pdf_export: {
     name: 'Export PDF',
-    description: 'Export des rapports et programmes en PDF',
+    description: 'Export des rapports en PDF',
     limits: { free: 0, pro: 0, elite: 0, sensei: -1 },
     minPlan: 'sensei' as const,
     counted: false,
@@ -145,7 +137,6 @@ export const FEATURE_CONFIG = {
 export type FeatureKey = keyof typeof FEATURE_CONFIG;
 export type PlanType = 'free' | 'pro' | 'elite' | 'sensei';
 
-// Infos sur les plans pour le paywall
 export const PLAN_INFO: Record<PlanType, { name: string; price: string; cta: string }> = {
   free: { name: 'Découverte', price: 'Gratuit', cta: 'Plan actuel' },
   pro: { name: 'Guerrier', price: '14,90€/mois', cta: 'Passer Pro' },
@@ -153,40 +144,39 @@ export const PLAN_INFO: Record<PlanType, { name: string; price: string; cta: str
   sensei: { name: 'Senseï', price: '69€/mois', cta: 'Devenir Coach' },
 };
 
-interface FeatureAccessResult {
+export interface FeatureAccessResult {
   hasAccess: boolean;
   currentUsage: number;
   limit: number;
   isUnlimited: boolean;
   remainingUsage: number;
   requiredPlan: PlanType;
+  privileged?: boolean;
 }
 
 export const useFeatureAccess = () => {
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { isAdmin, isCoach, isLoading: rolesLoading } = useUserRole();
   const [usageCache, setUsageCache] = useState<Record<string, number>>({});
 
-  const currentPlan: PlanType = (subscription?.plan as PlanType) || 'free';
+  const isPrivileged = isAdmin || isCoach;
+  const currentPlan: PlanType = isPrivileged
+    ? 'sensei'
+    : ((subscription?.plan as PlanType) || 'free');
 
   const getFeatureUsage = useCallback(async (feature: FeatureKey): Promise<number> => {
     if (!user) return 0;
-    
-    // Check cache first
-    if (usageCache[feature] !== undefined) {
-      return usageCache[feature];
-    }
+    if (usageCache[feature] !== undefined) return usageCache[feature];
 
     const { data, error } = await supabase.rpc('get_feature_usage', {
       _user_id: user.id,
       _feature_name: feature,
     });
-
     if (error) {
-      console.error('Error fetching feature usage:', error);
+      console.error('get_feature_usage error', error);
       return 0;
     }
-
     const usage = data || 0;
     setUsageCache(prev => ({ ...prev, [feature]: usage }));
     return usage;
@@ -194,17 +184,14 @@ export const useFeatureAccess = () => {
 
   const incrementUsage = useCallback(async (feature: FeatureKey): Promise<number> => {
     if (!user) return 0;
-
     const { data, error } = await supabase.rpc('increment_feature_usage', {
       _user_id: user.id,
       _feature_name: feature,
     });
-
     if (error) {
-      console.error('Error incrementing feature usage:', error);
+      console.error('increment_feature_usage error', error);
       return 0;
     }
-
     const newUsage = data || 0;
     setUsageCache(prev => ({ ...prev, [feature]: newUsage }));
     return newUsage;
@@ -212,84 +199,62 @@ export const useFeatureAccess = () => {
 
   const checkAccess = useCallback(async (feature: FeatureKey): Promise<FeatureAccessResult> => {
     const config = FEATURE_CONFIG[feature];
-    const limit = config.limits[currentPlan];
-    const isUnlimited = limit === -1;
     const requiredPlan = config.minPlan;
 
-    // Si le plan actuel est suffisant et illimité
-    if (isUnlimited) {
-      return {
-        hasAccess: true,
-        currentUsage: 0,
-        limit: -1,
-        isUnlimited: true,
-        remainingUsage: -1,
-        requiredPlan,
-      };
+    // Bypass total pour admin/coach
+    if (isPrivileged) {
+      return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan, privileged: true };
     }
 
-    // Si aucun accès avec ce plan
-    if (limit === 0) {
-      return {
-        hasAccess: false,
-        currentUsage: 0,
-        limit: 0,
-        isUnlimited: false,
-        remainingUsage: 0,
-        requiredPlan,
-      };
+    // Source de vérité = DB
+    if (user) {
+      const { data, error } = await supabase.rpc('has_feature_access', {
+        _user_id: user.id,
+        _feature: feature,
+      });
+      if (!error && typeof data === 'boolean') {
+        const limit = config.limits[currentPlan];
+        const isUnlimited = limit === -1;
+        let currentUsage = 0;
+        let remainingUsage = isUnlimited ? -1 : Math.max(0, limit);
+        if (config.counted && !isUnlimited && limit > 0) {
+          currentUsage = await getFeatureUsage(feature);
+          remainingUsage = Math.max(0, limit - currentUsage);
+        }
+        return { hasAccess: data, currentUsage, limit, isUnlimited, remainingUsage, requiredPlan };
+      }
     }
 
-    // Vérifier l'usage actuel pour les fonctionnalités comptées
+    // Fallback local si RPC indisponible
+    const limit = config.limits[currentPlan];
+    const isUnlimited = limit === -1;
+    if (isUnlimited) return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
+    if (limit === 0) return { hasAccess: false, currentUsage: 0, limit: 0, isUnlimited: false, remainingUsage: 0, requiredPlan };
     if (config.counted) {
       const currentUsage = await getFeatureUsage(feature);
-      const remainingUsage = Math.max(0, limit - currentUsage);
-      
-      return {
-        hasAccess: currentUsage < limit,
-        currentUsage,
-        limit,
-        isUnlimited: false,
-        remainingUsage,
-        requiredPlan,
-      };
+      return { hasAccess: currentUsage < limit, currentUsage, limit, isUnlimited: false, remainingUsage: Math.max(0, limit - currentUsage), requiredPlan };
     }
+    return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
+  }, [user, currentPlan, getFeatureUsage, isPrivileged]);
 
-    // Accès illimité par défaut pour les non-comptées
-    return {
-      hasAccess: true,
-      currentUsage: 0,
-      limit: -1,
-      isUnlimited: true,
-      remainingUsage: -1,
-      requiredPlan,
-    };
-  }, [currentPlan, getFeatureUsage]);
-
-  const useFeatureWithTracking = useCallback(async (feature: FeatureKey): Promise<{ allowed: boolean; newUsage: number }> => {
+  const useFeatureWithTracking = useCallback(async (feature: FeatureKey): Promise<{ allowed: boolean; newUsage: number; access: FeatureAccessResult }> => {
     const access = await checkAccess(feature);
-    
-    if (!access.hasAccess) {
-      return { allowed: false, newUsage: access.currentUsage };
-    }
+    if (!access.hasAccess) return { allowed: false, newUsage: access.currentUsage, access };
 
-    // Si c'est une fonctionnalité comptée, incrémenter l'usage
     const config = FEATURE_CONFIG[feature];
-    if (config.counted && !access.isUnlimited) {
+    if (!access.privileged && config.counted && !access.isUnlimited) {
       const newUsage = await incrementUsage(feature);
-      return { allowed: true, newUsage };
+      return { allowed: true, newUsage, access };
     }
-
-    return { allowed: true, newUsage: access.currentUsage };
+    return { allowed: true, newUsage: access.currentUsage, access };
   }, [checkAccess, incrementUsage]);
 
-  const clearUsageCache = useCallback(() => {
-    setUsageCache({});
-  }, []);
+  const clearUsageCache = useCallback(() => setUsageCache({}), []);
 
   return {
     currentPlan,
-    loading: subscriptionLoading,
+    isPrivileged,
+    loading: subscriptionLoading || rolesLoading,
     checkAccess,
     useFeatureWithTracking,
     getFeatureUsage,
