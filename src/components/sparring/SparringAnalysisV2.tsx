@@ -64,6 +64,8 @@ import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
 import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
 import { convertToSignedUrl } from "@/utils/storageUtils";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "@/components/FeaturePaywall";
 
 // Types améliorés
 interface FighterStats {
@@ -415,6 +417,7 @@ export const SparringAnalysisV2 = () => {
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('sparring_analysis');
   
   // États
   const [uploading, setUploading] = useState(false);
@@ -519,6 +522,10 @@ export const SparringAnalysisV2 = () => {
       toast.error(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${maxSizeMB}MB.`);
       return;
     }
+
+    // Gate accès (free = 3/mois) — incrémente le compteur côté DB
+    const allowed = await gate();
+    if (!allowed) return;
 
     setUploading(true);
     setUploadProgress(0);
@@ -1440,6 +1447,7 @@ export const SparringAnalysisV2 = () => {
   };
 
   return (
+    <>
     <Card className="liquid-glass-solid border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -1532,6 +1540,8 @@ export const SparringAnalysisV2 = () => {
         {currentAnalysis ? renderAnalysisResults() : renderUploadSection()}
       </CardContent>
     </Card>
+    <FeaturePaywall feature="sparring_analysis" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
 

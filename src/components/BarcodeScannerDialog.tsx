@@ -10,6 +10,8 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
 import { Loader2, Camera, X } from "lucide-react";
 import type { NutritionLog } from "@/hooks/useNutrition";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "./FeaturePaywall";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
@@ -37,6 +39,7 @@ export const BarcodeScannerDialog = ({
   const [loading, setLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('barcode_scan');
 
   useEffect(() => {
     if (open && !codeReaderRef.current) {
@@ -86,6 +89,13 @@ export const BarcodeScannerDialog = ({
   };
 
   const fetchProductInfo = async (barcode: string) => {
+    // Gate accès (free = 3/mois)
+    const allowed = await gate();
+    if (!allowed) {
+      stopScanning();
+      onOpenChange(false);
+      return;
+    }
     setLoading(true);
     stopScanning();
 
@@ -132,6 +142,7 @@ export const BarcodeScannerDialog = ({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -170,5 +181,8 @@ export const BarcodeScannerDialog = ({
         </div>
       </DialogContent>
     </Dialog>
+    <FeaturePaywall feature="barcode_scan" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
+

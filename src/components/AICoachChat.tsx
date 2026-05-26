@@ -8,6 +8,8 @@ import { Bot, Send, Loader2, User, Sparkles, Maximize2, Minimize2 } from "lucide
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PDFExportButton } from "./PDFExportButton";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "./FeaturePaywall";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,6 +22,7 @@ export const AICoachChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('ai_coach');
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -29,6 +32,10 @@ export const AICoachChat = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
+    // Vérifie l'accès et incrémente le compteur (free = 3/mois)
+    const allowed = await gate();
+    if (!allowed) return;
 
     const userMessage: Message = { role: "user", content: input.trim() };
     setMessages(prev => [...prev, userMessage]);
@@ -148,6 +155,7 @@ export const AICoachChat = () => {
   ];
 
   return (
+    <>
     <Card className={cn(
       "transition-all duration-300",
       isExpanded ? "fixed inset-4 z-50" : "h-[500px]"
@@ -271,5 +279,8 @@ export const AICoachChat = () => {
         </div>
       </CardContent>
     </Card>
+    <FeaturePaywall feature="ai_coach" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
+
