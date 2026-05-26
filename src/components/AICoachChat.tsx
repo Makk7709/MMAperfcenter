@@ -8,6 +8,8 @@ import { Bot, Send, Loader2, User, Sparkles, Maximize2, Minimize2 } from "lucide
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PDFExportButton } from "./PDFExportButton";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { FeaturePaywall } from "./FeaturePaywall";
 
 interface Message {
   role: "user" | "assistant";
