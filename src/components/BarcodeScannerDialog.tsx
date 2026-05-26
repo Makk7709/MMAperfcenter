@@ -142,6 +142,7 @@ export const BarcodeScannerDialog = ({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -180,5 +181,8 @@ export const BarcodeScannerDialog = ({
         </div>
       </DialogContent>
     </Dialog>
+    <FeaturePaywall feature="barcode_scan" open={paywallOpen} onOpenChange={setPaywallOpen} />
+    </>
   );
 };
+
