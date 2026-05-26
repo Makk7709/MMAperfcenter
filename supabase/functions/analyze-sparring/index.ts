@@ -573,7 +573,7 @@ serve(async (req) => {
       throw new Error("Format de réponse IA invalide");
     }
 
-    const analysis = validateAnalysis(parsedArgs, totalDuration);
+    const analysis = validateAnalysis(parsedArgs, totalDuration, profile);
     console.log(`✅ Analysis validated (confidence: ${analysis.analysis_quality.confidence}/100)`);
 
     if (analysisId && supabase) {
