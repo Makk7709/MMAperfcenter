@@ -466,6 +466,10 @@ function validateAnalysis(data: any, totalDuration: number, profile: DisciplineP
       video_quality: validVideoQuality.includes(q.video_quality) ? q.video_quality : 'fair',
       warnings: Array.isArray(q.warnings) ? q.warnings.filter((w: any) => typeof w === 'string') : [],
     },
+    discipline: profile.label,
+    applicable_metrics: Array.isArray(data?.applicable_metrics) && data.applicable_metrics.length > 0
+      ? data.applicable_metrics.filter((m: any) => profile.applicableMetrics.includes(m))
+      : profile.applicableMetrics,
   };
 }
 
