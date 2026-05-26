@@ -68,6 +68,17 @@ export default function WorkoutHistory() {
     await signOut();
   };
 
+  const handleResetWorkouts = async () => {
+    if (!user) return;
+    const { error } = await supabase.from("workouts").delete().eq("user_id", user.id);
+    if (error) {
+      toast.error("Erreur lors de la réinitialisation");
+      return;
+    }
+    setWorkouts([]);
+    toast.success("Historique des entraînements réinitialisé");
+  };
+
   const handleDeleteSparring = async (id: string) => {
     const { error } = await supabase.from("sparring_analyses").delete().eq("id", id);
     if (error) {
