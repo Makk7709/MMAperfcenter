@@ -205,38 +205,148 @@ const submitAnalysisTool = {
           },
           required: ['confidence', 'stats_confidence', 'video_quality'],
         },
+        applicable_metrics: {
+          type: 'array',
+          description: 'Métriques de performance_scores pertinentes pour la discipline analysée (les autres seront masquées en UI).',
+          items: { type: 'string', enum: ['striking', 'grappling', 'defense', 'cardio', 'technique'] },
+        },
       },
-      required: ['summary', 'fighters', 'statistics', 'key_moments', 'rounds', 'recommendations', 'overall_analysis', 'performance_scores', 'analysis_quality'],
+      required: ['summary', 'fighters', 'statistics', 'key_moments', 'rounds', 'recommendations', 'overall_analysis', 'performance_scores', 'analysis_quality', 'applicable_metrics'],
     },
   },
 };
 
 // ============================================
+// DISCIPLINE-SPECIFIC GUIDANCE
+// ============================================
+
+interface DisciplineProfile {
+  label: string;
+  focus: string;
+  applicableMetrics: string[];
+  rules: string[];
+}
+
+function getDisciplineProfile(discipline?: string): DisciplineProfile {
+  const d = (discipline || '').toLowerCase().trim();
+
+  if (['boxe', 'boxe anglaise', 'boxing', 'english boxing'].some(k => d.includes(k))) {
+    return {
+      label: 'Boxe anglaise',
+      focus: 'Uniquement poings (jab, cross, hook, uppercut). PAS de coups de pied, PAS de grappling, PAS de takedown.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'kicks_thrown / kicks_landed / leg_strikes / takedowns_* DOIVENT être 0 (interdits en boxe).',
+        'grappling = 0 et NON pertinent: ne pas évaluer cette dimension.',
+        'Focus: travail des poings, jeu de jambes, esquives, garde, enchaînements.',
+      ],
+    };
+  }
+
+  if (['kickboxing', 'kick-boxing', 'k1', 'k-1'].some(k => d.includes(k))) {
+    return {
+      label: 'Kickboxing',
+      focus: 'Poings + coups de pied. Pas de grappling, pas de clinch prolongé, pas de takedown.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'takedowns_* = 0. grappling = 0 et NON pertinent.',
+        'Évaluer kicks et punches séparément dans les stats.',
+      ],
+    };
+  }
+
+  if (['muay', 'thai', 'boxe thai', 'thaï'].some(k => d.includes(k))) {
+    return {
+      label: 'Muay Thai',
+      focus: 'Poings, coups de pied, genoux, coudes, clinch debout. Pas de combat au sol.',
+      applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+      rules: [
+        'grappling = compétences de CLINCH (contrôle, projections debout, genoux en clinch), pas de sol.',
+        'takedowns_* peut refléter sweeps/dumps issus du clinch.',
+      ],
+    };
+  }
+
+  if (['mma', 'free fight', 'cage'].some(k => d.includes(k))) {
+    return {
+      label: 'MMA',
+      focus: 'Combat complet: striking debout + clinch + lutte + sol + soumissions.',
+      applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+      rules: ['Toutes les dimensions sont pertinentes.'],
+    };
+  }
+
+  if (['bjj', 'jiu-jitsu', 'jjb', 'grappling', 'lutte', 'wrestling', 'judo', 'sambo'].some(k => d.includes(k))) {
+    return {
+      label: 'Grappling / BJJ',
+      focus: 'Combat au sol et projections. Pas de frappe.',
+      applicableMetrics: ['grappling', 'defense', 'cardio', 'technique'],
+      rules: [
+        'punches_*, kicks_*, *_strikes DOIVENT être 0 (pas de frappes).',
+        'striking = 0 et NON pertinent.',
+        'Focus: takedowns, contrôle, passages de garde, soumissions, échappées.',
+      ],
+    };
+  }
+
+  if (['karate', 'karaté', 'taekwondo', 'tkd'].some(k => d.includes(k))) {
+    return {
+      label: 'Karaté / Taekwondo',
+      focus: 'Frappes pieds-poings au point (sport), distance et timing. Pas de grappling.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'takedowns_* = 0. grappling = 0 et NON pertinent.',
+        'Valoriser la distance, le timing, les contres et les techniques tournées.',
+      ],
+    };
+  }
+
+  // Fallback: générique (laisse l'IA décider)
+  return {
+    label: discipline || 'Non spécifiée',
+    focus: 'Discipline non spécifiée: déduis les métriques pertinentes des images observées.',
+    applicableMetrics: ['striking', 'grappling', 'defense', 'cardio', 'technique'],
+    rules: [
+      'Si tu n\'observes AUCUN grappling/sol, mets grappling = 0 et exclus-le de applicable_metrics.',
+      'Si tu n\'observes AUCUNE frappe, mets striking = 0 et exclus-le de applicable_metrics.',
+    ],
+  };
+}
+
+// ============================================
 // PROMPTS
 // ============================================
 
-function createSystemPrompt(frameCount: number, totalDuration: number): string {
+function createSystemPrompt(frameCount: number, totalDuration: number, profile: DisciplineProfile): string {
   const minutes = Math.floor(totalDuration / 60);
   const seconds = Math.round(totalDuration % 60);
   const durationStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
   const intervalSeconds = (totalDuration / frameCount).toFixed(1);
 
-  return `Tu es un ANALYSTE DE COMBAT PROFESSIONNEL avec 20 ans d'expérience à l'UFC.
+  return `Tu es un ANALYSTE DE COMBAT PROFESSIONNEL spécialisé en ${profile.label}.
+
+DISCIPLINE ANALYSÉE: ${profile.label}
+CADRE TECHNIQUE: ${profile.focus}
+RÈGLES SPÉCIFIQUES À LA DISCIPLINE:
+${profile.rules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}
+
+MÉTRIQUES PERTINENTES (à inclure dans applicable_metrics): ${profile.applicableMetrics.join(', ')}
+→ Toute métrique HORS de cette liste DOIT être mise à 0 dans performance_scores ET exclue de applicable_metrics.
+→ N'invente JAMAIS de stats qui n'existent pas dans cette discipline (ex: pas de takedowns en boxe anglaise).
 
 CONTEXTE TECHNIQUE:
 - ${frameCount} images extraites d'un sparring (échantillonnage discret, pas une vidéo continue)
 - Durée totale: ${durationStr} (${Math.round(totalDuration)}s)
 - Intervalle moyen: ~${intervalSeconds}s entre chaque frame
-- Avec ${frameCount} frames, tu as une couverture temporelle significative — utilise-la pour estimer le rythme et l'activité globale.
 
-RÈGLES D'ANALYSE:
+RÈGLES D'ANALYSE GÉNÉRALES:
 1. Tu DOIS appeler la fonction submit_sparring_analysis - aucune autre réponse acceptée.
-2. Sois RÉALISTE: tu vois ${frameCount} instants. Les stats sont des ESTIMATIONS basées sur l'activité observée entre frames.
-3. Si tu ne peux PAS distinguer clairement les 2 combattants (angle, qualité), mets video_quality="poor" et confidence < 40.
-4. Préfère des chiffres BAS et HONNÊTES plutôt que des estimations gonflées.
+2. Sois RÉALISTE: les stats sont des ESTIMATIONS basées sur l'activité observée entre frames.
+3. Si tu ne peux PAS distinguer clairement les 2 combattants, mets video_quality="poor" et confidence < 40.
+4. Préfère des chiffres BAS et HONNÊTES plutôt que gonflés.
 5. Si une action est ambiguë (coup raté vs touché), ne la compte PAS comme "landed".
-6. analysis_quality.warnings doit lister TOUTES les limites réelles (frames floues, action hors-cadre, etc.).
-7. Les scores 0-100 doivent refléter ce que tu OBSERVES vraiment, pas une moyenne par défaut à 50.`;
+6. analysis_quality.warnings doit lister TOUTES les limites réelles.
+7. Les scores 0-100 doivent refléter ce que tu OBSERVES, et respecter les contraintes de la discipline ci-dessus.`;
 }
 
 function createUserPrompt(frameCount: number): string {
@@ -256,7 +366,7 @@ const clampStat = (v: unknown, d = 0): number => {
   return Math.max(0, Math.round(v));
 };
 
-function validateAnalysis(data: any, totalDuration: number) {
+function validateAnalysis(data: any, totalDuration: number, profile: DisciplineProfile) {
   const minutes = Math.floor(totalDuration / 60);
   const seconds = Math.round(totalDuration % 60);
   const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
@@ -356,6 +466,10 @@ function validateAnalysis(data: any, totalDuration: number) {
       video_quality: validVideoQuality.includes(q.video_quality) ? q.video_quality : 'fair',
       warnings: Array.isArray(q.warnings) ? q.warnings.filter((w: any) => typeof w === 'string') : [],
     },
+    discipline: profile.label,
+    applicable_metrics: Array.isArray(data?.applicable_metrics) && data.applicable_metrics.length > 0
+      ? data.applicable_metrics.filter((m: any) => profile.applicableMetrics.includes(m))
+      : profile.applicableMetrics,
   };
 }
 
@@ -372,7 +486,8 @@ serve(async (req) => {
   let supabase: ReturnType<typeof createClient> | undefined;
 
   try {
-    const { frames, analysisId: aid, videoName, totalDuration, qualityMode } = await req.json();
+    const { frames, analysisId: aid, videoName, totalDuration, qualityMode, discipline } = await req.json();
+    const profile = getDisciplineProfile(discipline);
     analysisId = aid;
 
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
@@ -394,7 +509,7 @@ serve(async (req) => {
     }
 
     const model = qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
-    console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model}`);
+    console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model} — discipline=${profile.label}`);
 
     // Limit frames
     const selectedFrames = frames.length > AI_CONFIG.maxFrames
@@ -417,7 +532,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration) },
+          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration, profile) },
           {
             role: 'user',
             content: [
@@ -458,7 +573,7 @@ serve(async (req) => {
       throw new Error("Format de réponse IA invalide");
     }
 
-    const analysis = validateAnalysis(parsedArgs, totalDuration);
+    const analysis = validateAnalysis(parsedArgs, totalDuration, profile);
     console.log(`✅ Analysis validated (confidence: ${analysis.analysis_quality.confidence}/100)`);
 
     if (analysisId && supabase) {

@@ -44,6 +44,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -150,6 +152,8 @@ interface SparringAnalysisData {
     video_quality: 'poor' | 'fair' | 'good' | 'excellent';
     warnings: string[];
   };
+  discipline?: string;
+  applicable_metrics?: string[];
   raw_response?: boolean;
   error?: string;
 }
@@ -409,6 +413,7 @@ const StatComparisonBar = ({
 // Composant principal
 export const SparringAnalysisV2 = () => {
   const { user, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // États
@@ -426,6 +431,15 @@ export const SparringAnalysisV2 = () => {
   const [selectedFighter, setSelectedFighter] = useState<0 | 1>(0);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [currentVideoName, setCurrentVideoName] = useState<string>("");
+  const [discipline, setDiscipline] = useState<string>("auto");
+
+  // Sync default discipline from profile
+  useEffect(() => {
+    if (profile?.martial_arts_discipline && discipline === "auto") {
+      setDiscipline(profile.martial_arts_discipline);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.martial_arts_discipline]);
 
   // Charger les analyses précédentes
   useEffect(() => {
@@ -571,6 +585,7 @@ export const SparringAnalysisV2 = () => {
               analysisId: recordId,
               videoName: file.name,
               qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
+              discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
             }
           });
 
@@ -701,7 +716,32 @@ export const SparringAnalysisV2 = () => {
   // Render Upload Section
   const renderUploadSection = () => (
     <div className="space-y-6">
-      {/* Upload Zone */}
+      {/* Discipline selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 rounded-xl bg-card/50 border border-border/50">
+        <div className="flex-1">
+          <Label className="text-sm font-semibold">Discipline analysée</Label>
+          <p className="text-xs text-muted-foreground">
+            Spécialise l'IA (stats adaptées, métriques non pertinentes masquées).
+          </p>
+        </div>
+        <Select value={discipline} onValueChange={setDiscipline} disabled={uploading || analyzing}>
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue placeholder="Choisir une discipline" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto (depuis mon profil)</SelectItem>
+            <SelectItem value="Boxe anglaise">Boxe anglaise</SelectItem>
+            <SelectItem value="Kickboxing">Kickboxing</SelectItem>
+            <SelectItem value="Muay Thai">Muay Thai</SelectItem>
+            <SelectItem value="MMA">MMA</SelectItem>
+            <SelectItem value="BJJ">BJJ / Grappling</SelectItem>
+            <SelectItem value="Judo">Judo / Lutte</SelectItem>
+            <SelectItem value="Karaté">Karaté</SelectItem>
+            <SelectItem value="Taekwondo">Taekwondo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className={cn(
         "relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300",
         "hover:border-primary/50 hover:bg-primary/5",
@@ -803,6 +843,11 @@ export const SparringAnalysisV2 = () => {
     const stats2 = currentAnalysis.statistics?.fighter_2;
     const scores1 = currentAnalysis.performance_scores?.fighter_1;
     const scores2 = currentAnalysis.performance_scores?.fighter_2;
+    const applicable = currentAnalysis.applicable_metrics ?? ['striking', 'grappling', 'defense', 'cardio', 'technique'];
+    const showStriking = applicable.includes('striking');
+    const showGrappling = applicable.includes('grappling');
+    const showDefense = applicable.includes('defense');
+    const showCardio = applicable.includes('cardio');
 
     return (
       <div className="space-y-6">
@@ -915,18 +960,26 @@ export const SparringAnalysisV2 = () => {
                           color={getPerformanceColor(scores1.overall)}
                         />
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="text-center">
-                            <CircularScore score={scores1.striking} label="Striking" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores1.grappling} label="Grappling" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores1.defense} label="Défense" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores1.cardio} label="Cardio" size="sm" />
-                          </div>
+                          {showStriking && (
+                            <div className="text-center">
+                              <CircularScore score={scores1.striking} label="Striking" size="sm" />
+                            </div>
+                          )}
+                          {showGrappling && (
+                            <div className="text-center">
+                              <CircularScore score={scores1.grappling} label="Grappling" size="sm" />
+                            </div>
+                          )}
+                          {showDefense && (
+                            <div className="text-center">
+                              <CircularScore score={scores1.defense} label="Défense" size="sm" />
+                            </div>
+                          )}
+                          {showCardio && (
+                            <div className="text-center">
+                              <CircularScore score={scores1.cardio} label="Cardio" size="sm" />
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -946,18 +999,26 @@ export const SparringAnalysisV2 = () => {
                           color={getPerformanceColor(scores2.overall)}
                         />
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="text-center">
-                            <CircularScore score={scores2.striking} label="Striking" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.grappling} label="Grappling" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.defense} label="Défense" size="sm" />
-                          </div>
-                          <div className="text-center">
-                            <CircularScore score={scores2.cardio} label="Cardio" size="sm" />
-                          </div>
+                          {showStriking && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.striking} label="Striking" size="sm" />
+                            </div>
+                          )}
+                          {showGrappling && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.grappling} label="Grappling" size="sm" />
+                            </div>
+                          )}
+                          {showDefense && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.defense} label="Défense" size="sm" />
+                            </div>
+                          )}
+                          {showCardio && (
+                            <div className="text-center">
+                              <CircularScore score={scores2.cardio} label="Cardio" size="sm" />
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
