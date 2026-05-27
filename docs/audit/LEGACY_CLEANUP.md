@@ -13,6 +13,7 @@
 | Composant `SparringAnalysis.tsx` v1 | Anciennement `src/components/sparring/SparringAnalysis.tsx` | **Déjà supprimé** dans une itération précédente : seul `SparringAnalysisV2.tsx` subsiste. | Aucune action — vérifié absent. |
 | `public/videos/hero-background.mp4` (14 Mo, orphelin) | `public/videos/` | **Suppression** : aucune référence dans `src/`, `index.html`, `vite.config.ts`. Le composant `VideoBackground` rend désormais une image statique. | Fichier supprimé. Répertoire `public/videos/` retiré. |
 | Prop `freezeAt?: number` (inutilisée) | `src/components/VideoBackground.tsx` | Conserver la signature pour compat des call sites (`<VideoBackground freezeAt={9} />`) ; marquer `@deprecated`. | JSDoc `@deprecated` ajouté + paramètre renommé `_props` pour ignorer la valeur sans warning lint. |
+| Devtool `vite-plugin-inspect` (devDependency) | `vite.config.ts`, `package.json`, `package-lock.json` | **Supprimé** lors de la purge KOREV du 2026-05-27. | Import retiré de `vite.config.ts` (plus de plugin `inspectPlugin`), entrée `"vite-plugin-inspect": "^1.1.7"` retirée de `devDependencies`, `package-lock.json` et `bun.lockb` régénérés contre la registry publique `registry.npmjs.org`. |
 
 ---
 
@@ -28,7 +29,6 @@
 
 - `src/components/WorkoutLogger.tsx` peut être supprimé entièrement après confirmation que `Index.tsx` n'a plus besoin du fallback (mesure d'usage côté analytics produit).
 - `src/components/StartWorkoutDialog.tsx` (v1) et `src/components/AddExerciseDialog.tsx` consommés uniquement par `WorkoutLogger` doivent suivre le même cycle de retrait.
-- Les imports `vite-plugin-inspect` dans `vite.config.ts` (et la dépendance `devDependencies`) sont conservés pour ne pas casser le mode `development` lors d'éventuels rebuilds depuis l'outil source ; à supprimer dès que l'éditeur confirme que l'environnement KOREV n'est plus utilisé.
 
 ---
 

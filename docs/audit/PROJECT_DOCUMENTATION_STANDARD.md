@@ -119,7 +119,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 ### Intégrations externes
 
 - **Stripe** (`stripe@18.5.0` côté Edge) — paiements, abonnements, portail client, webhook signé (`supabase/functions/stripe-webhook/index.ts`). Mapping `product_id → plan` codé en dur dans `supabase/functions/check-subscription/index.ts` (lignes 79–83) et `supabase/functions/stripe-webhook/index.ts` ; centralisation `_shared/` à prévoir.
-- **Passerelle IA externe (tierce)** — endpoint HTTPS configuré dans les trois fonctions Edge IA (`supabase/functions/ai-coach/index.ts`, `ai-stats-analysis/index.ts`, `analyze-sparring/index.ts`), modèles `google/gemini-2.5-flash` (coach + stats) et `google/gemini-2.5-pro` par défaut (analyse vidéo, bascule `flash` possible), authentification par secret Deno (variable d’environnement injectée côté Edge).
+- **Passerelle IA externe (tierce)** — URL et clé centralisées dans `supabase/functions/_shared/ai-gateway.ts` (variables d'environnement `AI_GATEWAY_URL` et `AI_GATEWAY_API_KEY`, avec un fallback rétrocompatible sur le nom de variable historique pour ne pas casser les secrets Supabase déjà provisionnés), consommées par les trois fonctions Edge IA (`supabase/functions/ai-coach/index.ts`, `ai-stats-analysis/index.ts`, `analyze-sparring/index.ts`). Modèles `google/gemini-2.5-flash` (coach + stats) et `google/gemini-2.5-pro` par défaut (analyse vidéo, bascule `flash` possible), authentification par secret Deno injecté côté Edge.
 - **API publique Open Food Facts** (`world.openfoodfacts.org`) — utilisée côté client par `src/components/FoodSearchInput.tsx` (recherche par nom) et `src/components/BarcodeScannerDialog.tsx` (recherche par code-barre).
 - **Flux RSS publics** — Sherdog, MMA Fighting, Bloody Elbow.
 
@@ -185,8 +185,6 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `supabase/functions/` | 8 Edge Functions Deno (incl. `stripe-webhook`) | Élevée |
 | `supabase/migrations/` | 26 fichiers SQL ordonnés par timestamp (dernière migration `20260526120000_stripe_webhook_events.sql`) | Élevée |
 | `supabase/seed/seed-admin.example.sql` | Script bootstrap paramétré (placeholder `<ADMIN_USER_UUID>`) non exécuté par le pipeline ; usage manuel pour provisionner un admin sur un environnement neuf | Moyenne |
-| `docs/DOCUMENTATION.md` | Documentation produit/technique (rédaction tierce, non auditée ici) | Moyenne — non auditée |
-| `docs/PRE_DEPLOYMENT_AUDIT.md` | Auto-évaluation pré-déploiement (rédaction tierce, non auditée ici) | Moyenne — non auditée |
 | `docs/audit/PROJECT_DOCUMENTATION_STANDARD.md` | Présent document | Élevée |
 | `docs/audit/PROJECT_AUDIT_NOTES.md` | Notes d’audit internes complémentaires | Moyenne |
 | `docs/audit/SCHEMA_DRIFT.md` | Matrice types ⇄ migrations + statuts + plans d’action | Élevée |
@@ -197,7 +195,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `tests/edge/` | Harness Deno pour Edge Functions (`stripe-webhook`, `ai-coach`, `analyze-sparring`) — exécution manuelle documentée | Moyenne |
 | `playwright.config.ts` | Configuration Playwright (Chromium, base URL configurable) | Moyenne |
 | `vitest.config.ts` | Configuration Vitest avec seuils de couverture 80 % sur `src/utils/**` et `src/components/sparring/**` | Moyenne |
-| `vite.config.ts` | Configuration Vite + plugin `inspectPlugin` actif uniquement en dev | Moyenne |
+| `vite.config.ts` | Configuration Vite (plugin React SWC + alias `@`) | Moyenne |
 | `tailwind.config.ts` | Tokens de design, thème, plugin typography | Moyenne |
 | `tsconfig*.json` | Configuration TypeScript — mode non strict (trajectoire d’activation dans `TYPESCRIPT_STRICTNESS_ROADMAP.md`) | Faible |
 | `eslint.config.js` | Linter (TypeScript-ESLint, plugins react-hooks et react-refresh) ; `no-unused-vars` en `warn` avec convention `_` ; ignore `supabase/functions/**` et `tests/edge/**` (Deno) | Moyenne |
@@ -248,7 +246,6 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `date-fns` ^3.6 | Manipulation de dates (front + Edge) | Moyenne | Standard |
 | `sonner` ^1.5 | Toasts | Faible | Standard |
 | `cmdk`, `embla-carousel-react`, `vaul`, `input-otp`, `next-themes`, `react-resizable-panels`, `react-day-picker` | Composants UI complémentaires | Faible | Standard, tirés de la stack shadcn |
-| Plugin Vite de tagging de composants (devDependency) | Annotation des composants React en mode développement uniquement (`vite.config.ts`, lignes 4 et 15) | Faible | Désactivé en production ; à retirer si non utilisé |
 | `playwright`, `vitest`, `@testing-library/*`, `jsdom`, `@vitest/coverage-v8` | Tests | Élevée pour la qualité | Standard |
 | `eslint`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` | Linting | Moyenne | Standard |
 
@@ -265,7 +262,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 - Le client Supabase lit l’URL du projet et la clé publique `anon` via les variables Vite publiques `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` (`src/integrations/supabase/client.ts`). Les exports nommés `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY` constituent la source unique de configuration côté front. Des valeurs de secours hardcodées (publiables par construction — URL projet + JWT `anon`) sont conservées dans le fichier pour ne pas casser un environnement de dev sans `.env`.
 - Plus aucune duplication de clé `anon` dans le code applicatif : `src/components/AICoachChat.tsx` importe `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY` du client centralisé. Le `fetch` brut subsiste pour le streaming SSE (non supporté par `supabase.functions.invoke`) mais ne porte plus de littéral de secret.
 - `.env` est désindexé du dépôt et listé dans `.gitignore` aux côtés de `.env.local`, `.env.*.local`, `.env.development`, `.env.production`, `.env.test`. Un fichier `.env.example` versionné fournit le template avec placeholders publiables et une note explicite indiquant que `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` et la clé d’API de la passerelle IA ne doivent jamais y figurer ni dans le bundle.
-- Les secrets sensibles côté Edge (clé d’API de la passerelle IA, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`) sont accédés via `Deno.env.get(...)` dans les fonctions Edge et ne sont pas présents dans le code versionné.
+- Les secrets sensibles côté Edge (clé de la passerelle IA accédée via `AI_GATEWAY_API_KEY` — avec un fallback rétrocompatible sur le nom de variable historique conservé dans `supabase/functions/_shared/ai-gateway.ts` —, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`) sont accédés via `Deno.env.get(...)` dans les fonctions Edge et ne sont pas présents dans le code versionné.
 
 ### Authentification
 
@@ -362,14 +359,11 @@ Aucune affirmation de conformité complète ne peut être faite sur la base du s
 - Mapping `product_id Stripe → plan` dupliqué entre `check-subscription` et `stripe-webhook` — centralisation `_shared/` prévue.
 - 11 tests Vitest en échec dans `StartWorkoutDialogV2.test.tsx` (sélecteurs DOM divergents) — antérieurs aux stabilisations, dette test à corriger.
 - Mode TypeScript non strict — trajectoire formalisée et observable en CI dans `docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md`.
-- `docs/DOCUMENTATION.md` et `docs/PRE_DEPLOYMENT_AUDIT.md` (versionnés à la racine `docs/`) contiennent des mentions et claims tiers non audités ici ; ils n’engagent pas le présent document.
 
 ### Documentation existante
 
-- `README.md` succinct, centré sur l’environnement de développement, non aligné sur la documentation produit ou architecture.
-- `docs/DOCUMENTATION.md` (≈ 600 lignes) — documentation produit/technique rédigée par une tierce partie. Non auditée dans le périmètre du présent document. À considérer comme un actif documentaire à valider.
-- `docs/PRE_DEPLOYMENT_AUDIT.md` (≈ 350 lignes) — auto-évaluation pré-déploiement rédigée par une tierce partie. Contient des scores et claims qualitatifs non revérifiés ici. À considérer avec la même réserve.
-- Documentation auditeur structurée dans `docs/audit/` : présent document, `PROJECT_AUDIT_NOTES.md`, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `REMEDIATION_NOTES.md`.
+- `README.md` réécrit comme documentation projet neutre (présentation, stack, démarrage local, scripts, structure du dépôt, pointeurs vers `docs/audit/`).
+- Documentation auditeur structurée dans `docs/audit/` : présent document, `PROJECT_AUDIT_NOTES.md`, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `REMEDIATION_NOTES.md`, `LAUNCH_READINESS.md`.
 - Pas de fichier `CONTRIBUTING.md`, `ARCHITECTURE.md`, ni de documentation OpenAPI/Swagger.
 - Commentaires JSDoc présents sur les utilitaires `gamification`, `sparringAnalysisSchema`, `videoFrameExtractor`, `retryWithBackoff`, `storageUtils` (entêtes structurés, sections délimitées). Composants legacy marqués `@deprecated` (`WorkoutLogger`, prop `freezeAt` de `VideoBackground`).
 - Page légale fonctionnelle (cf. §8).
@@ -429,12 +423,9 @@ Aucune affirmation de conformité complète ne peut être faite sur la base du s
 | Stratégie de déploiement non documentée (pas de Dockerfile, pas de runbook) | Pipeline CI versionné (lint + tests + build) mais pas de stratégie de release explicite | Reprise/transmission demande un runbook complémentaire |
 | Politique de gestion des quotas IA non observée | Coût opérationnel de la passerelle IA externe non documenté | À confirmer avec le porteur |
 | 11 tests Vitest en échec dans `StartWorkoutDialogV2.test.tsx` (sélecteurs DOM) | Échecs antérieurs aux stabilisations, isolés à un seul fichier | Dette test à traiter ; n’affecte pas le build ni la production |
-| Plugin Vite de tagging de composants en devDependency (`vite.config.ts` lignes 4, 15) | Outil de tagging composants en développement uniquement | À retirer en cas de cession ; sans impact runtime production |
 | Modules legacy `WorkoutLogger` et prop `freezeAt` de `VideoBackground` | Marqués `@deprecated` ; convention documentée dans `LEGACY_CLEANUP.md` ; suppression effective conditionnée à la migration complète vers les V2 | Nettoyage planifié |
 | Harness Deno `tests/edge/` non branché à la CI Node | Exécution manuelle documentée ; non couvert par le workflow GitHub Actions actuel | Branchement dans une itération CI dédiée (`denoland/setup-deno@v1`) |
 | Playwright non intégré au pipeline minimal CI | Configuré et exécutable localement, mais opt-in en CI | Branchement dans un job e2e dédié (build + serveur + browsers cached) |
-| `docs/DOCUMENTATION.md` et `docs/PRE_DEPLOYMENT_AUDIT.md` versionnés mais rédigés par une tierce partie, non audités ici | Documents pouvant contenir des claims non vérifiés | À auditer ou retirer avant transmission selon leur usage |
-
 ---
 
 ## 13. Conclusion technique
