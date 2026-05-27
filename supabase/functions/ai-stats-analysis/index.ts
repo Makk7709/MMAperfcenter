@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { subDays, format } from "https://esm.sh/date-fns@3.6.0";
+import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,8 +12,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LEGACY_AI_GATEWAY_KEY = Deno.env.get("LEGACY_AI_GATEWAY_KEY");
-    if (!LEGACY_AI_GATEWAY_KEY) throw new Error("LEGACY_AI_GATEWAY_KEY is not configured");
+    const aiGatewayKey = getAiGatewayKey();
 
     // Get user from auth header
     const authHeader = req.headers.get("authorization");
@@ -185,10 +185,10 @@ RÈGLES:
 - Objectifs: ${profile?.goals?.join(", ") || "performance générale"}
 - Réponds en français, sois motivant mais réaliste`;
 
-    const response = await fetch("https://ai-gateway.internal/v1/chat/completions", {
+    const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LEGACY_AI_GATEWAY_KEY}`,
+        Authorization: `Bearer ${aiGatewayKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

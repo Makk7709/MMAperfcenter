@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +19,7 @@ const AI_CONFIG = {
   maxTokens: 8000,
   temperature: 0.15,
   maxFrames: 60, // 60 frames = ~2x plus de couverture temporelle (était 32)
-  apiUrl: 'https://ai-gateway.internal/v1/chat/completions',
+  apiUrl: AI_GATEWAY_URL,
 };
 
 const RETRY_CONFIG = {
@@ -497,8 +498,7 @@ serve(async (req) => {
       throw new Error('Minimum 3 frames requis');
     }
 
-    const LEGACY_AI_GATEWAY_KEY = Deno.env.get('LEGACY_AI_GATEWAY_KEY');
-    if (!LEGACY_AI_GATEWAY_KEY) throw new Error('API key not configured');
+    const aiGatewayKey = getAiGatewayKey();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -558,7 +558,7 @@ serve(async (req) => {
     const response = await fetchWithRetry(AI_CONFIG.apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LEGACY_AI_GATEWAY_KEY}`,
+        'Authorization': `Bearer ${aiGatewayKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
