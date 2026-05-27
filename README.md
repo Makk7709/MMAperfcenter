@@ -1,73 +1,65 @@
 # KOREV Performance Center
 
-## Project info
+Application SaaS d'optimisation sportive dédiée aux arts martiaux mixtes
+et sports de combat : suivi d'entraînement, nutrition, analyse vidéo
+de sparring assistée par IA, gamification, gestion d'équipes (« meutes »),
+monétisation par abonnement.
 
-**Dépôt**: https://github.com/Makk7709/MMAperfcenter
+## Stack technique
 
-## How can I edit this code?
+- Frontend : React 18, Vite 5, TypeScript 5, Tailwind CSS 3, shadcn-ui
+- Backend : Supabase (PostgreSQL avec RLS, Auth, Storage, Edge Functions Deno)
+- Paiement : Stripe (Checkout, Customer Portal, webhook signé)
+- IA : passerelle externe avec modèles Gemini 2.5 Pro/Flash
+- Tests : Vitest, Testing Library, Playwright, harness Deno
+- CI : GitHub Actions
 
-There are several ways of editing your application.
+## Démarrage local
 
-**Développement local**
+Pré-requis : Node.js 20+ et npm.
 
-Cloner le dépôt puis suivre les instructions de démarrage local ci-dessous.
-
-Les modifications sont commitées manuellement sur ce dépôt.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Les push sont reflétés sur le dépôt distant.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+git clone <repository-url>
+cd "MMA perf center"
+npm install
+cp .env.example .env  # remplir les valeurs
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Application accessible sur http://localhost:8080.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Scripts
 
-**Use GitHub Codespaces**
+| Commande | Description |
+|---|---|
+| `npm run dev` | Serveur de développement Vite |
+| `npm run build` | Build de production |
+| `npm run lint` | Linter (ESLint + TypeScript-ESLint) |
+| `npm run test:run` | Tests unitaires (Vitest) |
+| `npm run test:e2e` | Tests end-to-end (Playwright) |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Structure du dépôt
 
-## What technologies are used for this project?
+```
+src/                  Application React (pages, composants, hooks, utils)
+supabase/
+  functions/          Edge Functions Deno (8 fonctions)
+  migrations/         Migrations SQL versionnées (26 fichiers)
+  seed/               Scripts seed paramétrés (non automatiques)
+tests/edge/           Harness Deno pour Edge Functions
+e2e/                  Tests Playwright
+docs/audit/           Documentation d'audit et de gouvernance
+.github/workflows/    CI GitHub Actions
+```
 
-This project is built with:
+## Documentation
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `docs/audit/PROJECT_DOCUMENTATION_STANDARD.md` — documentation technique standardisée
+- `docs/audit/SCHEMA_DRIFT.md` — matrice types/migrations
+- `docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md` — trajectoire mode strict
+- `docs/audit/LEGACY_CLEANUP.md` — inventaire et plan de retrait des modules legacy
+- `docs/audit/LAUNCH_READINESS.md` — checklist de mise en production commerciale
 
-## How can I deploy this project?
+## Licence
 
-Déployer via la plateforme d'hébergement configurée pour le projet.
-
-## Puis-je connecter un domaine personnalisé ?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Configurer le domaine personnalisé directement auprès de votre hébergeur.
+© KOREV AI — Tous droits réservés.
