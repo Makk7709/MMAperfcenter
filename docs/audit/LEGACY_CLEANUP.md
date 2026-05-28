@@ -13,7 +13,7 @@
 | Composant `SparringAnalysis.tsx` v1 | Anciennement `src/components/sparring/SparringAnalysis.tsx` | **Déjà supprimé** dans une itération précédente : seul `SparringAnalysisV2.tsx` subsiste. | Aucune action — vérifié absent. |
 | `public/videos/hero-background.mp4` (14 Mo, orphelin) | `public/videos/` | **Suppression** : aucune référence dans `src/`, `index.html`, `vite.config.ts`. Le composant `VideoBackground` rend désormais une image statique. | Fichier supprimé. Répertoire `public/videos/` retiré. |
 | Prop `freezeAt?: number` (inutilisée) | `src/components/VideoBackground.tsx` | Conserver la signature pour compat des call sites (`<VideoBackground freezeAt={9} />`) ; marquer `@deprecated`. | JSDoc `@deprecated` ajouté + paramètre renommé `_props` pour ignorer la valeur sans warning lint. |
-| Devtool `vite-plugin-inspect` (devDependency) | `vite.config.ts`, `package.json`, `package-lock.json` | **Supprimé** lors de la purge KOREV du 2026-05-27. | Import retiré de `vite.config.ts` (plus de plugin `inspectPlugin`), entrée `"vite-plugin-inspect": "^1.1.7"` retirée de `devDependencies`, `package-lock.json` et `bun.lockb` régénérés contre la registry publique `registry.npmjs.org`. |
+| Devtool de tagging composants (devDependency) | `vite.config.ts`, `package.json`, `package-lock.json` | **Supprimé** le 2026-05-27 dans le cadre du nettoyage des dépendances de développement non productives. | Import retiré de `vite.config.ts` (plus de plugin `inspectPlugin`), entrée correspondante retirée de `devDependencies`, `package-lock.json` et `bun.lockb` régénérés contre la registry publique `registry.npmjs.org`. |
 
 ---
 
