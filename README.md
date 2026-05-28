@@ -11,6 +11,7 @@ monétisation par abonnement.
 - Backend : Supabase (PostgreSQL avec RLS, Auth, Storage, Edge Functions Deno)
 - Paiement : Stripe (Checkout, Customer Portal, webhook signé)
 - IA : passerelle externe avec modèles Gemini 2.5 Pro/Flash
+- Observabilité : Sentry (`@sentry/react`, DSN piloté par `VITE_SENTRY_DSN`)
 - Tests : Vitest, Testing Library, Playwright, harness Deno
 - CI : GitHub Actions
 
@@ -44,7 +45,7 @@ Application accessible sur http://localhost:8080.
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
   functions/          Edge Functions Deno (8 fonctions)
-  migrations/         Migrations SQL versionnées (26 fichiers)
+  migrations/         Migrations SQL versionnées (28 fichiers)
   seed/               Scripts seed paramétrés (non automatiques)
 tests/edge/           Harness Deno pour Edge Functions
 e2e/                  Tests Playwright

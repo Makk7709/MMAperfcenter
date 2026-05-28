@@ -6,8 +6,8 @@
 - **Éditeur identifié dans le code** : KOREV AI — SAS (référence dans `src/pages/Legal.tsx`, lignes 54–60)
 - **Type de projet** : Application SaaS web (Single Page Application React) orientée arts martiaux mixtes et sports de combat
 - **Domaine d’application** : Suivi d’entraînement, nutrition, analyse vidéo de sparring assistée par IA, gamification, gestion d’équipes (« meutes »), monétisation par abonnement
-- **Statut observé** : Projet en développement actif. Migrations récentes (la plus récente datée `20260526120000_stripe_webhook_events.sql`), durcissement RLS récent (`20260525215520_*.sql`, `20260526095651_*.sql`), Edge Function `stripe-webhook` versionnée, pipeline CI versionné, mentions légales en place (champs juridiques restant à finaliser tracés en commentaires source uniquement).
-- **Langage principal** : TypeScript (151 fichiers `.ts/.tsx` dans `src/`, ~30 535 lignes ; 8 fonctions Deno/TypeScript côté serveur, ~1 800 lignes ; 26 migrations SQL, ~1 720 lignes ; harness Deno serveur dans `tests/edge/`).
+- **Statut observé** : Projet en développement actif. Migrations récentes (la plus récente datée `20260526133146_*.sql`), durcissement RLS continu (`20260525215520_*.sql`, `20260526095651_*.sql`, `20260526125359_*.sql` qui restreint l'INSERT sur `documents` aux administrateurs et ajoute un trigger anti-escalade de privilège sur `meute_members`), Edge Function `stripe-webhook` versionnée, observabilité Sentry intégrée côté frontend, pipeline CI versionné, mentions légales en place (champs juridiques restant à finaliser tracés en commentaires source uniquement).
+- **Langage principal** : TypeScript (151 fichiers `.ts/.tsx` dans `src/`, ~30 535 lignes ; 8 fonctions Deno/TypeScript côté serveur, ~1 800 lignes ; 28 migrations SQL, ~1 786 lignes ; harness Deno serveur dans `tests/edge/`).
 - **Frameworks principaux** :
   - Front-end : React 18.3, Vite 5.4, TypeScript 5.5, Tailwind CSS 3.4, shadcn-ui (Radix UI primitives), React Router 6.26, TanStack Query 5.56, React Hook Form 7.53, Zod 3.23, Framer Motion 12.23
   - Back-end : Supabase (PostgreSQL, Auth, Storage, Edge Functions Deno), Stripe (paiements + webhook signé versionné)
@@ -183,10 +183,10 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `src/assets/` | Images statiques (hero MMA, hero-background) | Faible |
 | `supabase/config.toml` | Configuration des fonctions (vérification JWT par fonction, `verify_jwt = false` pour `stripe-webhook`) | Élevée |
 | `supabase/functions/` | 8 Edge Functions Deno (incl. `stripe-webhook`) | Élevée |
-| `supabase/migrations/` | 26 fichiers SQL ordonnés par timestamp (dernière migration `20260526120000_stripe_webhook_events.sql`) | Élevée |
+| `supabase/migrations/` | 28 fichiers SQL ordonnés par timestamp (dernière migration `20260526133146_*.sql` ajoutant un index composite `nutrition_logs(user_id, date)`) | Élevée |
 | `supabase/seed/seed-admin.example.sql` | Script bootstrap paramétré (placeholder `<ADMIN_USER_UUID>`) non exécuté par le pipeline ; usage manuel pour provisionner un admin sur un environnement neuf | Moyenne |
 | `docs/audit/PROJECT_DOCUMENTATION_STANDARD.md` | Présent document | Élevée |
-| `docs/audit/PROJECT_AUDIT_NOTES.md` | Notes d’audit internes complémentaires | Moyenne |
+| `docs/audit/REMEDIATION_NOTES.md` | Journal de remédiation détaillé et audits hostiles successifs | Élevée |
 | `docs/audit/SCHEMA_DRIFT.md` | Matrice types ⇄ migrations + statuts + plans d’action | Élevée |
 | `docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md` | Trajectoire 3 phases pour activer `strict: true` (gouvernance de la dette TS) | Moyenne |
 | `docs/audit/LEGACY_CLEANUP.md` | Inventaire des composants/assets legacy et convention de dépréciation | Moyenne |
@@ -286,7 +286,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 
 ### Logs
 
-- Logging par `console.log` dans les fonctions Edge (préfixes `[CHECK-SUBSCRIPTION]`, `[CUSTOMER-PORTAL]`, etc.). Pas d’observabilité structurée (pas de Sentry, Datadog ou équivalent identifié dans le code).
+- Logging par `console.log` dans les fonctions Edge (préfixes `[CHECK-SUBSCRIPTION]`, `[CUSTOMER-PORTAL]`, etc.). Côté frontend, Sentry est intégré (`@sentry/react@10.54.0`, configuration dans `src/lib/sentry.ts`, initialisée dans `src/main.tsx` ; sampling traces 10 % et replay sur erreur 100 % en production, masquage texte et blocage médias activés, DSN piloté par la variable d'environnement `VITE_SENTRY_DSN`). Aucune observabilité structurée n'est encore en place côté Edge Functions.
 - Aucun système d’audit log explicite côté base (pas de table `audit_logs`).
 
 ### Données personnelles
@@ -363,7 +363,7 @@ Aucune affirmation de conformité complète ne peut être faite sur la base du s
 ### Documentation existante
 
 - `README.md` réécrit comme documentation projet neutre (présentation, stack, démarrage local, scripts, structure du dépôt, pointeurs vers `docs/audit/`).
-- Documentation auditeur structurée dans `docs/audit/` : présent document, `PROJECT_AUDIT_NOTES.md`, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `REMEDIATION_NOTES.md`, `LAUNCH_READINESS.md`.
+- Documentation auditeur structurée dans `docs/audit/` : présent document, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `REMEDIATION_NOTES.md`, `LAUNCH_READINESS.md`.
 - Pas de fichier `CONTRIBUTING.md`, `ARCHITECTURE.md`, ni de documentation OpenAPI/Swagger.
 - Commentaires JSDoc présents sur les utilitaires `gamification`, `sparringAnalysisSchema`, `videoFrameExtractor`, `retryWithBackoff`, `storageUtils` (entêtes structurés, sections délimitées). Composants legacy marqués `@deprecated` (`WorkoutLogger`, prop `freezeAt` de `VideoBackground`).
 - Page légale fonctionnelle (cf. §8).

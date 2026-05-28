@@ -58,7 +58,7 @@
 
 | # | Action | Criticité | Porteur | Effort |
 |---|---|---|---|---|
-| C1 | Intégrer Sentry (ou équivalent) côté frontend : `@sentry/react` + source maps + tagging utilisateur anonymisé | 🔴 | Dev | 1 jour |
+| C1 | ✅ **Fait** — Sentry est intégré côté frontend (`@sentry/react@10.54.0`, `src/lib/sentry.ts`, initialisé dans `src/main.tsx`, DSN piloté par `VITE_SENTRY_DSN`, masquage texte et blocage médias activés sur les replays). Reste à : provisionner le DSN production, uploader les source maps dans le pipeline CI et activer le tagging utilisateur anonymisé après authentification. | 🟠 | Dev | 0.5 jour résiduel |
 | C2 | Intégrer Sentry côté Edge Functions Deno : `@sentry/deno` avec capture des erreurs non gérées dans les 8 fonctions | 🔴 | Dev | 1 jour |
 | C3 | Configurer des alertes Sentry sur taux d'erreur > seuil (Slack, email) | 🔴 | Dev | 0.5 jour |
 | C4 | Mettre en place un monitoring de la disponibilité (BetterStack, UptimeRobot, ou Cloudflare Health Checks) sur la home + un endpoint santé Edge | 🟠 | Dev | 0.5 jour |
@@ -227,7 +227,7 @@ Avant d'ouvrir au public payant, vérifier que **chaque case 🔴 ci-dessus est 
 > - CGV, CGU et politique de confidentialité ne sont pas publiées et acceptées au signup ;
 > - Le webhook Stripe n'a pas été testé en bout en bout en mode `live` ;
 > - Le droit à l'effacement et la suppression de compte ne sont pas fonctionnels ;
-> - Sentry n'est pas en place et l'alerte fonctionne ;
+> - Sentry est opérationnel côté Edge Functions (le front est déjà couvert) et les alertes sont configurées ;
 > - Un canal de support client est opérationnel ;
 > - Une beta privée d'au moins 2 semaines sans incident bloquant a été conduite.
 
