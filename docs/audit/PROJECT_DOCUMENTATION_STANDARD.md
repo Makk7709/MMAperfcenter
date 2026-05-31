@@ -186,11 +186,9 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `supabase/migrations/` | 28 fichiers SQL ordonnés par timestamp (dernière migration `20260526133146_*.sql` ajoutant un index composite `nutrition_logs(user_id, date)`) | Élevée |
 | `supabase/seed/seed-admin.example.sql` | Script bootstrap paramétré (placeholder `<ADMIN_USER_UUID>`) non exécuté par le pipeline ; usage manuel pour provisionner un admin sur un environnement neuf | Moyenne |
 | `docs/audit/PROJECT_DOCUMENTATION_STANDARD.md` | Présent document | Élevée |
-| `docs/audit/REMEDIATION_NOTES.md` | Journal de remédiation détaillé et audits hostiles successifs | Élevée |
 | `docs/audit/SCHEMA_DRIFT.md` | Matrice types ⇄ migrations + statuts + plans d’action | Élevée |
 | `docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md` | Trajectoire 3 phases pour activer `strict: true` (gouvernance de la dette TS) | Moyenne |
 | `docs/audit/LEGACY_CLEANUP.md` | Inventaire des composants/assets legacy et convention de dépréciation | Moyenne |
-| `docs/audit/REMEDIATION_NOTES.md` | Historique de stabilisation pré-transmission | Moyenne |
 | `e2e/sparring-analysis.spec.ts` | Tests E2E Playwright (couverture limitée, ~125 lignes) | Moyenne |
 | `tests/edge/` | Harness Deno pour Edge Functions (`stripe-webhook`, `ai-coach`, `analyze-sparring`) — exécution manuelle documentée | Moyenne |
 | `playwright.config.ts` | Configuration Playwright (Chromium, base URL configurable) | Moyenne |
@@ -363,7 +361,7 @@ Aucune affirmation de conformité complète ne peut être faite sur la base du s
 ### Documentation existante
 
 - `README.md` réécrit comme documentation projet neutre (présentation, stack, démarrage local, scripts, structure du dépôt, pointeurs vers `docs/audit/`).
-- Documentation auditeur structurée dans `docs/audit/` : présent document, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `REMEDIATION_NOTES.md`, `LAUNCH_READINESS.md`.
+- Documentation auditeur structurée dans `docs/audit/` : présent document, `SCHEMA_DRIFT.md`, `TYPESCRIPT_STRICTNESS_ROADMAP.md`, `LEGACY_CLEANUP.md`, `LAUNCH_READINESS.md`.
 - Pas de fichier `CONTRIBUTING.md`, `ARCHITECTURE.md`, ni de documentation OpenAPI/Swagger.
 - Commentaires JSDoc présents sur les utilitaires `gamification`, `sparringAnalysisSchema`, `videoFrameExtractor`, `retryWithBackoff`, `storageUtils` (entêtes structurés, sections délimitées). Composants legacy marqués `@deprecated` (`WorkoutLogger`, prop `freezeAt` de `VideoBackground`).
 - Page légale fonctionnelle (cf. §8).
