@@ -82,7 +82,7 @@ Chaque lot d'anomalies suit le même cycle :
 | `S3776` | CRITICAL | `src/components/AIStatsAnalysis.tsx` | 14 | `generateAnalysis` simplifiée : extraction de `openAnalysisStream` + même utilitaire SSE partagé. |
 | `S4165` | MAJOR | `src/components/AIStatsAnalysis.tsx` | 112, 121 | Réaffectations redondantes `iconColor = "text-primary"` supprimées (valeur déjà portée par l'initialisation). |
 | `S6479` | MAJOR | `src/components/AIStatsAnalysis.tsx` | 125, 142 | Clés par index remplacées par des clés de contenu (`section`, `line`). |
-| `S5869` | MAJOR | `src/components/AIStatsAnalysis.tsx` | 129 | Classe de caractères emoji remplacée par une alternation `/🎯|💪|🍽️|📈/gu`. |
+| `S5869` | MAJOR | `src/components/AIStatsAnalysis.tsx` | 129 | Classe de caractères emoji remplacée par une alternation `/🎯\|💪\|🍽️\|📈/gu`. |
 | `S3358` | MAJOR | `src/components/AIStatsAnalysis.tsx` | 181 | Ternaire imbriqué du bouton extrait dans `renderButtonLabel()`. |
 | `S6850` | MAJOR | `src/components/ui/alert.tsx` | 39 | `AlertTitle` rend désormais `{children}` explicitement. |
 

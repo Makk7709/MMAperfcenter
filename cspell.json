@@ -1,0 +1,30 @@
+{
+  "version": "0.2",
+  "language": "fr,en",
+  "words": [
+    "KOREV",
+    "Supabase",
+    "supabase",
+    "SonarQube",
+    "SonarLint",
+    "Vitest",
+    "Playwright",
+    "Stripe",
+    "Sentry",
+    "Vite",
+    "Deno",
+    "Tailwind",
+    "shadcn",
+    "jsdom",
+    "denoland",
+    "meutes",
+    "meute"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "**/*.lockb",
+    "**/*.lock"
+  ]
+}

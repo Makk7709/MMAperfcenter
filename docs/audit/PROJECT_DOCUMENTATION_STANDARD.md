@@ -125,7 +125,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 
 ### Schéma textuel
 
-```
+```text
 [Navigateur utilisateur]
     │
     ├── SPA React (Vite, hébergement à confirmer)
@@ -248,6 +248,7 @@ Application web monolithique côté front (SPA React/Vite) couplée à une plate
 | `eslint`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` | Linting | Moyenne | Standard |
 
 **Notes** :
+
 - La règle ESLint `@typescript-eslint/no-unused-vars` est configurée en `warn` avec convention `_` (`argsIgnorePattern`, `varsIgnorePattern`, `caughtErrorsIgnorePattern`). Les répertoires Deno (`supabase/functions/**`, `tests/edge/**`) sont ignorés par la config Node.
 - `tsconfig.app.json` exécute encore avec `"strict": false`, `"noImplicitAny": false`, `"noUnusedLocals": false`, `"noUnusedParameters": false`, `"noFallthroughCasesInSwitch": false`. `tsconfig.json` racine désactive en outre `"strictNullChecks"`. La trajectoire d’activation est formalisée dans `docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md` (3 phases avec critères de sortie objectifs).
 
@@ -424,6 +425,7 @@ Aucune affirmation de conformité complète ne peut être faite sur la base du s
 | Modules legacy `WorkoutLogger` et prop `freezeAt` de `VideoBackground` | Marqués `@deprecated` ; convention documentée dans `LEGACY_CLEANUP.md` ; suppression effective conditionnée à la migration complète vers les V2 | Nettoyage planifié |
 | Harness Deno `tests/edge/` non branché à la CI Node | Exécution manuelle documentée ; non couvert par le workflow GitHub Actions actuel | Branchement dans une itération CI dédiée (`denoland/setup-deno@v1`) |
 | Playwright non intégré au pipeline minimal CI | Configuré et exécutable localement, mais opt-in en CI | Branchement dans un job e2e dédié (build + serveur + browsers cached) |
+
 ---
 
 ## 13. Conclusion technique
