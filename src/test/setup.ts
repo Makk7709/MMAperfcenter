@@ -11,7 +11,7 @@ class ResizeObserverMock {
   disconnect = vi.fn();
 }
 
-globalThis.ResizeObserver = ResizeObserverMock as any;
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof globalThis.ResizeObserver;
 
 // ============================================
 // INTERSECTION OBSERVER MOCK
@@ -26,7 +26,7 @@ class IntersectionObserverMock {
   thresholds = [];
 }
 
-globalThis.IntersectionObserver = IntersectionObserverMock as any;
+globalThis.IntersectionObserver = IntersectionObserverMock as unknown as typeof globalThis.IntersectionObserver;
 
 // ============================================
 // MOCK CONFIG - Global state for video mock
@@ -91,14 +91,14 @@ HTMLCanvasElement.prototype.getContext = function(contextId: string) {
     } as unknown as CanvasRenderingContext2D;
   }
   return null;
-} as any;
+} as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 HTMLCanvasElement.prototype.toDataURL = function(type?: string) {
   const format = type === 'image/webp' ? 'webp' : 'jpeg';
   return `data:image/${format};base64,/9j/4AAQSkZJRgMOCK_${Math.random().toString(36)}`;
-} as any;
+} as unknown as typeof HTMLCanvasElement.prototype.toDataURL;
 
-HTMLCanvasElement.prototype.remove = vi.fn() as any;
+HTMLCanvasElement.prototype.remove = vi.fn() as unknown as typeof HTMLCanvasElement.prototype.remove;
 
 // ============================================
 // VIDEO ELEMENT MOCK - Using prototype override
@@ -108,7 +108,7 @@ HTMLCanvasElement.prototype.remove = vi.fn() as any;
 const videoCallbacks = new WeakMap<object, {
   onloadedmetadata?: () => void;
   onseeked?: () => void;
-  onerror?: (e: any) => void;
+  onerror?: (e: unknown) => void;
 }>();
 
 const videoState = new WeakMap<object, {
@@ -207,7 +207,7 @@ Object.defineProperty(HTMLVideoElement.prototype, 'onseeked', {
 });
 
 Object.defineProperty(HTMLVideoElement.prototype, 'onerror', {
-  set(handler: (e: any) => void) {
+  set(handler: (e: unknown) => void) {
     let callbacks = videoCallbacks.get(this);
     if (!callbacks) {
       callbacks = {};
@@ -218,9 +218,9 @@ Object.defineProperty(HTMLVideoElement.prototype, 'onerror', {
   configurable: true,
 });
 
-HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined) as any;
-HTMLVideoElement.prototype.pause = vi.fn() as any;
-HTMLVideoElement.prototype.load = vi.fn() as any;
+HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined) as unknown as typeof HTMLVideoElement.prototype.play;
+HTMLVideoElement.prototype.pause = vi.fn() as unknown as typeof HTMLVideoElement.prototype.pause;
+HTMLVideoElement.prototype.load = vi.fn() as unknown as typeof HTMLVideoElement.prototype.load;
 
 // ============================================
 // LIFECYCLE

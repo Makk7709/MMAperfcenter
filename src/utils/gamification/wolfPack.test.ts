@@ -5,10 +5,9 @@
  * Progression: Louveteau → Loup Garou
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   // Rank System
-  WolfRank,
   WOLF_RANKS,
   calculateRank,
   getNextRank,
@@ -20,7 +19,6 @@ import {
   calculateXPForAction,
   
   // Badge System
-  WolfBadge,
   WOLF_BADGES,
   checkBadgeUnlock,
   getBadgesByCategory,
@@ -34,7 +32,6 @@ import {
   getRankUpMessage,
   
   // Sound System
-  WolfSound,
   WOLF_SOUNDS,
   getSoundForEvent,
 } from './wolfPack';
@@ -239,7 +236,7 @@ describe('Wolf Badge System', () => {
     it('should have wolf-themed names', () => {
       const wolfKeywords = ['lune', 'meute', 'crocs', 'territoire', 'chasse', 'loup', 'prédateur', 'trace', 'nuit'];
       WOLF_BADGES.forEach(badge => {
-        const hasWolfTheme = wolfKeywords.some(keyword => 
+        const _hasWolfTheme = wolfKeywords.some(keyword => 
           badge.name.toLowerCase().includes(keyword) ||
           badge.description.toLowerCase().includes(keyword)
         );

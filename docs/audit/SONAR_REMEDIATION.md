@@ -52,6 +52,12 @@ Chaque lot d'anomalies suit le même cycle :
 | `S7748` (littéral numérique) | Fraction nulle superflue retirée (`1.0` → `1`). |
 | `S7763` (ré-export) | `import X … ; export { X }` remplacé par `export … from "…"` (`export * as Sentry from …`, `export { toast } from "sonner"`). |
 | `S4084` (média sans sous-titres) | Ajout d'une balise `<track kind="captions" />` enfant de `<video>` (piste vide pour une vidéo utilisateur sans sous-titres). |
+| `react-hooks/rules-of-hooks` | Fonction utilitaire à préfixe `use` mais qui **n'est pas un hook** renommée (`useFeatureWithTracking` → `runFeatureWithTracking`) pour lever le faux positif et clarifier l'intention. |
+| `@typescript-eslint/no-explicit-any` | `any` remplacé par : le type généré Supabase (`Enums<…>`, `TablesUpdate<…>`), une interface dédiée, `unknown` (valeur opaque), un type étendu signifiant (`Error & { status?: number }`), ou `as unknown as <Type>` aux seules frontières non typables (jointures Supabase, mocks de prototype DOM, fixtures de test via `Parameters<typeof fn>[n]`). |
+| `@typescript-eslint/no-unused-vars` | Imports / variables / arguments inutilisés supprimés ; argument conservé pour respect de signature préfixé `_` (convention `argsIgnorePattern`). |
+| `prefer-const` | `let` jamais réaffecté converti en `const`. |
+| `@typescript-eslint/no-empty-object-type` | Interface vide étendant un type (`interface X extends Y {}`) convertie en alias `type X = Y`. |
+| `@typescript-eslint/no-require-imports` | `require("…")` converti en `import` ESM. |
 
 ---
 
@@ -215,6 +221,47 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 
 ---
 
+### Session 8 — 2026-06-06 — Quality gate ESLint complet (pré-CI)
+
+> Périmètre : passe globale équivalente à un quality gate, déclenchée par un contrôle complet (`eslint .`, `tsc`, `test:run`, `build`). État initial : **56 erreurs + 64 warnings ESLint**. Objectif : **0 erreur** pour fiabiliser le job `lint` de la CI, sans régression.
+
+**Vraies anomalies + quick wins (6 erreurs)**
+
+| Règle | Sév. | Fichier(s) | Correction |
+|---|---|---|---|
+| `react-hooks/rules-of-hooks` ×2 | ERROR | `src/hooks/useFeatureAccess.tsx`, `src/hooks/useFeatureGate.tsx`, `src/components/FeaturePaywall.tsx` | `useFeatureWithTracking` (callback, **pas un hook**) renommé `runFeatureWithTracking` dans la définition, l'objet retourné et les 2 consommateurs ; faux positif levé. |
+| `prefer-const` ×2 | ERROR | `src/utils/gamification/wolfTracking.test.ts` | `let session` jamais réaffecté → `const`. |
+| `@typescript-eslint/no-empty-object-type` | ERROR | `src/components/ui/textarea.tsx` | `interface TextareaProps extends … {}` → `type TextareaProps = …`. |
+| `@typescript-eslint/no-require-imports` | ERROR | `tailwind.config.ts` | `require("tailwindcss-animate")` → `import tailwindcssAnimate from …`. |
+
+**`no-unused-vars` (49 warnings → 0)**
+
+Suppression d'imports / variables / arguments inutilisés dans ~25 fichiers (composants `gamification/*`, `sparring/*`, `WorkoutLogger`, pages `Statistics`/`TrainingVideos`/`WorkoutJournal`, hooks, fichiers de test `wolf*`/`videoFrameExtractor`). Cas particuliers : arguments conservés pour signature préfixés `_` (`_error`, `_summary`) ; `actionTypes` (consommé uniquement via `typeof`) renommé `_actionTypes` ; prop `feature` non utilisée retirée du destructuring de `PaywallDialog` ; props `fighter1Name`/`fighter2Name`/`showPercentage` retirées du destructuring de `StatComparisonBar`.
+
+**`no-explicit-any` (50 erreurs → 0)**
+
+| Famille | Fichier(s) | Correction |
+|---|---|---|
+| Erreurs d'auth | `src/hooks/useAuth.tsx` | `{ error: any }` → `{ error: AuthError \| null }` (type Supabase). |
+| Enums Supabase | `src/hooks/useTrainingVideos.tsx`, `src/hooks/useAdminUsers.tsx` | `as any` → `as Enums<"technique_type">` / `Enums<"difficulty_level">` / `Enums<"subscription_plan">`. |
+| Payload Supabase | `src/pages/Onboarding.tsx` | `const payload: any` → objet inféré + `as TablesUpdate<"profiles">` au point d'appel. |
+| Jointures Supabase | `src/hooks/useMeutes.tsx` | `as any` → type ciblé via `as unknown as …` (la jointure renvoie un `SelectQueryError`). |
+| État typé | `src/pages/Statistics.tsx` | `useState<any[]>` → interfaces `WorkoutDayStat` / `NutritionDayStat`. |
+| Données structurées | `src/pages/WorkoutHistory.tsx` | `analysis: any` → `SparringAnalysisData \| null` (interface exportée depuis `SparringPDFExport`). |
+| Setters de formulaire | `src/pages/Profile.tsx`, `src/pages/Onboarding.tsx` | `set(field, value: any)` → générique `<K extends keyof FD>(f: K, v: FD[K])`. |
+| Props de dialogue | `src/pages/WorkoutJournal.tsx` | `formData: any` → interface `JournalFormData`. |
+| Unions de valeur | `src/components/workout/StartWorkoutDialogV2.tsx` | `v as any` → `v as Exclude<WorkoutType, "custom">`. |
+| API non typée | `src/components/RoundTimer.tsx` | `(globalThis as any).webkitAudioContext` → `(globalThis as { webkitAudioContext?: typeof AudioContext })`. |
+| Util générique | `src/utils/retryWithBackoff.ts` | `result: any` → `unknown` ; `(error as any).status` → `(error as Error & { status?: number })`. |
+| Mocks DOM | `src/test/setup.ts` | `as any` → `as unknown as typeof <prototype-member>` ; handlers `(e: any)` → `(e: unknown)`. |
+| Fixtures de test | `src/utils/gamification/wolfTracking.test.ts` | `as any` → `as unknown as Parameters<typeof fn>[n]` (objets partiels passés aux fonctions). |
+
+**Garde-fous** : `tsc -p tsconfig.app.json` OK ; `eslint .` → **0 erreur** (15 warnings résiduels assumés : 9 `react-refresh/only-export-components` sur fichiers UI mixtes, 6 `react-hooks/exhaustive-deps` — non bloquants, ne cassent pas la CI) ; `npm run build` OK ; `npm run test:run` → 378 passants / 4 ignorés / 11 échecs préexistants (dette connue, inchangée).
+
+**Résultat** : passage de **56 erreurs → 0 erreur** ESLint. Le job `lint` de la CI peut désormais réussir.
+
+---
+
 ## 3. Dette de test connue (préexistante)
 
 `src/components/workout/StartWorkoutDialogV2.test.tsx` comporte **11 tests en échec**, indépendants des sessions ci-dessus (aucun des fichiers corrigés n'est couvert par ce fichier de test). Ces échecs préexistaient aux corrections Sonar et sont suivis séparément. Ils servent de référence de non-régression : le nombre d'échecs ne doit pas augmenter au fil des sessions.
@@ -228,6 +275,7 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 | Après session 5 | 378 | 11 (préexistants) | 4 |
 | Après session 6 | 378 | 11 (préexistants) | 4 |
 | Après session 7 | 378 | 11 (préexistants) | 4 |
+| Après session 8 | 378 | 11 (préexistants) | 4 |
 
 ---
 

@@ -14,9 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Dumbbell, 
   Plus, 
-  Timer, 
   Target,
-  TrendingUp,
   Play,
   Pause,
   RotateCcw

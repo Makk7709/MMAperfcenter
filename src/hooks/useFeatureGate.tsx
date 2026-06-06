@@ -10,17 +10,17 @@ import { useFeatureAccess, FeatureKey } from './useFeatureAccess';
  *   Puis monter <Paywall /> dans le JSX.
  */
 export const useFeatureGate = (feature: FeatureKey) => {
-  const { useFeatureWithTracking } = useFeatureAccess();
+  const { runFeatureWithTracking } = useFeatureAccess();
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const gate = useCallback(async (): Promise<boolean> => {
-    const { allowed } = await useFeatureWithTracking(feature);
+    const { allowed } = await runFeatureWithTracking(feature);
     if (!allowed) {
       setPaywallOpen(true);
       return false;
     }
     return true;
-  }, [useFeatureWithTracking, feature]);
+  }, [runFeatureWithTracking, feature]);
 
   return { gate, paywallOpen, setPaywallOpen };
 };

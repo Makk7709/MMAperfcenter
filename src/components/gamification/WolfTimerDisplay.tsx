@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TIMER_PRESETS, getPresetByName, formatTime } from '@/utils/gamification/wolfTimer';
 import {

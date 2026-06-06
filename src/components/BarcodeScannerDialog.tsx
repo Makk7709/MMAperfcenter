@@ -63,7 +63,7 @@ export const BarcodeScannerDialog = ({
       await codeReaderRef.current.decodeFromVideoDevice(
         undefined,
         videoRef.current,
-        async (result, error) => {
+        async (result, _error) => {
           if (result) {
             const barcode = result.getText();
             await fetchProductInfo(barcode);

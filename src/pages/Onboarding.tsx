@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import {
   User, Scale, Ruler, Target, Dumbbell, ArrowRight, ArrowLeft,
   Sparkles, Brain, Calendar, Trophy, Heart, Moon, Activity, MapPin, SkipForward
@@ -111,7 +112,7 @@ export default function Onboarding() {
   const totalSteps = 7;
   const progress = (step / totalSteps) * 100;
 
-  const set = (field: string, value: any) =>
+  const set = <K extends keyof typeof formData>(field: K, value: (typeof formData)[K]) =>
     setFormData(prev => ({ ...prev, [field]: value }));
 
   const toggleArr = (field: keyof typeof formData, val: string) => {
@@ -143,7 +144,7 @@ export default function Onboarding() {
     try {
       const num = (v: string) => v ? Number.parseFloat(v) : null;
       const int = (v: string) => v ? Number.parseInt(v, 10) : null;
-      const payload: any = {
+      const payload = {
         full_name: formData.full_name,
         gender: formData.gender,
         age: int(formData.age),
@@ -173,7 +174,10 @@ export default function Onboarding() {
         equipment: formData.equipment,
         dietary_restrictions: formData.dietary_restrictions,
       };
-      const { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update(payload as TablesUpdate<"profiles">)
+        .eq("id", user.id);
       if (error) throw error;
       sessionStorage.setItem("onboarding_completed", "true");
       toast.success("Profil complété ! Bienvenue chez KOREV AI 🥊");

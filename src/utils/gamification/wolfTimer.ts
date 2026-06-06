@@ -5,7 +5,7 @@
  * "Temps de Chasse" = Round, "Retour à la Tanière" = Rest
  */
 
-import { getSoundForEvent, type SoundPreference } from './wolfPack';
+import { type SoundPreference } from './wolfPack';
 
 // ============================================
 // TYPES

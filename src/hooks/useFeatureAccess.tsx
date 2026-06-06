@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -237,7 +237,7 @@ export const useFeatureAccess = () => {
     return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
   }, [user, currentPlan, getFeatureUsage, isPrivileged]);
 
-  const useFeatureWithTracking = useCallback(async (feature: FeatureKey): Promise<{ allowed: boolean; newUsage: number; access: FeatureAccessResult }> => {
+  const runFeatureWithTracking = useCallback(async (feature: FeatureKey): Promise<{ allowed: boolean; newUsage: number; access: FeatureAccessResult }> => {
     const access = await checkAccess(feature);
     if (!access.hasAccess) return { allowed: false, newUsage: access.currentUsage, access };
 
@@ -256,7 +256,7 @@ export const useFeatureAccess = () => {
     isPrivileged,
     loading: subscriptionLoading || rolesLoading,
     checkAccess,
-    useFeatureWithTracking,
+    runFeatureWithTracking,
     getFeatureUsage,
     clearUsageCache,
     FEATURE_CONFIG,

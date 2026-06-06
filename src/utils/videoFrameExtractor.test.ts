@@ -5,7 +5,7 @@
  * INTEGRATION TESTS: DOM-dependent (marked with .skip for jsdom, run in real browser)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { setMockVideoConfig } from '../test/setup';
 import {
   extractVideoFrames,
@@ -13,7 +13,6 @@ import {
   validateFrame,
   calculateOptimalInterval,
   type ExtractedFrame,
-  type ExtractionOptions,
 } from './videoFrameExtractor';
 
 // ============================================
@@ -84,7 +83,6 @@ describe('validateFrame', () => {
     });
 
     it('should accept frames with normal brightness (100-180)', () => {
-      const normalImageData = createMockImageData(128);
       // Need varied data for contrast check
       const variedData = createVariedImageData();
       const result = validateFrame(variedData);

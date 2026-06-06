@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { SparringPDFExport } from "@/components/sparring/SparringPDFExport";
+import { SparringPDFExport, type SparringAnalysisData } from "@/components/sparring/SparringPDFExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
@@ -51,7 +51,7 @@ interface SparringAnalysisRow {
   video_url: string;
   created_at: string;
   status: string;
-  analysis: any;
+  analysis: SparringAnalysisData | null;
 }
 
 export default function WorkoutHistory() {
@@ -124,7 +124,7 @@ export default function WorkoutHistory() {
       else setWorkouts(workoutsRes.data as HistoricalWorkout[]);
 
       if (sparringRes.error) console.error("Error loading sparrings:", sparringRes.error);
-      else setSparrings((sparringRes.data || []) as SparringAnalysisRow[]);
+      else setSparrings((sparringRes.data || []) as unknown as SparringAnalysisRow[]);
 
       setLoading(false);
     };

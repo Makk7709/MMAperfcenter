@@ -393,10 +393,7 @@ const StatComparisonBar = ({
   label,
   fighter1Value,
   fighter2Value,
-  fighter1Name,
-  fighter2Name,
-  unit = "",
-  showPercentage = false
+  unit = ""
 }: {
   label: string;
   fighter1Value: number;

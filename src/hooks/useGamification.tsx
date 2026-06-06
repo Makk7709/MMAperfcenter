@@ -20,7 +20,6 @@ import {
   getMotivationalMessage,
   getRankUpMessage,
   WOLF_RANKS,
-  WOLF_BADGES,
   type WolfRank,
   type WolfBadge,
   type ActionType,
@@ -214,7 +213,7 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   }, [user, state.totalWorkouts, state.streakDays, state.totalXP, state.unlockedBadges, toast]);
 
   // Record a completed workout
-  const recordWorkout = useCallback(async (summary: SessionSummary) => {
+  const recordWorkout = useCallback(async (_summary: SessionSummary) => {
     if (!user) return;
 
     try {

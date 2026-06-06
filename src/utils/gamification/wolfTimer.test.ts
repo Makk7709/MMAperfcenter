@@ -5,11 +5,10 @@
  * "Temps de Chasse" instead of "Round"
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   // Timer State
   TimerState,
-  TimerConfig,
   createTimerConfig,
   
   // Timer Logic

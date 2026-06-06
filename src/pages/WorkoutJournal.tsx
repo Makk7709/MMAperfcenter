@@ -8,13 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -47,6 +40,15 @@ interface JournalEntry {
   energy_level: number;
   weight_kg?: number;
   created_at: string;
+}
+
+interface JournalFormData {
+  date: string;
+  title: string;
+  notes: string;
+  mood: string;
+  energy_level: number;
+  weight_kg: number | undefined;
 }
 
 const MOODS = [
@@ -341,8 +343,8 @@ function JournalDialog({
   editingEntry, formData, setFormData, onSave,
 }: {
   editingEntry: JournalEntry | null;
-  formData: any;
-  setFormData: (v: any) => void;
+  formData: JournalFormData;
+  setFormData: (v: JournalFormData) => void;
   onSave: () => void;
 }) {
   return (

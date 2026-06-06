@@ -85,7 +85,7 @@ const Profile = () => {
     }
   }, [profile]);
 
-  const set = (f: keyof FD, v: any) => setFormData(p => ({ ...p, [f]: v }));
+  const set = <K extends keyof FD>(f: K, v: FD[K]) => setFormData(p => ({ ...p, [f]: v }));
   const toggleArr = (f: keyof FD, val: string) => {
     setFormData(p => {
       const arr = p[f] as string[];

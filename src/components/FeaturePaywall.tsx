@@ -55,7 +55,7 @@ export const FeaturePaywall = ({
   onAccessGranted 
 }: FeaturePaywallProps) => {
   const navigate = useNavigate();
-  const { currentPlan, checkAccess, useFeatureWithTracking } = useFeatureAccess();
+  const { currentPlan, checkAccess, runFeatureWithTracking } = useFeatureAccess();
   const [accessInfo, setAccessInfo] = useState<{
     hasAccess: boolean;
     currentUsage: number;
@@ -88,7 +88,7 @@ export const FeaturePaywall = ({
   };
 
   const handleUseFeature = async () => {
-    const result = await useFeatureWithTracking(feature);
+    const result = await runFeatureWithTracking(feature);
     if (result.allowed) {
       onOpenChange(false);
       onAccessGranted?.();

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { WOLF_RANKS, calculateRank, getNextRank } from '@/utils/gamification/wolfPack';
+import { calculateRank, getNextRank } from '@/utils/gamification/wolfPack';
 
 interface WolfRankDisplayProps {
   currentXP: number;

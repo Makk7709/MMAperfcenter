@@ -97,7 +97,7 @@ export const useMeutes = () => {
         id: inv.id,
         meute_id: inv.meute_id,
         status: inv.status,
-        meute_name: (inv.meutes as any)?.name
+        meute_name: (inv.meutes as { name: string } | null)?.name
       }));
       
       setPendingInvitations(invitations);
@@ -121,7 +121,7 @@ export const useMeutes = () => {
       
       const members = (data || []).map(m => ({
         ...m,
-        profile: m.profiles as any
+        profile: m.profiles as unknown as MeuteMember["profile"]
       }));
       
       setMeuteMembers(members);
@@ -146,7 +146,7 @@ export const useMeutes = () => {
       
       const activities = (data || []).map(a => ({
         ...a,
-        profile: a.profiles as any
+        profile: a.profiles as unknown as MeuteActivity["profile"]
       }));
       
       setMeuteActivities(activities);

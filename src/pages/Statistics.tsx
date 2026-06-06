@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { AIStatsAnalysis } from "@/components/AIStatsAnalysis";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,12 +21,28 @@ import {
   Legend
 } from "recharts";
 
+interface WorkoutDayStat {
+  date: string;
+  duration: number;
+  volume: number;
+  calories: number;
+  count: number;
+}
+
+interface NutritionDayStat {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export default function Statistics() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [workoutStats, setWorkoutStats] = useState<any[]>([]);
-  const [nutritionStats, setNutritionStats] = useState<any[]>([]);
+  const [workoutStats, setWorkoutStats] = useState<WorkoutDayStat[]>([]);
+  const [nutritionStats, setNutritionStats] = useState<NutritionDayStat[]>([]);
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
 

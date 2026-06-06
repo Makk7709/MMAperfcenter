@@ -3,7 +3,6 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { Loader2, Video, Play, Filter } from "lucide-react";
 import { VideoCard } from "@/components/VideoCard";
 import { useTrainingVideos } from "@/hooks/useTrainingVideos";
-import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +12,6 @@ export default function TrainingVideos() {
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("recent");
   const { videos, isLoading } = useTrainingVideos();
-  const { user } = useAuth();
 
   const filteredVideos = videos?.filter(video => {
     const matchesCategory = categoryFilter === "all" || video.category === categoryFilter;
@@ -25,7 +23,7 @@ export default function TrainingVideos() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortBy === "views") {
-      return ((b as any).views_count || 0) - ((a as any).views_count || 0);
+      return ((b as { views_count?: number }).views_count || 0) - ((a as { views_count?: number }).views_count || 0);
     }
     return 0;
   });

@@ -25,11 +25,9 @@ import {
   Check, 
   Link2,
   Send,
-  Loader2,
-  UserPlus
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SparringShareDialogProps {
   analysisId: string;
@@ -53,7 +51,7 @@ export const SparringShareDialog = ({ analysisId, videoName }: SparringShareDial
       setCopied(true);
       toast.success("Lien copié dans le presse-papiers !");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Impossible de copier le lien");
     }
   };

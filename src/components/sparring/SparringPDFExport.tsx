@@ -36,7 +36,7 @@ interface PerformanceScores {
   cardio: number;
 }
 
-interface SparringAnalysisData {
+export interface SparringAnalysisData {
   summary: string;
   duration_estimate: string;
   fighters: Fighter[];

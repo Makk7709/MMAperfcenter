@@ -38,7 +38,7 @@ export interface RetryOptions {
   onRetry?: (attempt: number, error: Error, nextDelayMs: number) => void;
   
   /** Callback on successful completion */
-  onSuccess?: (result: any, attempts: number) => void;
+  onSuccess?: (result: unknown, attempts: number) => void;
   
   /** Callback on final failure */
   onFailure?: (errors: Error[], attempts: number) => void;
@@ -292,7 +292,7 @@ export async function fetchWithRetry(
     
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
-      (error as any).status = response.status;
+      (error as Error & { status?: number }).status = response.status;
       throw error;
     }
     

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import type { Enums } from "@/integrations/supabase/types";
 
 export interface TrainingVideo {
   id: string;
@@ -71,9 +72,9 @@ export const useTrainingVideos = () => {
           category,
           video_type: 'upload',
           video_url: publicUrl,
-          technique_type: techniqueType as any,
-          difficulty_level: difficultyLevel as any,
-        } as any);
+          technique_type: techniqueType as Enums<"technique_type">,
+          difficulty_level: difficultyLevel as Enums<"difficulty_level">,
+        });
 
       if (insertError) throw insertError;
     },
@@ -107,9 +108,9 @@ export const useTrainingVideos = () => {
           category,
           video_type: 'youtube',
           youtube_url: youtubeUrl,
-          technique_type: techniqueType as any,
-          difficulty_level: difficultyLevel as any,
-        } as any);
+          technique_type: techniqueType as Enums<"technique_type">,
+          difficulty_level: difficultyLevel as Enums<"difficulty_level">,
+        });
 
       if (error) throw error;
     },

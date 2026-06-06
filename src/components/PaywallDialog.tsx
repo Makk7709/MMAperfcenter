@@ -30,7 +30,6 @@ const PLAN_NAMES: Record<SubscriptionPlan, string> = {
 export const PaywallDialog = ({
   open,
   onOpenChange,
-  feature,
   requiredPlan,
   children,
 }: PaywallDialogProps) => {

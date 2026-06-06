@@ -61,7 +61,7 @@ export const RoundTimer = () => {
 
   const playBeep = () => {
     // Utiliser l'API Web Audio pour créer un bip
-    const audioContext = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
+    const audioContext = new (globalThis.AudioContext || (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 

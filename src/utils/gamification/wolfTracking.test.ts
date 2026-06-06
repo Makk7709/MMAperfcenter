@@ -8,7 +8,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   // Workout Tracking
-  WorkoutSession,
   createWorkoutSession,
   addExerciseToSession,
   addSetToExercise,
@@ -26,13 +25,11 @@ import {
   getPRByExercise,
   
   // Territory Stats (Wolf Theme)
-  TerritoryStats,
   calculateTerritoryStats,
   getTerritoryLevel,
   getTerritoryName,
   
   // Hunting Stats (Exercise tracking)
-  HuntingStats,
   calculateHuntingStats,
   getPreyConquered,
   getHuntingEfficiency,
@@ -157,14 +154,14 @@ describe('Workout Session Management', () => {
 
   describe('completeWorkoutSession', () => {
     it('should set end time', () => {
-      let session = createWorkoutSession('Test', 'strength');
+      const session = createWorkoutSession('Test', 'strength');
       const completed = completeWorkoutSession(session);
       
       expect(completed.endTime).toBeDefined();
     });
 
     it('should set status to completed', () => {
-      let session = createWorkoutSession('Test', 'strength');
+      const session = createWorkoutSession('Test', 'strength');
       const completed = completeWorkoutSession(session);
       
       expect(completed.status).toBe('completed');
@@ -348,7 +345,7 @@ describe('Territory Stats (Wolf Theme)', () => {
         { totalVolume: 4500 },
       ];
       
-      const stats = calculateTerritoryStats(sessions as any);
+      const stats = calculateTerritoryStats(sessions as unknown as Parameters<typeof calculateTerritoryStats>[0]);
       expect(stats.totalTerritoryConquered).toBe(15500);
     });
 
@@ -358,7 +355,7 @@ describe('Territory Stats (Wolf Theme)', () => {
         { totalVolume: 6000, date: '2024-01-08' },
       ];
       
-      const stats = calculateTerritoryStats(sessions as any);
+      const stats = calculateTerritoryStats(sessions as unknown as Parameters<typeof calculateTerritoryStats>[0]);
       expect(stats.expansionRate).toBeGreaterThan(0);
     });
 
@@ -368,7 +365,7 @@ describe('Territory Stats (Wolf Theme)', () => {
         { exercises: [{ name: 'Bench' }, { name: 'Deadlift' }] },
       ];
       
-      const stats = calculateTerritoryStats(sessions as any);
+      const stats = calculateTerritoryStats(sessions as unknown as Parameters<typeof calculateTerritoryStats>[0]);
       expect(stats.huntingGrounds).toBe(3); // Bench, Squats, Deadlift
     });
   });
@@ -416,7 +413,7 @@ describe('Hunting Stats', () => {
         { exercises: [{ sets: [{}] }] },
       ];
       
-      const stats = calculateHuntingStats(sessions as any);
+      const stats = calculateHuntingStats(sessions as unknown as Parameters<typeof calculateHuntingStats>[0]);
       expect(stats.preyConquered).toBe(3);
     });
 
@@ -427,7 +424,7 @@ describe('Hunting Stats', () => {
         { date: '2024-01-03' },
       ];
       
-      const stats = calculateHuntingStats(sessions as any);
+      const stats = calculateHuntingStats(sessions as unknown as Parameters<typeof calculateHuntingStats>[0]);
       expect(stats.longestHuntingStreak).toBeGreaterThanOrEqual(3);
     });
   });
@@ -439,7 +436,7 @@ describe('Hunting Stats', () => {
         { exercises: [{ name: 'Bench', sets: [{}] }] },
       ];
       
-      const prey = getPreyConquered(sessions as any);
+      const prey = getPreyConquered(sessions as unknown as Parameters<typeof getPreyConquered>[0]);
       expect(prey.find(p => p.name === 'Bench')?.count).toBe(2);
       expect(prey.find(p => p.name === 'Squats')?.count).toBe(1);
     });
@@ -454,7 +451,7 @@ describe('Hunting Stats', () => {
         ],
       };
       
-      const efficiency = getHuntingEfficiency(session as any);
+      const efficiency = getHuntingEfficiency(session as unknown as Parameters<typeof getHuntingEfficiency>[0]);
       expect(efficiency).toBeCloseTo(66.67, 0);
     });
 
@@ -465,7 +462,7 @@ describe('Hunting Stats', () => {
         ],
       };
       
-      expect(getHuntingEfficiency(session as any)).toBe(100);
+      expect(getHuntingEfficiency(session as unknown as Parameters<typeof getHuntingEfficiency>[0])).toBe(100);
     });
   });
 });
@@ -531,7 +528,7 @@ describe('Session Comparison', () => {
       const current = { totalVolume: 12000 };
       const previous = { totalVolume: 10000 };
       
-      const comparison = compareToLastSession(current as any, previous as any);
+      const comparison = compareToLastSession(current as unknown as Parameters<typeof compareToLastSession>[0], previous as unknown as Parameters<typeof compareToLastSession>[1]);
       expect(comparison.volumeChange).toBe(2000);
       expect(comparison.volumeChangePercent).toBe(20);
     });
@@ -540,7 +537,7 @@ describe('Session Comparison', () => {
       const current = { totalVolume: 11000 };
       const previous = { totalVolume: 10000 };
       
-      const comparison = compareToLastSession(current as any, previous as any);
+      const comparison = compareToLastSession(current as unknown as Parameters<typeof compareToLastSession>[0], previous as unknown as Parameters<typeof compareToLastSession>[1]);
       expect(comparison.isImproved).toBe(true);
     });
 
@@ -548,7 +545,7 @@ describe('Session Comparison', () => {
       const current = { totalVolume: 9000 };
       const previous = { totalVolume: 10000 };
       
-      const comparison = compareToLastSession(current as any, previous as any);
+      const comparison = compareToLastSession(current as unknown as Parameters<typeof compareToLastSession>[0], previous as unknown as Parameters<typeof compareToLastSession>[1]);
       expect(comparison.isImproved).toBe(false);
     });
   });

@@ -267,7 +267,7 @@ export const StartWorkoutDialogV2 = ({
                 <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3 block">
                   Templates
                 </Label>
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Exclude<WorkoutType, "custom">)}>
                   <TabsList className="grid grid-cols-4 h-auto p-1 bg-muted/50">
                     {TYPE_TABS.map((t) => (
                       <TabsTrigger

@@ -7,7 +7,7 @@
  * - "Sommets du Territoire" = Personal Records
  */
 
-import { calculateXPForAction, XP_REWARDS } from './wolfPack';
+import { XP_REWARDS } from './wolfPack';
 
 // ============================================
 // TYPES

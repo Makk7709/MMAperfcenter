@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Enums } from "@/integrations/supabase/types";
 
 export interface AdminUser {
   id: string;
@@ -114,7 +115,7 @@ export const useAdminUsers = () => {
     mutationFn: async ({ userId, plan }: { userId: string; plan: string }) => {
       const { error } = await supabase
         .from('subscriptions')
-        .update({ plan: plan as any })
+        .update({ plan: plan as Enums<"subscription_plan"> })
         .eq('user_id', userId);
 
       if (error) throw error;
