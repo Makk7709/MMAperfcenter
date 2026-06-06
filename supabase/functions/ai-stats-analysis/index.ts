@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { subDays, format } from "https://esm.sh/date-fns@3.6.0";
+import { subDays } from "https://esm.sh/date-fns@3.6.0";
 import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
@@ -8,42 +8,64 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const jsonResponse = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+// deno-lint-ignore no-explicit-any
+async function authenticateUser(supabase: any, token: string) {
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    console.error("User not authenticated:", error?.message);
+    return null;
+  }
+  return user;
+}
+
+const dailyAverage = (sum: number, days: number) => (days > 0 ? Math.round(sum / days) : 0);
+
+const describeTrend = (trend: number) => {
+  if (trend > 0) return "progression";
+  if (trend < 0) return "régression";
+  return "stable";
+};
+
+async function handleGatewayError(response: Response): Promise<Response> {
+  if (response.status === 429) {
+    return jsonResponse({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }, 429);
+  }
+  if (response.status === 402) {
+    return jsonResponse({ error: "Crédit insuffisant, contactez le support." }, 402);
+  }
+  const t = await response.text();
+  console.error("AI gateway error:", response.status, t);
+  return jsonResponse({ error: "Erreur du service IA" }, 500);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const aiGatewayKey = getAiGatewayKey();
 
-    // Get user from auth header
     const authHeader = req.headers.get("authorization");
-    
     if (!authHeader) {
       console.error("No authorization header provided");
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "No authorization header" }, 401);
     }
-    
-    // Extract the JWT token from the Authorization header
-    const token = authHeader.replace("Bearer ", "");
-    
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    // Use service role key to verify the user token
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error("User not authenticated:", authError?.message);
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const token = authHeader.replace("Bearer ", "");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const user = await authenticateUser(supabase, token);
+    if (!user) {
+      return jsonResponse({ error: "User not authenticated" }, 401);
     }
-    
     console.log("User authenticated:", user.id);
 
     // Fetch user profile
@@ -90,25 +112,21 @@ serve(async (req) => {
 
     // Nutrition aggregation
     const totalNutritionDays = new Set(nutritionLogs?.map(n => n.date) || []).size;
-    const avgDailyCalories = totalNutritionDays > 0 
-      ? Math.round((nutritionLogs?.reduce((sum, n) => sum + (n.calories || 0), 0) || 0) / totalNutritionDays)
-      : 0;
-    const avgDailyProtein = totalNutritionDays > 0
-      ? Math.round((nutritionLogs?.reduce((sum, n) => sum + (Number(n.protein_g) || 0), 0) || 0) / totalNutritionDays)
-      : 0;
-    const avgDailyCarbs = totalNutritionDays > 0
-      ? Math.round((nutritionLogs?.reduce((sum, n) => sum + (Number(n.carbs_g) || 0), 0) || 0) / totalNutritionDays)
-      : 0;
-    const avgDailyFat = totalNutritionDays > 0
-      ? Math.round((nutritionLogs?.reduce((sum, n) => sum + (Number(n.fat_g) || 0), 0) || 0) / totalNutritionDays)
-      : 0;
+    const sumCalories = nutritionLogs?.reduce((sum, n) => sum + (n.calories || 0), 0) || 0;
+    const sumProtein = nutritionLogs?.reduce((sum, n) => sum + (Number(n.protein_g) || 0), 0) || 0;
+    const sumCarbs = nutritionLogs?.reduce((sum, n) => sum + (Number(n.carbs_g) || 0), 0) || 0;
+    const sumFat = nutritionLogs?.reduce((sum, n) => sum + (Number(n.fat_g) || 0), 0) || 0;
+    const avgDailyCalories = dailyAverage(sumCalories, totalNutritionDays);
+    const avgDailyProtein = dailyAverage(sumProtein, totalNutritionDays);
+    const avgDailyCarbs = dailyAverage(sumCarbs, totalNutritionDays);
+    const avgDailyFat = dailyAverage(sumFat, totalNutritionDays);
 
     // Workout trend (compare last 2 weeks)
     const twoWeeksAgo = subDays(new Date(), 14);
     const oneWeekAgo = subDays(new Date(), 7);
-    const lastWeekWorkouts = workouts?.filter(w => new Date(w.completed_at!) >= oneWeekAgo).length || 0;
+    const lastWeekWorkouts = workouts?.filter(w => new Date(w.completed_at) >= oneWeekAgo).length || 0;
     const previousWeekWorkouts = workouts?.filter(w => 
-      new Date(w.completed_at!) >= twoWeeksAgo && new Date(w.completed_at!) < oneWeekAgo
+      new Date(w.completed_at) >= twoWeeksAgo && new Date(w.completed_at) < oneWeekAgo
     ).length || 0;
     const workoutTrend = lastWeekWorkouts - previousWeekWorkouts;
 
@@ -131,7 +149,7 @@ serve(async (req) => {
         totalCaloriesBurned,
         lastWeekWorkouts,
         previousWeekWorkouts,
-        trend: workoutTrend > 0 ? "progression" : workoutTrend < 0 ? "régression" : "stable"
+        trend: describeTrend(workoutTrend)
       },
       nutrition: {
         daysTracked: totalNutritionDays,
@@ -202,24 +220,7 @@ RÈGLES:
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédit insuffisant, contactez le support." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Erreur du service IA" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return await handleGatewayError(response);
     }
 
     return new Response(response.body, {
@@ -227,9 +228,6 @@ RÈGLES:
     });
   } catch (e) {
     console.error("ai-stats-analysis error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e instanceof Error ? e.message : "Erreur inconnue" }, 500);
   }
 });

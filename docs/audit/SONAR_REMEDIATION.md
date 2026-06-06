@@ -35,6 +35,9 @@ Chaque lot d'anomalies suit le même cycle :
 | `S4165` (réaffectation redondante) | Suppression de la réaffectation qui réécrit la valeur déjà portée. |
 | `S4325` (cast / assertion redondant) | Suppression du cast inutile ; si des champs additionnels sont nécessaires, introduction d'un type étendu signifiant plutôt que `as any`. |
 | `S5869` (classe de caractères avec doublon) | Remplacement de la classe par une alternation, robuste aux emojis multi-codepoints. |
+| `S6594` (`String.match` vs `RegExp.exec`) | Pour une regex non globale, `String.prototype.match()` remplacé par `RegExp.prototype.exec()` (comportement identique). |
+| `S6551` (coercition d'objet en chaîne) | Plus de `String(error)` sur une valeur inconnue ; helper `errorMessage()` (`_shared/errors.ts`) renvoyant `error.message`, la chaîne brute, ou un `JSON.stringify` — jamais `[object Object]`. |
+| `S7773` (méthodes statiques de `Number`) | `isNaN`/`parseInt`/`parseFloat` globaux remplacés par `Number.isNaN`/`Number.parseInt`/`Number.parseFloat`. |
 
 ---
 
@@ -105,6 +108,32 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 
 **Résultat** : `tsc` OK, `eslint` OK (fichiers modifiés), build OK, 378 tests passants. Aucune référence morte vers les fichiers supprimés. Aucune régression.
 
+### Session 4 — 2026-06-06 — Edge Functions (Deno) & nettoyage front
+
+#### a. Front-end
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S1128` | MINOR | `src/components/Footer.tsx` | Import inutilisé `ExternalLink` (lucide-react) retiré. |
+| `S6481` ×2, `S7735` | MAJOR / MINOR | `src/components/ui/form.tsx` | Primitive shadcn **importée nulle part** (vérifié). Supprimée comme code mort plutôt que contorsionner la valeur de contexte / la condition négée. `react-hook-form` et `@hookform/resolvers` (orphelins) désinstallés ; `zod` conservé (utilisé par `Auth.tsx`). |
+
+#### b. Edge Functions Supabase (Deno / TypeScript)
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S3776` | CRITICAL | `supabase/functions/ai-coach/index.ts` | Handler simplifié : extraction de `authenticateUser`, `checkAiCoachAccess`, `buildSystemPrompt`, `handleGatewayError`, helper `jsonResponse`. |
+| `S3776`, `S1128`, `S4325` ×3, `S3358` | CRITICAL→MAJOR | `supabase/functions/ai-stats-analysis/index.ts` | Import `format` (date-fns) inutilisé retiré ; assertions `!` redondantes sur `completed_at` supprimées ; ternaire imbriqué de tendance extrait (`describeTrend`) ; moyennes via `dailyAverage` ; auth + erreurs passerelle extraites. |
+| `S1128`, `S3776`, `S6594` ×5 | MINOR→MAJOR | `supabase/functions/fetch-mma-results/index.ts` | Import `createClient` inutilisé retiré ; parsing d'item RSS extrait (`parseRssItem`) ; 5 `String.match()` → `RegExp.exec()`. |
+| `S3776` ×2, `S7773` ×3, `S3358`, `S6551` | CRITICAL→MINOR | `supabase/functions/analyze-sparring/index.ts` | `validateAnalysis` et le handler décomposés en builders/helpers dédiés (`buildFighters`, `buildKeyMoments`, `buildRounds`, `buildTechniques`, `buildRecommendations`, `buildQuality`, `authorizeSparring`, `ensureAiResponseOk`, `parseToolCall`, `selectFrames`, `markAnalysisError`) ; `isNaN`→`Number.isNaN`, `parseInt`→`Number.parseInt` ; ternaire imbriqué `corner` extrait (`resolveCorner`) ; `String(error)` → `errorMessage()`. |
+| `S6551` | MINOR | `supabase/functions/stripe-webhook/index.ts` | 4 coercitions `String(err)` remplacées par `errorMessage(err)`. |
+| `S6551` | MINOR | `supabase/functions/check-subscription/index.ts`, `customer-portal/index.ts` | `String(error)` remplacé par `errorMessage(error)` (correction de `customer-portal` également, motif identique non listé mais détecté lors de l'audit hostile). |
+
+**Élément structurant introduit** : `supabase/functions/_shared/errors.ts` — helper `errorMessage(error: unknown)` factorisant l'extraction sécurisée d'un message d'erreur, partagé par les fonctions concernées (mécanisme d'import déjà éprouvé via `_shared/ai-gateway.ts`).
+
+> **Note d'audit (Deno)** : les Edge Functions ne sont ni typées par le `tsc` du front, ni lintées par l'ESLint du projet (répertoires exclus), ni couvertes par Vitest. Deno n'étant pas disponible dans l'environnement de correction, ces fichiers ont été corrigés **par inspection**, en préservant strictement les signatures et le comportement observable (mêmes statuts HTTP, mêmes messages, même structure d'analyse). Les harness `tests/edge/*.test.ts` sont auto-portants (ils ne dépendent pas des `index.ts` de production) : ils restent valides.
+
+**Résultat** : `tsc` OK, build OK, 378 tests passants (front). Les corrections Edge ne modifient aucun contrat d'API. Aucune régression.
+
 ---
 
 ## 3. Dette de test connue (préexistante)
@@ -116,6 +145,7 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 | Après session 1 | 378 | 11 (préexistants) | 4 |
 | Après session 2 | 378 | 11 (préexistants) | 4 |
 | Après session 3 | 378 | 11 (préexistants) | 4 |
+| Après session 4 | 378 | 11 (préexistants) | 4 |
 
 ---
 

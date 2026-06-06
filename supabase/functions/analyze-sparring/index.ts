@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
+import { errorMessage } from "../_shared/errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,11 +58,11 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
       lastError = new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
       const retryAfter = response.headers.get('Retry-After');
       if (retryAfter) {
-        delay = Math.min(parseInt(retryAfter, 10) * 1000 || delay, RETRY_CONFIG.maxDelayMs);
+        delay = Math.min(Number.parseInt(retryAfter, 10) * 1000 || delay, RETRY_CONFIG.maxDelayMs);
       }
       console.log(`   ⚠️ Retry in ${delay}ms...`);
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = error instanceof Error ? error : new Error(errorMessage(error));
       console.log(`   ❌ Network error: ${lastError.message}`);
     }
 
@@ -359,42 +360,43 @@ function createUserPrompt(frameCount: number): string {
 // ============================================
 
 const clampScore = (v: unknown, d = 50): number => {
-  if (typeof v !== 'number' || isNaN(v)) return d;
+  if (typeof v !== 'number' || Number.isNaN(v)) return d;
   return Math.max(0, Math.min(100, Math.round(v)));
 };
 const clampStat = (v: unknown, d = 0): number => {
-  if (typeof v !== 'number' || isNaN(v)) return d;
+  if (typeof v !== 'number' || Number.isNaN(v)) return d;
   return Math.max(0, Math.round(v));
 };
 
-function validateAnalysis(data: any, totalDuration: number, profile: DisciplineProfile) {
-  const minutes = Math.floor(totalDuration / 60);
-  const seconds = Math.round(totalDuration % 60);
-  const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
+const validateStats = (s: any) => ({
+  punches_thrown: clampStat(s?.punches_thrown),
+  punches_landed: clampStat(s?.punches_landed),
+  kicks_thrown: clampStat(s?.kicks_thrown),
+  kicks_landed: clampStat(s?.kicks_landed),
+  takedowns_attempted: clampStat(s?.takedowns_attempted),
+  takedowns_successful: clampStat(s?.takedowns_successful),
+  significant_strikes: clampStat(s?.significant_strikes),
+  head_strikes: clampStat(s?.head_strikes),
+  body_strikes: clampStat(s?.body_strikes),
+  leg_strikes: clampStat(s?.leg_strikes),
+  defense_rate: clampScore(s?.defense_rate, 50),
+});
 
-  const validateStats = (s: any) => ({
-    punches_thrown: clampStat(s?.punches_thrown),
-    punches_landed: clampStat(s?.punches_landed),
-    kicks_thrown: clampStat(s?.kicks_thrown),
-    kicks_landed: clampStat(s?.kicks_landed),
-    takedowns_attempted: clampStat(s?.takedowns_attempted),
-    takedowns_successful: clampStat(s?.takedowns_successful),
-    significant_strikes: clampStat(s?.significant_strikes),
-    head_strikes: clampStat(s?.head_strikes),
-    body_strikes: clampStat(s?.body_strikes),
-    leg_strikes: clampStat(s?.leg_strikes),
-    defense_rate: clampScore(s?.defense_rate, 50),
-  });
+const validateScores = (s: any) => ({
+  overall: clampScore(s?.overall),
+  striking: clampScore(s?.striking),
+  grappling: clampScore(s?.grappling),
+  defense: clampScore(s?.defense),
+  cardio: clampScore(s?.cardio),
+  technique: clampScore(s?.technique),
+});
 
-  const validateScores = (s: any) => ({
-    overall: clampScore(s?.overall),
-    striking: clampScore(s?.striking),
-    grappling: clampScore(s?.grappling),
-    defense: clampScore(s?.defense),
-    cardio: clampScore(s?.cardio),
-    technique: clampScore(s?.technique),
-  });
+function resolveCorner(corner: unknown, index: number): 'red' | 'blue' {
+  if (corner === 'blue') return 'blue';
+  return index === 0 ? 'red' : 'blue';
+}
 
+function buildFighters(data: any) {
   const fighters = Array.isArray(data?.fighters) ? data.fighters.slice(0, 2) : [];
   while (fighters.length < 2) {
     fighters.push({
@@ -405,78 +407,196 @@ function validateAnalysis(data: any, totalDuration: number, profile: DisciplineP
       corner: fighters.length === 0 ? 'red' : 'blue',
     });
   }
+  return fighters.map((f: any, i: number) => ({
+    identifier: typeof f?.identifier === 'string' ? f.identifier : `Combattant ${i + 1}`,
+    style: typeof f?.style === 'string' ? f.style : 'Non déterminé',
+    strengths: Array.isArray(f?.strengths) ? f.strengths.filter((s: any) => typeof s === 'string') : [],
+    weaknesses: Array.isArray(f?.weaknesses) ? f.weaknesses.filter((s: any) => typeof s === 'string') : [],
+    corner: resolveCorner(f?.corner, i),
+  }));
+}
 
-  const q = data?.analysis_quality ?? {};
+function buildKeyMoments(data: any) {
+  if (!Array.isArray(data?.key_moments)) return [];
+  return data.key_moments
+    .filter((m: any) => m?.description)
+    .map((m: any) => ({
+      timestamp: typeof m.timestamp === 'string' ? m.timestamp : '0:00',
+      timestamp_seconds: typeof m.timestamp_seconds === 'number' ? Math.max(0, m.timestamp_seconds) : 0,
+      type: ['strike', 'takedown', 'submission', 'defense', 'knockdown', 'position'].includes(m.type) ? m.type : 'strike',
+      description: m.description,
+      fighter: typeof m.fighter === 'string' ? m.fighter : 'Inconnu',
+      significance: ['low', 'medium', 'high'].includes(m.significance) ? m.significance : 'medium',
+    }));
+}
+
+function buildRounds(data: any) {
+  if (!Array.isArray(data?.rounds) || data.rounds.length === 0) {
+    return [{ number: 1, winner_suggestion: 'Indéterminé', key_events: [] }];
+  }
+  return data.rounds.map((r: any) => ({
+    number: typeof r?.number === 'number' ? r.number : 1,
+    winner_suggestion: typeof r?.winner_suggestion === 'string' ? r.winner_suggestion : 'Indéterminé',
+    key_events: Array.isArray(r?.key_events) ? r.key_events.filter((e: any) => typeof e === 'string') : [],
+  }));
+}
+
+function buildTechniques(data: any) {
+  if (!Array.isArray(data?.techniques_observed)) return [];
+  return data.techniques_observed
+    .filter((t: any) => t?.technique)
+    .map((t: any) => ({
+      technique: t.technique,
+      fighter: typeof t.fighter === 'string' ? t.fighter : 'Inconnu',
+      execution: typeof t.execution === 'string' ? t.execution : 'Non évalué',
+    }));
+}
+
+function buildRecommendations(data: any) {
+  const pick = (arr: any) =>
+    Array.isArray(arr) ? arr.filter((r: any) => typeof r === 'string') : ['Continuez à travailler vos fondamentaux'];
+  return {
+    fighter_1: pick(data?.recommendations?.fighter_1),
+    fighter_2: pick(data?.recommendations?.fighter_2),
+  };
+}
+
+function buildQuality(q: any) {
   const validVideoQuality = ['poor', 'fair', 'good', 'excellent'];
+  return {
+    confidence: clampScore(q.confidence, 50),
+    stats_confidence: clampScore(q.stats_confidence, 50),
+    video_quality: validVideoQuality.includes(q.video_quality) ? q.video_quality : 'fair',
+    warnings: Array.isArray(q.warnings) ? q.warnings.filter((w: any) => typeof w === 'string') : [],
+  };
+}
+
+function buildApplicableMetrics(data: any, profile: DisciplineProfile) {
+  if (Array.isArray(data?.applicable_metrics) && data.applicable_metrics.length > 0) {
+    return data.applicable_metrics.filter((m: any) => profile.applicableMetrics.includes(m));
+  }
+  return profile.applicableMetrics;
+}
+
+function validateAnalysis(data: any, totalDuration: number, profile: DisciplineProfile) {
+  const minutes = Math.floor(totalDuration / 60);
+  const seconds = Math.round(totalDuration % 60);
+  const durationEstimate = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  const q = data?.analysis_quality ?? {};
 
   return {
     summary: typeof data?.summary === 'string' ? data.summary : 'Analyse non disponible',
     duration_estimate: durationEstimate,
     duration_seconds: Math.round(totalDuration),
-    fighters: fighters.map((f: any, i: number) => ({
-      identifier: typeof f?.identifier === 'string' ? f.identifier : `Combattant ${i + 1}`,
-      style: typeof f?.style === 'string' ? f.style : 'Non déterminé',
-      strengths: Array.isArray(f?.strengths) ? f.strengths.filter((s: any) => typeof s === 'string') : [],
-      weaknesses: Array.isArray(f?.weaknesses) ? f.weaknesses.filter((s: any) => typeof s === 'string') : [],
-      corner: f?.corner === 'blue' ? 'blue' : (i === 0 ? 'red' : 'blue'),
-    })),
+    fighters: buildFighters(data),
     statistics: {
       fighter_1: validateStats(data?.statistics?.fighter_1),
       fighter_2: validateStats(data?.statistics?.fighter_2),
     },
-    key_moments: Array.isArray(data?.key_moments)
-      ? data.key_moments.filter((m: any) => m?.description).map((m: any) => ({
-          timestamp: typeof m.timestamp === 'string' ? m.timestamp : '0:00',
-          timestamp_seconds: typeof m.timestamp_seconds === 'number' ? Math.max(0, m.timestamp_seconds) : 0,
-          type: ['strike', 'takedown', 'submission', 'defense', 'knockdown', 'position'].includes(m.type) ? m.type : 'strike',
-          description: m.description,
-          fighter: typeof m.fighter === 'string' ? m.fighter : 'Inconnu',
-          significance: ['low', 'medium', 'high'].includes(m.significance) ? m.significance : 'medium',
-        }))
-      : [],
-    rounds: Array.isArray(data?.rounds) && data.rounds.length > 0
-      ? data.rounds.map((r: any) => ({
-          number: typeof r?.number === 'number' ? r.number : 1,
-          winner_suggestion: typeof r?.winner_suggestion === 'string' ? r.winner_suggestion : 'Indéterminé',
-          key_events: Array.isArray(r?.key_events) ? r.key_events.filter((e: any) => typeof e === 'string') : [],
-        }))
-      : [{ number: 1, winner_suggestion: 'Indéterminé', key_events: [] }],
-    techniques_observed: Array.isArray(data?.techniques_observed)
-      ? data.techniques_observed.filter((t: any) => t?.technique).map((t: any) => ({
-          technique: t.technique,
-          fighter: typeof t.fighter === 'string' ? t.fighter : 'Inconnu',
-          execution: typeof t.execution === 'string' ? t.execution : 'Non évalué',
-        }))
-      : [],
-    recommendations: {
-      fighter_1: Array.isArray(data?.recommendations?.fighter_1)
-        ? data.recommendations.fighter_1.filter((r: any) => typeof r === 'string')
-        : ['Continuez à travailler vos fondamentaux'],
-      fighter_2: Array.isArray(data?.recommendations?.fighter_2)
-        ? data.recommendations.fighter_2.filter((r: any) => typeof r === 'string')
-        : ['Continuez à travailler vos fondamentaux'],
-    },
+    key_moments: buildKeyMoments(data),
+    rounds: buildRounds(data),
+    techniques_observed: buildTechniques(data),
+    recommendations: buildRecommendations(data),
     overall_analysis: typeof data?.overall_analysis === 'string' ? data.overall_analysis : 'Analyse détaillée non disponible.',
     performance_scores: {
       fighter_1: validateScores(data?.performance_scores?.fighter_1),
       fighter_2: validateScores(data?.performance_scores?.fighter_2),
     },
-    analysis_quality: {
-      confidence: clampScore(q.confidence, 50),
-      stats_confidence: clampScore(q.stats_confidence, 50),
-      video_quality: validVideoQuality.includes(q.video_quality) ? q.video_quality : 'fair',
-      warnings: Array.isArray(q.warnings) ? q.warnings.filter((w: any) => typeof w === 'string') : [],
-    },
+    analysis_quality: buildQuality(q),
     discipline: profile.label,
-    applicable_metrics: Array.isArray(data?.applicable_metrics) && data.applicable_metrics.length > 0
-      ? data.applicable_metrics.filter((m: any) => profile.applicableMetrics.includes(m))
-      : profile.applicableMetrics,
+    applicable_metrics: buildApplicableMetrics(data, profile),
   };
 }
 
 // ============================================
 // MAIN HANDLER
 // ============================================
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+function assertFramesValid(frames: unknown): asserts frames is unknown[] {
+  if (!frames || !Array.isArray(frames) || frames.length === 0) {
+    throw new Error('Video frames required');
+  }
+  if (frames.length < 3) {
+    throw new Error('Minimum 3 frames requis');
+  }
+}
+
+// Vérifie l'authentification puis le gating serveur. Renvoie une Response prête
+// à retourner en cas de refus, sinon null si l'accès est autorisé.
+// deno-lint-ignore no-explicit-any
+async function authorizeSparring(supabase: any, req: Request): Promise<Response | null> {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) return jsonResponse({ error: 'No authorization header' }, 401);
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) return jsonResponse({ error: 'User not authenticated' }, 401);
+
+  const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+  const { data: isCoach } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'coach' });
+  if (isAdmin === true || isCoach === true) return null;
+
+  const { data: allowed } = await supabase.rpc('has_feature_access', {
+    _user_id: user.id, _feature: 'sparring_analysis',
+  });
+  if (allowed !== true) {
+    return jsonResponse(
+      { error: 'Limite mensuelle atteinte pour l\'analyse PRISM. Passe au plan Pro pour un accès illimité.', code: 'FEATURE_LIMIT_REACHED' },
+      402,
+    );
+  }
+  await supabase.rpc('increment_feature_usage', { _user_id: user.id, _feature_name: 'sparring_analysis' });
+  return null;
+}
+
+function selectFrames(frames: any[]): any[] {
+  if (frames.length <= AI_CONFIG.maxFrames) return frames;
+  const step = Math.ceil(frames.length / AI_CONFIG.maxFrames);
+  return frames.filter((_: any, i: number) => i % step === 0).slice(0, AI_CONFIG.maxFrames);
+}
+
+async function ensureAiResponseOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const errorText = await response.text();
+  console.error('AI error:', response.status, errorText);
+  if (response.status === 429) throw new Error('Limite de requêtes. Réessayez dans 1 minute.');
+  if (response.status === 402) throw new Error('Crédits IA insuffisants.');
+  if (response.status === 413) throw new Error('Vidéo trop volumineuse.');
+  throw new Error(`Erreur d'analyse: ${response.status}`);
+}
+
+function parseToolCall(data: any): any {
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    console.error('No tool call returned, raw:', JSON.stringify(data).substring(0, 500));
+    throw new Error("L'IA n'a pas retourné de structure d'analyse valide");
+  }
+  try {
+    return JSON.parse(toolCall.function.arguments);
+  } catch (e) {
+    console.error('Tool args parse error:', e);
+    throw new Error("Format de réponse IA invalide");
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function markAnalysisError(supabase: any, analysisId: string | undefined, error: unknown): Promise<void> {
+  if (!analysisId || !supabase) return;
+  await supabase
+    .from('sparring_analyses')
+    .update({
+      status: 'error',
+      analysis: { error: errorMessage(error) },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', analysisId);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -491,12 +611,7 @@ serve(async (req) => {
     const profile = getDisciplineProfile(discipline);
     analysisId = aid;
 
-    if (!frames || !Array.isArray(frames) || frames.length === 0) {
-      throw new Error('Video frames required');
-    }
-    if (frames.length < 3) {
-      throw new Error('Minimum 3 frames requis');
-    }
+    assertFramesValid(frames);
 
     const aiGatewayKey = getAiGatewayKey();
 
@@ -505,48 +620,17 @@ serve(async (req) => {
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ===== Auth + feature gating =====
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'User not authenticated' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
-    const { data: isCoach } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'coach' });
-    const privileged = isAdmin === true || isCoach === true;
-    if (!privileged) {
-      const { data: allowed } = await supabase.rpc('has_feature_access', {
-        _user_id: user.id, _feature: 'sparring_analysis',
-      });
-      if (allowed !== true) {
-        return new Response(
-          JSON.stringify({ error: 'Limite mensuelle atteinte pour l\'analyse PRISM. Passe au plan Pro pour un accès illimité.', code: 'FEATURE_LIMIT_REACHED' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      await supabase.rpc('increment_feature_usage', { _user_id: user.id, _feature_name: 'sparring_analysis' });
-    }
+    const denied = await authorizeSparring(supabase, req);
+    if (denied) return denied;
 
     if (analysisId) {
       await supabase.from('sparring_analyses').update({ status: 'processing' }).eq('id', analysisId);
     }
 
-
     const model = qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
     console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model} — discipline=${profile.label}`);
 
-    // Limit frames
-    const selectedFrames = frames.length > AI_CONFIG.maxFrames
-      ? frames.filter((_: any, i: number) => i % Math.ceil(frames.length / AI_CONFIG.maxFrames) === 0).slice(0, AI_CONFIG.maxFrames)
-      : frames;
+    const selectedFrames = selectFrames(frames);
 
     const imageContents = selectedFrames.map((frame: { base64: string }) => ({
       type: 'image_url',
@@ -580,30 +664,10 @@ serve(async (req) => {
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI error:', response.status, errorText);
-      if (response.status === 429) throw new Error('Limite de requêtes. Réessayez dans 1 minute.');
-      if (response.status === 402) throw new Error('Crédits IA insuffisants.');
-      if (response.status === 413) throw new Error('Vidéo trop volumineuse.');
-      throw new Error(`Erreur d'analyse: ${response.status}`);
-    }
+    await ensureAiResponseOk(response);
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall?.function?.arguments) {
-      console.error('No tool call returned, raw:', JSON.stringify(data).substring(0, 500));
-      throw new Error("L'IA n'a pas retourné de structure d'analyse valide");
-    }
-
-    let parsedArgs: any;
-    try {
-      parsedArgs = JSON.parse(toolCall.function.arguments);
-    } catch (e) {
-      console.error('Tool args parse error:', e);
-      throw new Error("Format de réponse IA invalide");
-    }
+    const parsedArgs = parseToolCall(data);
 
     const analysis = validateAnalysis(parsedArgs, totalDuration, profile);
     console.log(`✅ Analysis validated (confidence: ${analysis.analysis_quality.confidence}/100)`);
@@ -616,25 +680,10 @@ serve(async (req) => {
       console.log('✅ Saved to DB');
     }
 
-    return new Response(
-      JSON.stringify({ success: true, analysis }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ success: true, analysis });
   } catch (error) {
     console.error('❌ Error:', error);
-    if (analysisId && supabase) {
-      await supabase
-        .from('sparring_analyses')
-        .update({
-          status: 'error',
-          analysis: { error: error instanceof Error ? error.message : 'Unknown error' },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', analysisId);
-    }
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    await markAnalysisError(supabase, analysisId, error);
+    return jsonResponse({ success: false, error: errorMessage(error) }, 500);
   }
 });

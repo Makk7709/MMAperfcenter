@@ -1,5 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,40 +32,44 @@ interface FightResult {
   imageUrl?: string;
 }
 
+// Parse un bloc <item> RSS en FightResult, ou null si titre/lien manquants.
+function parseRssItem(itemContent: string, source: string): FightResult | null {
+  const titleMatch = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/.exec(itemContent);
+  const linkMatch = /<link>(.*?)<\/link>/.exec(itemContent);
+  if (!titleMatch || !linkMatch) return null;
+
+  const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/.exec(itemContent);
+  const descMatch = /<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/.exec(itemContent);
+  const imageMatch = /<media:thumbnail url="(.*?)"|<enclosure url="(.*?)"/.exec(itemContent);
+
+  return {
+    title: titleMatch[1] || titleMatch[2] || '',
+    link: linkMatch[1] || '',
+    pubDate: pubDateMatch ? pubDateMatch[1] : new Date().toISOString(),
+    description: (descMatch ? (descMatch[1] || descMatch[2]) : '').substring(0, 200),
+    source,
+    imageUrl: imageMatch ? (imageMatch[1] || imageMatch[2]) : undefined,
+  };
+}
+
 async function fetchAndParseRSS(feed: RSSFeed): Promise<FightResult[]> {
   try {
     const response = await fetch(feed.url);
     const xmlText = await response.text();
-    
+
     // Parse XML manually (simple parser)
     const items: FightResult[] = [];
     const itemRegex = /<item>(.*?)<\/item>/gs;
     const matches = xmlText.matchAll(itemRegex);
-    
+
     for (const match of matches) {
-      const itemContent = match[1];
-      
-      const titleMatch = itemContent.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/);
-      const linkMatch = itemContent.match(/<link>(.*?)<\/link>/);
-      const pubDateMatch = itemContent.match(/<pubDate>(.*?)<\/pubDate>/);
-      const descMatch = itemContent.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/);
-      const imageMatch = itemContent.match(/<media:thumbnail url="(.*?)"|<enclosure url="(.*?)"/);
-      
-      if (titleMatch && linkMatch) {
-        items.push({
-          title: titleMatch[1] || titleMatch[2] || '',
-          link: linkMatch[1] || '',
-          pubDate: pubDateMatch ? pubDateMatch[1] : new Date().toISOString(),
-          description: (descMatch ? (descMatch[1] || descMatch[2]) : '').substring(0, 200),
-          source: feed.source,
-          imageUrl: imageMatch ? (imageMatch[1] || imageMatch[2]) : undefined
-        });
-      }
-      
+      const item = parseRssItem(match[1], feed.source);
+      if (item) items.push(item);
+
       // Limit to 5 items per feed
       if (items.length >= 5) break;
     }
-    
+
     return items;
   } catch (error) {
     console.error(`Error fetching RSS from ${feed.source}:`, error);

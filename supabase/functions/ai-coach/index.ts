@@ -7,126 +7,93 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+const jsonResponse = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
-  try {
-    const { messages } = await req.json();
-    const aiGatewayKey = getAiGatewayKey();
+// deno-lint-ignore no-explicit-any
+async function authenticateUser(supabase: any, token: string) {
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    console.error("User not authenticated:", error?.message);
+    return null;
+  }
+  return user;
+}
 
-    // Get user from auth header
-    const authHeader = req.headers.get("authorization");
-    
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    
-    // Extract the JWT token from the Authorization header
-    const token = authHeader.replace("Bearer ", "");
-    
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    // Use service role key to verify the user token
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Applique le gating serveur (free = quota mensuel). Renvoie true si l'accès
+// est autorisé (admin/coach toujours autorisés), false sinon.
+// deno-lint-ignore no-explicit-any
+async function checkAiCoachAccess(supabase: any, userId: string): Promise<boolean> {
+  const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  const { data: isCoach } = await supabase.rpc("has_role", { _user_id: userId, _role: "coach" });
+  if (isAdmin === true || isCoach === true) return true;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error("User not authenticated:", authError?.message);
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    
-    console.log("User authenticated:", user.id);
+  const { data: allowed, error: gateErr } = await supabase.rpc("has_feature_access", {
+    _user_id: userId,
+    _feature: "ai_coach",
+  });
+  if (gateErr) console.error("has_feature_access error:", gateErr);
+  if (allowed !== true) return false;
 
-    // ===== Feature gating (server-side enforcement) =====
-    // Admin/coach bypass
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    const { data: isCoach } = await supabase.rpc("has_role", { _user_id: user.id, _role: "coach" });
-    const privileged = isAdmin === true || isCoach === true;
+  await supabase.rpc("increment_feature_usage", { _user_id: userId, _feature_name: "ai_coach" });
+  return true;
+}
 
-    if (!privileged) {
-      const { data: allowed, error: gateErr } = await supabase.rpc("has_feature_access", {
-        _user_id: user.id,
-        _feature: "ai_coach",
-      });
-      if (gateErr) console.error("has_feature_access error:", gateErr);
-      if (allowed !== true) {
-        return new Response(
-          JSON.stringify({ error: "Limite mensuelle atteinte pour Coach IA. Passe au plan Pro pour un accès illimité.", code: "FEATURE_LIMIT_REACHED" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      await supabase.rpc("increment_feature_usage", { _user_id: user.id, _feature_name: "ai_coach" });
-    }
-
-
-
-    // Fetch user profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    // Build personalized system prompt
-    let systemPrompt = `Tu es Coach IA KOREV, un expert en arts martiaux et préparation physique pour combattants. Tu es spécialisé dans la création de programmes d'entraînement personnalisés.
+// deno-lint-ignore no-explicit-any
+function buildSystemPrompt(profile: any): string {
+  let systemPrompt = `Tu es Coach IA KOREV, un expert en arts martiaux et préparation physique pour combattants. Tu es spécialisé dans la création de programmes d'entraînement personnalisés.
 
 PROFIL DU COMBATTANT:`;
 
-    const p: any = profile || {};
-    const add = (label: string, value: any) => {
-      if (value === null || value === undefined || value === "") return;
-      if (Array.isArray(value) && value.length === 0) return;
-      systemPrompt += `\n- ${label}: ${Array.isArray(value) ? value.join(", ") : value}`;
-    };
+  const p: any = profile || {};
+  const add = (label: string, value: any) => {
+    if (value === null || value === undefined || value === "") return;
+    if (Array.isArray(value) && value.length === 0) return;
+    systemPrompt += `\n- ${label}: ${Array.isArray(value) ? value.join(", ") : value}`;
+  };
 
-    // Identité
-    add("Nom", p.full_name);
-    add("Âge", p.age ? `${p.age} ans` : null);
-    add("Genre", p.gender);
-    add("Latéralité", p.handedness);
+  // Identité
+  add("Nom", p.full_name);
+  add("Âge", p.age ? `${p.age} ans` : null);
+  add("Genre", p.gender);
+  add("Latéralité", p.handedness);
 
-    // Physique
-    add("Poids", p.weight ? `${p.weight} kg` : null);
-    add("Taille", p.height ? `${p.height} cm` : null);
-    add("Masse grasse", p.body_fat_percent ? `${p.body_fat_percent}%` : null);
-    add("Tour de taille", p.waist_cm ? `${p.waist_cm} cm` : null);
-    add("Morphotype", p.morphotype);
-    add("Blessures / limitations", p.injuries);
+  // Physique
+  add("Poids", p.weight ? `${p.weight} kg` : null);
+  add("Taille", p.height ? `${p.height} cm` : null);
+  add("Masse grasse", p.body_fat_percent ? `${p.body_fat_percent}%` : null);
+  add("Tour de taille", p.waist_cm ? `${p.waist_cm} cm` : null);
+  add("Morphotype", p.morphotype);
+  add("Blessures / limitations", p.injuries);
 
-    // Expérience martiale
-    add("Discipline principale", p.martial_arts_discipline);
-    add("Disciplines secondaires", p.secondary_disciplines);
-    add("Niveau global", p.fitness_level);
-    add("Années de pratique", p.years_practice);
-    add("Grade / ceinture", p.belt_rank);
-    add("Niveau compétition", p.competition_level);
-    add("Nombre de combats", p.competitions_count);
+  // Expérience martiale
+  add("Discipline principale", p.martial_arts_discipline);
+  add("Disciplines secondaires", p.secondary_disciplines);
+  add("Niveau global", p.fitness_level);
+  add("Années de pratique", p.years_practice);
+  add("Grade / ceinture", p.belt_rank);
+  add("Niveau compétition", p.competition_level);
+  add("Nombre de combats", p.competitions_count);
 
-    // Objectifs
-    add("Objectifs", p.goals);
-    add("Objectif principal", p.primary_goal);
-    add("Échéance objectif", p.goal_deadline);
-    add("Événement cible", p.target_event);
+  // Objectifs
+  add("Objectifs", p.goals);
+  add("Objectif principal", p.primary_goal);
+  add("Échéance objectif", p.goal_deadline);
+  add("Événement cible", p.target_event);
 
-    // Lifestyle
-    add("Sommeil moyen", p.sleep_hours ? `${p.sleep_hours} h/nuit` : null);
-    add("Niveau de stress", p.stress_level ? `${p.stress_level}/10` : null);
-    add("Disponibilité", p.weekly_availability ? `${p.weekly_availability} séances/semaine` : null);
-    add("Durée préférée d'une séance", p.preferred_session_duration ? `${p.preferred_session_duration} min` : null);
-    add("Lieu d'entraînement", p.training_location);
-    add("Équipement disponible", p.equipment);
-    add("Restrictions alimentaires", p.dietary_restrictions);
+  // Lifestyle
+  add("Sommeil moyen", p.sleep_hours ? `${p.sleep_hours} h/nuit` : null);
+  add("Niveau de stress", p.stress_level ? `${p.stress_level}/10` : null);
+  add("Disponibilité", p.weekly_availability ? `${p.weekly_availability} séances/semaine` : null);
+  add("Durée préférée d'une séance", p.preferred_session_duration ? `${p.preferred_session_duration} min` : null);
+  add("Lieu d'entraînement", p.training_location);
+  add("Équipement disponible", p.equipment);
+  add("Restrictions alimentaires", p.dietary_restrictions);
 
-    systemPrompt += `
+  systemPrompt += `
 
 INSTRUCTIONS:
 - Utilise TOUJOURS ces informations pour personnaliser tes recommandations
@@ -148,6 +115,63 @@ NUTRITION & MACROS:
 - Adapte les calories et macros selon phase (prise de masse, sèche, maintien, perte de poids)
 - Pour les recettes: inclus portions, temps de préparation, ingrédients précis et valeurs nutritionnelles complètes`;
 
+  return systemPrompt;
+}
+
+async function handleGatewayError(response: Response): Promise<Response> {
+  if (response.status === 429) {
+    return jsonResponse({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }, 429);
+  }
+  if (response.status === 402) {
+    return jsonResponse({ error: "Crédit insuffisant, contactez le support." }, 402);
+  }
+  const t = await response.text();
+  console.error("AI gateway error:", response.status, t);
+  return jsonResponse({ error: "Erreur du service IA" }, 500);
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { messages } = await req.json();
+    const aiGatewayKey = getAiGatewayKey();
+
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return jsonResponse({ error: "No authorization header" }, 401);
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const user = await authenticateUser(supabase, token);
+    if (!user) {
+      return jsonResponse({ error: "User not authenticated" }, 401);
+    }
+    console.log("User authenticated:", user.id);
+
+    // Feature gating (server-side enforcement)
+    const allowed = await checkAiCoachAccess(supabase, user.id);
+    if (!allowed) {
+      return jsonResponse(
+        { error: "Limite mensuelle atteinte pour Coach IA. Passe au plan Pro pour un accès illimité.", code: "FEATURE_LIMIT_REACHED" },
+        402,
+      );
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    const systemPrompt = buildSystemPrompt(profile);
+
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -165,24 +189,7 @@ NUTRITION & MACROS:
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Crédit insuffisant, contactez le support." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Erreur du service IA" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return await handleGatewayError(response);
     }
 
     return new Response(response.body, {
@@ -190,9 +197,6 @@ NUTRITION & MACROS:
     });
   } catch (e) {
     console.error("ai-coach error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e instanceof Error ? e.message : "Erreur inconnue" }, 500);
   }
 });

@@ -20,6 +20,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { errorMessage } from "../_shared/errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,7 +90,7 @@ serve(async (req) => {
   try {
     event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
   } catch (err) {
-    log("Signature verification failed", { error: err instanceof Error ? err.message : String(err) });
+    log("Signature verification failed", { error: errorMessage(err) });
     return new Response(JSON.stringify({ error: "Invalid signature" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -119,7 +120,7 @@ serve(async (req) => {
       });
     }
   } catch (err) {
-    log("Idempotence check failed (continuing)", { error: err instanceof Error ? err.message : String(err) });
+    log("Idempotence check failed (continuing)", { error: errorMessage(err) });
   }
 
   // ---- Event routing -------------------------------------------------------
@@ -193,7 +194,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    log("Handler error", { error: err instanceof Error ? err.message : String(err) });
+    log("Handler error", { error: errorMessage(err) });
     // Return 500 so Stripe retries — the idempotence guard will deduplicate.
     return new Response(JSON.stringify({ error: "Handler failure" }), {
       status: 500,
@@ -235,7 +236,7 @@ async function resolveUserId(
     if (error || !data) return null;
     return data.id as string;
   } catch (err) {
-    log("resolveUserId fallback failed", { error: err instanceof Error ? err.message : String(err) });
+    log("resolveUserId fallback failed", { error: errorMessage(err) });
     return null;
   }
 }

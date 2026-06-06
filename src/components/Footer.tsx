@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Shield, Mail, ExternalLink } from "lucide-react";
+import { Shield, Mail } from "lucide-react";
 
 const Footer = () => {
   return (
