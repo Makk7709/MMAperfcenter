@@ -97,12 +97,12 @@ export function isValidStatistic(value: unknown): value is number {
 }
 
 export function clampScore(value: unknown, defaultValue = 50): number {
-  if (typeof value !== 'number' || isNaN(value)) return defaultValue;
+  if (typeof value !== 'number' || Number.isNaN(value)) return defaultValue;
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 export function clampStatistic(value: unknown, defaultValue = 0): number {
-  if (typeof value !== 'number' || isNaN(value)) return defaultValue;
+  if (typeof value !== 'number' || Number.isNaN(value)) return defaultValue;
   return Math.max(0, Math.round(value));
 }
 
@@ -139,13 +139,20 @@ export function validatePerformanceScores(scores: unknown): PerformanceScores {
 
 export function validateFighterProfile(fighter: unknown, index: number): FighterProfile {
   const f = (fighter && typeof fighter === 'object') ? fighter as Record<string, unknown> : {};
-  
+
+  let corner: 'red' | 'blue';
+  if (f.corner === 'red' || f.corner === 'blue') {
+    corner = f.corner;
+  } else {
+    corner = index === 0 ? 'red' : 'blue';
+  }
+
   return {
     identifier: typeof f.identifier === 'string' ? f.identifier : `Combattant ${index + 1}`,
     style: typeof f.style === 'string' ? f.style : 'Non déterminé',
     strengths: Array.isArray(f.strengths) ? f.strengths.filter((s): s is string => typeof s === 'string') : [],
     weaknesses: Array.isArray(f.weaknesses) ? f.weaknesses.filter((s): s is string => typeof s === 'string') : [],
-    corner: f.corner === 'red' || f.corner === 'blue' ? f.corner : (index === 0 ? 'red' : 'blue'),
+    corner,
   };
 }
 

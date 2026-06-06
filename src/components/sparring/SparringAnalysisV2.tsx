@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Video, 
@@ -19,18 +18,12 @@ import {
   Users,
   Swords,
   Timer,
-  ChevronDown,
-  ChevronUp,
   History,
   Play,
   Pause,
   SkipBack,
   SkipForward,
-  Maximize2,
-  Share2,
-  Download,
   Trophy,
-  Flame,
   Shield,
   Zap,
   BarChart3,
@@ -38,9 +31,7 @@ import {
   Star,
   ArrowUp,
   ArrowDown,
-  Minus,
-  Eye,
-  ImageIcon
+  Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,11 +39,6 @@ import { useProfile } from "@/hooks/useProfile";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
@@ -168,6 +154,39 @@ interface AnalysisRecord {
   analysis: SparringAnalysisData | null;
   created_at: string;
 }
+
+const VALID_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+const MAX_VIDEO_SIZE_MB = 500;
+
+// Valide le format et la taille du fichier vidéo. Renvoie un message d'erreur
+// utilisateur, ou null si le fichier est acceptable.
+const validateVideoFile = (file: File): string | null => {
+  if (!VALID_VIDEO_TYPES.includes(file.type)) {
+    return 'Format non supporté. Utilisez MP4, MOV, WebM ou AVI.';
+  }
+  if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+    return `Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${MAX_VIDEO_SIZE_MB}MB.`;
+  }
+  return null;
+};
+
+// Indique si un message d'erreur passerelle justifie une nouvelle tentative.
+const isRetryableMessage = (msg: string): boolean =>
+  msg.includes('429') || msg.includes('rate limit') || msg.includes('500') || msg.includes('timeout');
+
+// Traduit un message d'erreur technique en message utilisateur lisible.
+const friendlyAnalysisError = (errorMessage: string): string => {
+  if (errorMessage.includes('Limite') || errorMessage.includes('429')) {
+    return '🚫 Trop de requêtes. Attendez 1 minute et réessayez.';
+  }
+  if (errorMessage.includes('Crédits') || errorMessage.includes('402')) {
+    return '💳 Crédits IA insuffisants. Contactez le support.';
+  }
+  if (errorMessage.includes('volumineux') || errorMessage.includes('413')) {
+    return '📦 Vidéo trop grande. Essayez une vidéo plus courte.';
+  }
+  return `❌ ${errorMessage}`;
+};
 
 // Composant Score circulaire
 const CircularScore = ({ 
@@ -325,10 +344,10 @@ const KeyMomentsTimeline = ({
     <div className="space-y-2">
       {/* Timeline bar */}
       <div className="relative h-8 bg-muted/30 rounded-lg overflow-hidden">
-        {moments.map((moment, i) => {
+        {moments.map((moment) => {
           const position = duration > 0 ? (moment.timestamp_seconds / duration) * 100 : 0;
           return (
-            <Tooltip key={i}>
+            <Tooltip key={`${moment.timestamp_seconds}-${moment.description}`}>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onSeek(moment.timestamp_seconds)}
@@ -431,7 +450,6 @@ export const SparringAnalysisV2 = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedFighter, setSelectedFighter] = useState<0 | 1>(0);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [currentVideoName, setCurrentVideoName] = useState<string>("");
   const [discipline, setDiscipline] = useState<string>("auto");
@@ -505,21 +523,79 @@ export const SparringAnalysisV2 = () => {
     );
   }
 
+  // Recharge les 10 dernières analyses de l'utilisateur courant.
+  const refreshPreviousAnalyses = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('sparring_analyses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
+  };
+
+  // Envoie les frames à l'IA avec logique de retry/backoff.
+  const runSparringAnalysis = (
+    frames: unknown,
+    totalDuration: number,
+    recordId: string | undefined,
+    videoName: string,
+  ) =>
+    retryWithBackoff(
+      async () => {
+        const { data, error } = await supabase.functions.invoke('analyze-sparring', {
+          body: {
+            frames,
+            totalDuration,
+            analysisId: recordId,
+            videoName,
+            qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
+            discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
+          }
+        });
+
+        if (error) {
+          const message = error.message || '';
+          if (isRetryableMessage(message)) throw new RetryableError(message);
+          throw new Error(message);
+        }
+
+        if (!data?.success) {
+          const errorMsg = data?.error || "Erreur d'analyse";
+          if (errorMsg.includes('Limite') || errorMsg.includes('429') || errorMsg.includes('500')) {
+            throw new RetryableError(errorMsg);
+          }
+          throw new Error(errorMsg);
+        }
+
+        return data;
+      },
+      {
+        maxRetries: 3,
+        initialDelayMs: 3000,
+        backoffMultiplier: 2,
+        maxDelayMs: 15000,
+        onRetry: (attempt, error, nextDelayMs) => {
+          console.log(`[Sparring] Retry ${attempt}, error: ${error.message}, next delay: ${nextDelayMs}ms`);
+          toast.warning(`⏳ Tentative ${attempt}/3 échouée. Nouvelle tentative dans ${Math.round(nextDelayMs/1000)}s...`);
+        },
+        onSuccess: (_data, attempts) => {
+          if (attempts > 1) console.log(`[Sparring] Success after ${attempts} attempts`);
+        },
+        onFailure: (errors, attempts) => {
+          console.error(`[Sparring] Failed after ${attempts} attempts:`, errors);
+        }
+      }
+    );
+
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    // Validation - only check format, not size (we extract frames client-side now)
-    const validTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Format non supporté. Utilisez MP4, MOV, WebM ou AVI.');
-      return;
-    }
-
-    // Max 500MB for source video (we only extract frames)
-    const maxSizeMB = 500;
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      toast.error(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum ${maxSizeMB}MB.`);
+    const validationError = validateVideoFile(file);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -529,7 +605,7 @@ export const SparringAnalysisV2 = () => {
 
     setUploading(true);
     setUploadProgress(0);
-    
+
     const fileSizeMB = file.size / (1024 * 1024);
     console.log(`[Sparring] Starting analysis: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
     toast.info(`🎬 Extraction des frames de la vidéo...`);
@@ -538,17 +614,17 @@ export const SparringAnalysisV2 = () => {
       // Step 1: Extract frames from video client-side
       console.log('[Sparring] Extracting frames from video...');
       setUploadProgress(10);
-      
+
       const extractedFrames = await extractVideoFrames(file, {
-        frameInterval: 1.0,  // Plus dense pour capturer les actions rapides (était 1.5s)
+        frameInterval: 1,    // Plus dense pour capturer les actions rapides (était 1.5s)
         maxFrames: 60,       // 60 frames pour couvrir ~60% de plus de la vidéo (était 32)
-        quality: 0.70,      // Légèrement réduit pour garder la payload raisonnable
+        quality: 0.7,       // Légèrement réduit pour garder la payload raisonnable
         maxWidth: 1280,
       });
-      
+
       console.log(`[Sparring] Extracted ${extractedFrames.length} frames`);
       setUploadProgress(40);
-      
+
       if (extractedFrames.length < 3) {
         throw new Error('Vidéo trop courte. Minimum 6 secondes requis.');
       }
@@ -556,7 +632,7 @@ export const SparringAnalysisV2 = () => {
       // Format frames for API
       const { frames, totalDuration } = formatFramesForAPI(extractedFrames);
       console.log(`[Sparring] Video duration: ${totalDuration}s`);
-      
+
       toast.info(`📸 ${extractedFrames.length} frames extraites. Analyse en cours...`);
       setUploadProgress(50);
 
@@ -575,67 +651,15 @@ export const SparringAnalysisV2 = () => {
       if (recordError) throw recordError;
 
       const recordId = analysisRecord?.id as string | undefined;
-      
+
       setUploading(false);
       setAnalyzing(true);
       setUploadProgress(60);
-      
+
       // Step 3: Send frames to AI for analysis with retry logic
       console.log('[Sparring] Sending frames to AI...');
-      
-      const result = await retryWithBackoff(
-        async () => {
-          const { data, error } = await supabase.functions.invoke('analyze-sparring', {
-            body: {
-              frames,
-              totalDuration,
-              analysisId: recordId,
-              videoName: file.name,
-              qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
-              discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
-            }
-          });
 
-          if (error) {
-            // Check if this is a retryable error
-            const errorMessage = error.message || '';
-            if (errorMessage.includes('429') || errorMessage.includes('rate limit') || 
-                errorMessage.includes('500') || errorMessage.includes('timeout')) {
-              throw new RetryableError(errorMessage);
-            }
-            throw new Error(errorMessage);
-          }
-
-          if (!data?.success) {
-            const errorMsg = data?.error || 'Erreur d\'analyse';
-            // Rate limits and server errors are retryable
-            if (errorMsg.includes('Limite') || errorMsg.includes('429') || errorMsg.includes('500')) {
-              throw new RetryableError(errorMsg);
-            }
-            throw new Error(errorMsg);
-          }
-
-          return data;
-        },
-        {
-          maxRetries: 3,
-          initialDelayMs: 3000,
-          backoffMultiplier: 2,
-          maxDelayMs: 15000,
-          onRetry: (attempt, error, nextDelayMs) => {
-            console.log(`[Sparring] Retry ${attempt}, error: ${error.message}, next delay: ${nextDelayMs}ms`);
-            toast.warning(`⏳ Tentative ${attempt}/3 échouée. Nouvelle tentative dans ${Math.round(nextDelayMs/1000)}s...`);
-          },
-          onSuccess: (_data, attempts) => {
-            if (attempts > 1) {
-              console.log(`[Sparring] Success after ${attempts} attempts`);
-            }
-          },
-          onFailure: (errors, attempts) => {
-            console.error(`[Sparring] Failed after ${attempts} attempts:`, errors);
-          }
-        }
-      );
+      const result = await runSparringAnalysis(frames, totalDuration, recordId, file.name);
 
       if (result.success && result.data) {
         setCurrentAnalysis(result.data.analysis);
@@ -644,34 +668,15 @@ export const SparringAnalysisV2 = () => {
         setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
         setAnalysisProgress(100);
         toast.success('✅ Analyse terminée ! Découvrez vos statistiques de combat.');
-        // Refresh previous analyses
-        if (user) {
-          const { data } = await supabase
-            .from('sparring_analyses')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(10);
-          setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
-        }
+        await refreshPreviousAnalyses();
       } else {
-        throw result.finalError || new Error('Erreur d\'analyse après plusieurs tentatives');
+        throw result.finalError || new Error("Erreur d'analyse après plusieurs tentatives");
       }
 
     } catch (error) {
       console.error('Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'analyse';
-      
-      // Provide user-friendly error messages
-      if (errorMessage.includes('Limite') || errorMessage.includes('429')) {
-        toast.error('🚫 Trop de requêtes. Attendez 1 minute et réessayez.');
-      } else if (errorMessage.includes('Crédits') || errorMessage.includes('402')) {
-        toast.error('💳 Crédits IA insuffisants. Contactez le support.');
-      } else if (errorMessage.includes('volumineux') || errorMessage.includes('413')) {
-        toast.error('📦 Vidéo trop grande. Essayez une vidéo plus courte.');
-      } else {
-        toast.error(`❌ ${errorMessage}`);
-      }
+      const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'analyse";
+      toast.error(friendlyAnalysisError(errorMessage));
     } finally {
       setUploading(false);
       setAnalyzing(false);
@@ -721,6 +726,66 @@ export const SparringAnalysisV2 = () => {
   };
 
   // Render Upload Section
+  const renderUploadState = () => {
+    if (uploading) {
+      return (
+        <>
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full border-4 border-primary/30 animate-pulse" />
+            <Upload className="absolute inset-0 m-auto h-8 w-8 text-primary animate-bounce" />
+          </div>
+          <div className="space-y-2">
+            <span className="text-lg font-medium">Upload en cours...</span>
+            <Progress value={uploadProgress} className="w-48 mx-auto" />
+            <p className="text-xs text-muted-foreground">{Math.round(uploadProgress)}% - Veuillez patienter</p>
+          </div>
+        </>
+      );
+    }
+    if (analyzing) {
+      return (
+        <>
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full border-4 border-primary animate-spin" style={{ borderTopColor: 'transparent' }} />
+            <Loader2 className="absolute inset-0 m-auto h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <span className="text-lg font-medium">Analyse IA en cours...</span>
+            <p className="text-sm text-muted-foreground">
+              Notre IA examine chaque mouvement, compte les coups et identifie les techniques
+            </p>
+            <Progress value={analysisProgress} className="w-64 mx-auto" />
+            <p className="text-xs text-muted-foreground">{Math.round(analysisProgress)}% complété</p>
+          </div>
+        </>
+      );
+    }
+    return (
+      <>
+        <div className="relative group">
+          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+            <Video className="h-10 w-10 text-primary" />
+          </div>
+          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+            <Upload className="h-3 w-3 text-primary-foreground" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <span className="text-xl font-bold">Déposez votre vidéo de sparring</span>
+          <p className="text-muted-foreground">
+            MP4, MOV, WebM, AVI • Maximum 100MB • Durée recommandée: 3-15 min
+          </p>
+        </div>
+        <Button variant="outline" className="mt-2 pointer-events-none" type="button" tabIndex={-1} asChild>
+          <span>
+            <Upload className="h-4 w-4 mr-2" />
+            Parcourir les fichiers
+          </span>
+        </Button>
+      </>
+    );
+  };
+
   const renderUploadSection = () => (
     <div className="space-y-6">
       {/* Discipline selector */}
@@ -767,57 +832,7 @@ export const SparringAnalysisV2 = () => {
           htmlFor="video-upload-v2" 
           className="cursor-pointer flex flex-col items-center gap-4"
         >
-        {uploading ? (
-            <>
-              <div className="relative">
-                <div className="w-20 h-20 rounded-full border-4 border-primary/30 animate-pulse" />
-                <Upload className="absolute inset-0 m-auto h-8 w-8 text-primary animate-bounce" />
-              </div>
-              <div className="space-y-2">
-                <span className="text-lg font-medium">Upload en cours...</span>
-                <Progress value={uploadProgress} className="w-48 mx-auto" />
-                <p className="text-xs text-muted-foreground">{Math.round(uploadProgress)}% - Veuillez patienter</p>
-              </div>
-            </>
-          ) : analyzing ? (
-            <>
-              <div className="relative">
-                <div className="w-24 h-24 rounded-full border-4 border-primary animate-spin" style={{ borderTopColor: 'transparent' }} />
-                <Loader2 className="absolute inset-0 m-auto h-10 w-10 text-primary animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <span className="text-lg font-medium">Analyse IA en cours...</span>
-                <p className="text-sm text-muted-foreground">
-                  Notre IA examine chaque mouvement, compte les coups et identifie les techniques
-                </p>
-                <Progress value={analysisProgress} className="w-64 mx-auto" />
-                <p className="text-xs text-muted-foreground">{Math.round(analysisProgress)}% complété</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="relative group">
-                <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Video className="h-10 w-10 text-primary" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                  <Upload className="h-3 w-3 text-primary-foreground" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <span className="text-xl font-bold">Déposez votre vidéo de sparring</span>
-                <p className="text-muted-foreground">
-                  MP4, MOV, WebM, AVI • Maximum 100MB • Durée recommandée: 3-15 min
-                </p>
-              </div>
-              <Button variant="outline" className="mt-2 pointer-events-none" type="button" tabIndex={-1} asChild>
-                <span>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Parcourir les fichiers
-                </span>
-              </Button>
-            </>
-          )}
+        {renderUploadState()}
         </Label>
       </div>
 
@@ -869,7 +884,10 @@ export const SparringAnalysisV2 = () => {
                 onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-              />
+              >
+                {/* Vidéo de sparring sans piste de sous-titres ; track vide pour l'accessibilité. */}
+                <track kind="captions" />
+              </video>
               
               {/* Video Controls Overlay */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
@@ -1055,9 +1073,10 @@ export const SparringAnalysisV2 = () => {
                 {currentAnalysis.analysis_quality && (() => {
                   const q = currentAnalysis.analysis_quality;
                   const conf = q.confidence;
-                  const tone = conf >= 75 ? 'text-green-600 border-green-500/30 bg-green-500/10'
-                    : conf >= 50 ? 'text-yellow-600 border-yellow-500/30 bg-yellow-500/10'
-                    : 'text-red-600 border-red-500/30 bg-red-500/10';
+                  let tone: string;
+                  if (conf >= 75) tone = 'text-green-600 border-green-500/30 bg-green-500/10';
+                  else if (conf >= 50) tone = 'text-yellow-600 border-yellow-500/30 bg-yellow-500/10';
+                  else tone = 'text-red-600 border-red-500/30 bg-red-500/10';
                   const qualityLabel = { poor: 'Médiocre', fair: 'Correcte', good: 'Bonne', excellent: 'Excellente' }[q.video_quality];
                   return (
                     <div className={`rounded-lg border p-3 space-y-2 ${tone}`}>
@@ -1072,7 +1091,7 @@ export const SparringAnalysisV2 = () => {
                       </div>
                       {q.warnings.length > 0 && (
                         <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
-                          {q.warnings.slice(0, 3).map((w, i) => <li key={i}>{w}</li>)}
+                          {q.warnings.slice(0, 3).map((w) => <li key={w}>{w}</li>)}
                         </ul>
                       )}
                     </div>
@@ -1269,9 +1288,9 @@ export const SparringAnalysisV2 = () => {
                 <CardContent>
                   <ScrollArea className="h-[400px]">
                     <div className="space-y-3">
-                      {currentAnalysis.techniques_observed.map((tech, i) => (
+                      {currentAnalysis.techniques_observed.map((tech) => (
                         <div 
-                          key={i} 
+                          key={`${tech.technique}-${tech.fighter}-${tech.timestamp_approx}`} 
                           className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex items-center gap-3">
@@ -1300,7 +1319,7 @@ export const SparringAnalysisV2 = () => {
             {/* Fighters Strengths & Weaknesses */}
             <div className="grid grid-cols-2 gap-4">
               {currentAnalysis.fighters?.map((fighter, i) => (
-                <Card key={i}>
+                <Card key={fighter.identifier}>
                   <CardHeader>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <User className={cn("h-4 w-4", i === 0 ? "text-red-400" : "text-blue-400")} />
@@ -1314,8 +1333,8 @@ export const SparringAnalysisV2 = () => {
                         <ArrowUp className="h-3 w-3" /> Points forts
                       </p>
                       <ul className="space-y-1">
-                        {fighter.strengths?.map((s, j) => (
-                          <li key={j} className="text-sm flex items-start gap-2">
+                        {fighter.strengths?.map((s) => (
+                          <li key={s} className="text-sm flex items-start gap-2">
                             <Star className="h-3 w-3 text-green-400 mt-1 flex-shrink-0" />
                             {s}
                           </li>
@@ -1327,8 +1346,8 @@ export const SparringAnalysisV2 = () => {
                         <ArrowDown className="h-3 w-3" /> Points à travailler
                       </p>
                       <ul className="space-y-1">
-                        {fighter.weaknesses?.map((w, j) => (
-                          <li key={j} className="text-sm flex items-start gap-2">
+                        {fighter.weaknesses?.map((w) => (
+                          <li key={w} className="text-sm flex items-start gap-2">
                             <AlertCircle className="h-3 w-3 text-red-400 mt-1 flex-shrink-0" />
                             {w}
                           </li>
@@ -1356,7 +1375,7 @@ export const SparringAnalysisV2 = () => {
                   <CardContent>
                     <ul className="space-y-3">
                       {currentAnalysis.recommendations.fighter_1?.map((rec, i) => (
-                        <li key={i} className="flex items-start gap-3 p-3 bg-red-500/5 rounded-lg">
+                        <li key={rec} className="flex items-start gap-3 p-3 bg-red-500/5 rounded-lg">
                           <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
                             <span className="text-xs font-bold text-red-400">{i + 1}</span>
                           </div>
@@ -1378,7 +1397,7 @@ export const SparringAnalysisV2 = () => {
                   <CardContent>
                     <ul className="space-y-3">
                       {currentAnalysis.recommendations.fighter_2?.map((rec, i) => (
-                        <li key={i} className="flex items-start gap-3 p-3 bg-blue-500/5 rounded-lg">
+                        <li key={rec} className="flex items-start gap-3 p-3 bg-blue-500/5 rounded-lg">
                           <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
                             <span className="text-xs font-bold text-blue-400">{i + 1}</span>
                           </div>

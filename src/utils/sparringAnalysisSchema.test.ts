@@ -46,7 +46,7 @@ describe('clampScore', () => {
     expect(clampScore(undefined)).toBe(50);
     expect(clampScore(null)).toBe(50);
     expect(clampScore('abc')).toBe(50);
-    expect(clampScore(NaN)).toBe(50);
+    expect(clampScore(Number.NaN)).toBe(50);
   });
 
   it('should use custom default', () => {
@@ -239,9 +239,9 @@ describe('validateKeyMoment', () => {
     const result = validateKeyMoment(input);
     
     expect(result).not.toBeNull();
-    expect(result!.timestamp).toBe('1:30');
-    expect(result!.type).toBe('strike');
-    expect(result!.significance).toBe('high');
+    expect(result.timestamp).toBe('1:30');
+    expect(result.type).toBe('strike');
+    expect(result.significance).toBe('high');
   });
 
   it('should return null for missing description', () => {
@@ -261,8 +261,8 @@ describe('validateKeyMoment', () => {
       significance: 'invalid',
     });
     
-    expect(result!.type).toBe('strike');
-    expect(result!.significance).toBe('medium');
+    expect(result.type).toBe('strike');
+    expect(result.significance).toBe('medium');
   });
 });
 
@@ -281,9 +281,9 @@ describe('validateRound', () => {
     const result = validateRound(input);
     
     expect(result).not.toBeNull();
-    expect(result!.number).toBe(2);
-    expect(result!.winner_suggestion).toBe('Combattant Rouge');
-    expect(result!.key_events).toHaveLength(2);
+    expect(result.number).toBe(2);
+    expect(result.winner_suggestion).toBe('Combattant Rouge');
+    expect(result.key_events).toHaveLength(2);
   });
 
   it('should return null for invalid input', () => {
@@ -294,9 +294,9 @@ describe('validateRound', () => {
   it('should use defaults for missing fields', () => {
     const result = validateRound({});
     
-    expect(result!.number).toBe(1);
-    expect(result!.winner_suggestion).toBe('Indéterminé');
-    expect(result!.key_events).toEqual([]);
+    expect(result.number).toBe(1);
+    expect(result.winner_suggestion).toBe('Indéterminé');
+    expect(result.key_events).toEqual([]);
   });
 });
 
@@ -315,8 +315,8 @@ describe('validateTechnique', () => {
     const result = validateTechnique(input);
     
     expect(result).not.toBeNull();
-    expect(result!.technique).toBe('Low kick');
-    expect(result!.fighter).toBe('Combattant Bleu');
+    expect(result.technique).toBe('Low kick');
+    expect(result.fighter).toBe('Combattant Bleu');
   });
 
   it('should return null for missing technique name', () => {
@@ -327,8 +327,8 @@ describe('validateTechnique', () => {
   it('should use defaults for missing optional fields', () => {
     const result = validateTechnique({ technique: 'Jab' });
     
-    expect(result!.fighter).toBe('Inconnu');
-    expect(result!.execution).toBe('Non évalué');
+    expect(result.fighter).toBe('Inconnu');
+    expect(result.execution).toBe('Non évalué');
   });
 });
 

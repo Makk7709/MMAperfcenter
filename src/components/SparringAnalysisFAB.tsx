@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Video, X, Sparkles } from "lucide-react";
+import { Video, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { SparringAnalysisV2 } from "@/components/sparring";
 

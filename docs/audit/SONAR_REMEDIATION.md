@@ -51,6 +51,7 @@ Chaque lot d'anomalies suit le même cycle :
 | `S7764` (`globalThis`) | `window`/`global`/`self` remplacés par `globalThis` (cast `as any` conservé uniquement pour les API préfixées non typées comme `webkitAudioContext`). |
 | `S7748` (littéral numérique) | Fraction nulle superflue retirée (`1.0` → `1`). |
 | `S7763` (ré-export) | `import X … ; export { X }` remplacé par `export … from "…"` (`export * as Sentry from …`, `export { toast } from "sonner"`). |
+| `S4084` (média sans sous-titres) | Ajout d'une balise `<track kind="captions" />` enfant de `<video>` (piste vide pour une vidéo utilisateur sans sous-titres). |
 
 ---
 
@@ -194,6 +195,24 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 
 **Résultat** : `tsc` OK, build OK, 378 tests passants (le `retryWithBackoff.test.ts` modifié reste vert). Aucune régression.
 
+### Session 7 — 2026-06-06 — Module d'analyse de sparring (IA)
+
+> **Note** : la ligne 150 du lot (`ui/sonner.tsx` S7763) appartenait au lot de la session 6, déjà corrigée. La règle S3776 « ligne 198 » du scan pointe sur un littéral objet de `CircularScore` (non complexe) : numéro de ligne obsolète. La seule fonction réellement au-dessus du seuil de complexité dans le fichier était `handleVideoUpload`, refactorée ci-dessous.
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S1854`, `S3358`, `S6479` ×3 | MAJOR | `src/components/SparringAnalysis.tsx` | Composant **legacy importé/rendu nulle part** (remplacé par `SparringAnalysisV2`, vérifié) → supprimé comme code mort (~500 lignes), ce qui résout d'office les 5 anomalies. |
+| `S1128` ×3 | MINOR | `src/components/SparringAnalysisFAB.tsx` | Imports inutilisés retirés : `X` (lucide-react), `DialogHeader`, `DialogTitle`. |
+| `S7773` ×2, `S3358` | MINOR / MAJOR | `src/utils/sparringAnalysisSchema.ts` | `isNaN` → `Number.isNaN` (`clampScore`, `clampStatistic`) ; ternaire imbriqué `corner` dénidé en `if/else`. |
+| `S7773`, `S4325` ×15 | MINOR | `src/utils/sparringAnalysisSchema.test.ts` | `NaN` → `Number.NaN` ; 15 assertions non-null `result!.` redondantes retirées (`strictNullChecks` off). |
+| `S1128` ×12, `S1854` ×2 | MINOR / MAJOR | `src/components/sparring/SparringAnalysisV2.tsx` | Imports inutilisés retirés (`Separator`, `ChevronDown/Up`, `Maximize2`, `Share2`, `Download`, `Flame`, `Minus`, `ImageIcon`, `Collapsible*`) ; état mort `selectedFighter`/`setSelectedFighter` supprimé. |
+| `S3776` | CRITICAL | `src/components/sparring/SparringAnalysisV2.tsx` | `handleVideoUpload` ramené sous le seuil : extraction de `validateVideoFile`, `friendlyAnalysisError`, `isRetryableMessage` (helpers purs module) + `runSparringAnalysis`, `refreshPreviousAnalyses` (scope composant). |
+| `S7748` ×2, `S3358` ×2, `S6479` ×6, `S4084` | MINOR→MAJOR | `src/components/sparring/SparringAnalysisV2.tsx` | `1.0`→`1`, `0.70`→`0.7` ; ternaire `tone` (qualité) dénidé en `if/else if`, chaîne de rendu upload extraite dans `renderUploadState()` ; 6 clés index remplacées par des clés stables (timestamp+description, texte des warnings/strengths/weaknesses/recommandations, `fighter.identifier`, composite technique) ; `<track kind="captions" />` ajouté à la vidéo. |
+
+> Audit hostile complémentaire : les 6 clés index de `SparringAnalysisV2.tsx` ont toutes été traitées (le scan n'en flaggait que 2 — lignes 331 et 1075 —, les 4 autres relevant d'un lot ultérieur). Warnings ESLint `no-unused-vars` restants sur des props de sous-composant (`fighter1Name`, `fighter2Name`, `showPercentage`) : **préexistants**, non introduits par cette session.
+
+**Résultat** : `tsc` OK, `eslint` OK (0 erreur), build OK, 378 tests passants (`sparringAnalysisSchema.test.ts` : 38 tests verts). Aucune régression.
+
 ---
 
 ## 3. Dette de test connue (préexistante)
@@ -208,6 +227,7 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 | Après session 4 | 378 | 11 (préexistants) | 4 |
 | Après session 5 | 378 | 11 (préexistants) | 4 |
 | Après session 6 | 378 | 11 (préexistants) | 4 |
+| Après session 7 | 378 | 11 (préexistants) | 4 |
 
 ---
 
