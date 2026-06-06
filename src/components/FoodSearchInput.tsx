@@ -12,6 +12,12 @@ interface FoodResult {
   brand?: string;
 }
 
+interface OpenFoodFactsSearchProduct {
+  product_name?: string;
+  brands?: string;
+  nutriments?: Record<string, number>;
+}
+
 interface FoodSearchInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -65,16 +71,20 @@ export const FoodSearchInput = ({
         
         const data = await response.json();
         
-        const foods: FoodResult[] = (data.products || [])
-          .filter((p: any) => p.product_name && p.nutriments)
-          .map((product: any) => ({
-            name: product.product_name,
-            brand: product.brands,
-            calories: Math.round(product.nutriments["energy-kcal_100g"] || product.nutriments["energy-kcal"] || 0),
-            protein: Math.round((product.nutriments.proteins_100g || product.nutriments.proteins || 0) * 10) / 10,
-            carbs: Math.round((product.nutriments.carbohydrates_100g || product.nutriments.carbohydrates || 0) * 10) / 10,
-            fat: Math.round((product.nutriments.fat_100g || product.nutriments.fat || 0) * 10) / 10,
-          }))
+        const products: OpenFoodFactsSearchProduct[] = data.products || [];
+        const foods: FoodResult[] = products
+          .filter((p) => p.product_name && p.nutriments)
+          .map((product) => {
+            const n = product.nutriments ?? {};
+            return {
+              name: product.product_name as string,
+              brand: product.brands,
+              calories: Math.round(n["energy-kcal_100g"] || n["energy-kcal"] || 0),
+              protein: Math.round((n.proteins_100g || n.proteins || 0) * 10) / 10,
+              carbs: Math.round((n.carbohydrates_100g || n.carbohydrates || 0) * 10) / 10,
+              fat: Math.round((n.fat_100g || n.fat || 0) * 10) / 10,
+            };
+          })
           .filter((f: FoodResult) => f.calories > 0 || f.protein > 0 || f.carbs > 0 || f.fat > 0);
         
         setResults(foods);
@@ -118,9 +128,9 @@ export const FoodSearchInput = ({
       
       {showResults && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {results.map((food, index) => (
+          {results.map((food) => (
             <button
-              key={index}
+              key={`${food.name}-${food.brand ?? ""}-${food.calories}`}
               type="button"
               onClick={() => handleSelect(food)}
               className={cn(

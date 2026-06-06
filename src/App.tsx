@@ -26,7 +26,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, requiresOnboarding = true }: { children: React.ReactNode; requiresOnboarding?: boolean }) {
+function ProtectedRoute({ children, requiresOnboarding = true }: Readonly<{ children: React.ReactNode; requiresOnboarding?: boolean }>) {
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const location = useLocation();
@@ -69,7 +69,7 @@ function ProtectedRoute({ children, requiresOnboarding = true }: { children: Rea
   return <>{children}</>;
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -102,7 +102,7 @@ function AppContent() {
   return (
     <>
       {/* Video background always visible */}
-      <VideoBackground freezeAt={9} />
+      <VideoBackground />
       <Routes>
         <Route 
           path="/" 

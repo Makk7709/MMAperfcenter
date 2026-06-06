@@ -73,6 +73,38 @@ Chaque lot d'anomalies suit le même cycle :
 
 **Résultat** : `tsc` OK, `eslint` OK (après bascule de la classe regex en alternation pour éviter `no-misleading-character-class`), build OK, 378 tests passants. Aucune régression.
 
+### Session 3 — 2026-06-06 — Routage, scanner, primitives UI & utilitaires
+
+#### a. Corrections dans les fichiers utilisés
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S1874` | MINOR | `src/App.tsx` | Usage de la prop dépréciée `freezeAt` retiré de `<VideoBackground>` (la prop est ignorée par l'implémentation actuelle). |
+| `S6759` | MINOR | `src/App.tsx` | Props de `ProtectedRoute` et `PublicRoute` encapsulées dans `Readonly<{ ... }>`. |
+| `S6582` | MAJOR | `src/components/BarcodeScannerDialog.tsx` | `videoRef.current && videoRef.current.srcObject` remplacé par l'enchaînement optionnel `videoRef.current?.srcObject`. |
+| `S4084` | MAJOR | `src/components/BarcodeScannerDialog.tsx` | Ajout d'une piste `<track kind="captions" />` sur l'élément `<video>` (flux caméra sans audio). |
+| `S6850` | MAJOR | `src/components/ui/card.tsx` | `CardTitle` rend désormais `{children}` explicitement. |
+| `S6479` | MAJOR | `src/components/FoodSearchInput.tsx` | Clé de liste par index remplacée par une clé de contenu (`nom-marque-calories`). |
+| `S6594` | MAJOR | `src/utils/storageUtils.ts`, `src/components/CommunityActivity.tsx`, `src/components/VideoCard.tsx` | `String.prototype.match()` (regex non globale) remplacé par `RegExp.prototype.exec()` — comportement identique. |
+
+> Nettoyage adjacent : 2 `any` explicites préexistants dans `FoodSearchInput.tsx` (réponse Open Food Facts) typés via `OpenFoodFactsSearchProduct` pour laisser le fichier modifié sans erreur de lint.
+
+#### b. Remédiation — suppression de primitives UI inutilisées
+
+Plusieurs anomalies (`S6819` rôles ARIA, `S6478` composants imbriqués, `S6481` valeur de contexte instable, `S6747` attribut inconnu `cmdk-input-wrapper`, `S4325`, `S7735`) portaient sur des primitives shadcn **importées nulle part dans l'application** (vérifié par recherche d'imports). Plutôt que de contorsionner des patterns ARIA par ailleurs corrects (carrousel WAI-ARIA) sur du code mort, ces primitives ont été **supprimées** :
+
+| Fichier supprimé | Dépendance devenue orpheline | Action |
+|---|---|---|
+| `src/components/ui/breadcrumb.tsx` | `@radix-ui/react-slot` (conservée, utilisée ailleurs) | Supprimé |
+| `src/components/ui/calendar.tsx` | `react-day-picker` | Supprimé + dépendance désinstallée |
+| `src/components/ui/carousel.tsx` | `embla-carousel-react` | Supprimé + dépendance désinstallée |
+| `src/components/ui/chart.tsx` | `recharts` (conservée, utilisée par `AdminDashboard` et `Statistics`) | Supprimé |
+| `src/components/ui/command.tsx` | `cmdk` | Supprimé + dépendance désinstallée |
+
+Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-picker`, `cmdk`. Les primitives shadcn peuvent être réintroduites à la demande si un besoin produit apparaît.
+
+**Résultat** : `tsc` OK, `eslint` OK (fichiers modifiés), build OK, 378 tests passants. Aucune référence morte vers les fichiers supprimés. Aucune régression.
+
 ---
 
 ## 3. Dette de test connue (préexistante)
@@ -83,6 +115,7 @@ Chaque lot d'anomalies suit le même cycle :
 |---|---|---|---|
 | Après session 1 | 378 | 11 (préexistants) | 4 |
 | Après session 2 | 378 | 11 (préexistants) | 4 |
+| Après session 3 | 378 | 11 (préexistants) | 4 |
 
 ---
 

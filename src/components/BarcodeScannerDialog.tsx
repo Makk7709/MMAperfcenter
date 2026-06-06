@@ -80,7 +80,7 @@ export const BarcodeScannerDialog = ({
   };
 
   const stopScanning = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
+    if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
@@ -158,7 +158,11 @@ export const BarcodeScannerDialog = ({
               ref={videoRef}
               className="w-full h-full object-cover"
               style={{ transform: 'scaleX(-1)' }}
-            />
+            >
+              {/* Flux caméra live (lecture de code-barres) : aucune piste audio,
+                  piste de sous-titres vide fournie pour la conformité a11y. */}
+              <track kind="captions" />
+            </video>
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/80">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

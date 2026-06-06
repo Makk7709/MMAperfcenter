@@ -41,7 +41,7 @@ export function extractFilePathFromUrl(publicUrl: string, bucketName: string): s
   try {
     // Pattern: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file
     const regex = new RegExp(`/storage/v1/object/public/${bucketName}/(.+)$`);
-    const match = publicUrl.match(regex);
+    const match = regex.exec(publicUrl);
     
     if (match && match[1]) {
       return decodeURIComponent(match[1]);

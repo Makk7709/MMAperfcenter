@@ -15,7 +15,7 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
   const [playing, setPlaying] = useState(false);
 
   const getYoutubeEmbedUrl = (url: string) => {
-    const videoId = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/)?.[1];
+    const videoId = /(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/.exec(url)?.[1];
     return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
   };
 

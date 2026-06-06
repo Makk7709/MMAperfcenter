@@ -63,7 +63,7 @@ export const CommunityActivity = () => {
 
   const getInitials = (description: string) => {
     // Extract name from description like "User a terminé: Workout"
-    const match = description.match(/^([^a]+)/);
+    const match = /^([^a]+)/.exec(description);
     if (match) {
       const name = match[1].trim();
       return name
