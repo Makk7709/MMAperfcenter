@@ -25,6 +25,9 @@ type WorkoutPhase = "warmup" | "active" | "cooldown" | "completed";
 
 const PHASES: WorkoutPhase[] = ["warmup", "active", "cooldown"];
 
+const INTENSITY_SCORES: Record<string, number> = { intense: 85, moderate: 65 };
+const DEFAULT_INTENSITY_SCORE = 45;
+
 export function ActiveWorkoutPage({
   config,
   onComplete,
@@ -52,7 +55,7 @@ export function ActiveWorkoutPage({
         duration,
         personalRecords: [],
         caloriesEstimate: Math.round((duration / 60) * 8),
-        intensityScore: config.intensity === "intense" ? 85 : config.intensity === "moderate" ? 65 : 45,
+        intensityScore: INTENSITY_SCORES[config.intensity] ?? DEFAULT_INTENSITY_SCORE,
         muscleGroups: ["full-body"],
         badges: [],
         xpEarned: 50 + completedRounds * 10,
@@ -122,13 +125,13 @@ export function ActiveWorkoutPage({
             const currentIdx = PHASES.indexOf(phase);
             const isActive = i === currentIdx;
             const isDone = i < currentIdx;
+            let dotClass = "w-5 bg-muted";
+            if (isActive) dotClass = "w-8 bg-primary";
+            else if (isDone) dotClass = "w-5 bg-primary/50";
             return (
               <div
                 key={p}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-500",
-                  isActive ? "w-8 bg-primary" : isDone ? "w-5 bg-primary/50" : "w-5 bg-muted"
-                )}
+                className={cn("h-1.5 rounded-full transition-all duration-500", dotClass)}
               />
             );
           })}
@@ -209,7 +212,7 @@ export function ActiveWorkoutPage({
 // Sub-components
 // ============================================
 
-function TypeBadge({ type }: { type: string }) {
+function TypeBadge({ type }: Readonly<{ type: string }>) {
   const icons: Record<string, string> = {
     boxing: "🥊", mma: "🥋", strength: "💪", cardio: "🔥",
   };
@@ -225,13 +228,13 @@ function TypeBadge({ type }: { type: string }) {
 
 function StatCard({
   icon: Icon, label, value, accent, capitalize,
-}: {
+}: Readonly<{
   icon: React.ElementType;
   label: string;
   value: string;
   accent: string;
   capitalize?: boolean;
-}) {
+}>) {
   return (
     <div className="rounded-xl border border-border bg-card/40 backdrop-blur-sm px-3 py-2.5 text-center">
       <Icon className={cn("h-4 w-4 mx-auto mb-1", accent)} />

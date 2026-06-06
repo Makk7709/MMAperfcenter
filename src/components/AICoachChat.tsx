@@ -7,14 +7,46 @@ import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations
 import { Bot, Send, Loader2, User, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { consumeSSEStream } from "@/lib/sse";
 import { PDFExportButton } from "./PDFExportButton";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { FeaturePaywall } from "./FeaturePaywall";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
 }
+
+let messageCounter = 0;
+const nextMessageId = () => `msg-${++messageCounter}`;
+
+// Ouvre le flux SSE du Coach IA. On utilise un fetch brut (et non
+// supabase.functions.invoke) car la fonction streame des Server-Sent Events.
+const openCoachStream = async (
+  accessToken: string,
+  payload: Array<Pick<Message, "role" | "content">>,
+): Promise<ReadableStreamDefaultReader<Uint8Array>> => {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-coach`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify({ messages: payload }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Erreur de communication avec le Coach IA");
+  }
+  if (!response.body) {
+    throw new Error("Pas de réponse du serveur");
+  }
+
+  return response.body.getReader();
+};
 
 export const AICoachChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -30,6 +62,16 @@ export const AICoachChat = () => {
     }
   }, [messages]);
 
+  const updateLastAssistantContent = (content: string) => {
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.role !== "assistant") return prev;
+      const newMessages = [...prev];
+      newMessages[newMessages.length - 1] = { ...last, content };
+      return newMessages;
+    });
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -37,107 +79,35 @@ export const AICoachChat = () => {
     const allowed = await gate();
     if (!allowed) return;
 
-    const userMessage: Message = { role: "user", content: input.trim() };
-    setMessages(prev => [...prev, userMessage]);
+    const userMessage: Message = { id: nextMessageId(), role: "user", content: input.trim() };
+    const conversation = [...messages, userMessage];
+    setMessages(conversation);
     setInput("");
     setIsLoading(true);
 
-    let assistantContent = "";
-
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("Session error:", sessionError);
-        toast.error("Erreur de session");
-        setIsLoading(false);
-        return;
-      }
-      
-      if (!session?.access_token) {
-        console.error("No session or access token");
-        toast.error("Veuillez vous reconnecter");
-        setIsLoading(false);
+      if (sessionError || !session?.access_token) {
+        toast.error(sessionError ? "Erreur de session" : "Veuillez vous reconnecter");
         return;
       }
 
-      console.log("Calling ai-coach with token...");
-      
-      // We use a raw fetch (not supabase.functions.invoke) because the
-      // ai-coach function streams Server-Sent Events. URL and anon key are
-      // imported from the centralized Supabase client to avoid duplication.
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/ai-coach`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-            "apikey": SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            messages: [...messages, userMessage],
-          }),
-        }
+      const reader = await openCoachStream(
+        session.access_token,
+        conversation.map(({ role, content }) => ({ role, content })),
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur de communication avec le Coach IA");
-      }
+      setMessages(prev => [...prev, { id: nextMessageId(), role: "assistant", content: "" }]);
 
-      if (!response.body) {
-        throw new Error("Pas de réponse du serveur");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-
-      // Add empty assistant message
-      setMessages(prev => [...prev, { role: "assistant", content: "" }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages(prev => {
-                const newMessages = [...prev];
-                if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === "assistant") {
-                  newMessages[newMessages.length - 1].content = assistantContent;
-                }
-                return newMessages;
-              });
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
+      let assistantContent = "";
+      await consumeSSEStream(reader, (delta) => {
+        assistantContent += delta;
+        updateLastAssistantContent(assistantContent);
+      });
     } catch (error) {
       console.error("Error:", error);
       toast.error(error instanceof Error ? error.message : "Erreur de communication");
-      // Remove the empty assistant message on error
+      // Retire le message assistant vide en cas d'erreur
       setMessages(prev => prev.filter((_, i) => i !== prev.length - 1));
     } finally {
       setIsLoading(false);
@@ -197,9 +167,9 @@ export const AICoachChat = () => {
                 Bonjour ! Je suis votre Coach IA personnalisé. Comment puis-je vous aider ?
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {quickPrompts.map((prompt, i) => (
+                {quickPrompts.map((prompt) => (
                   <Button
-                    key={i}
+                    key={prompt}
                     variant="outline"
                     size="sm"
                     className="text-xs"
@@ -214,9 +184,9 @@ export const AICoachChat = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((msg, i) => (
+              {messages.map((msg) => (
                 <div
-                  key={i}
+                  key={msg.id}
                   className={cn(
                     "flex gap-3",
                     msg.role === "user" && "flex-row-reverse"

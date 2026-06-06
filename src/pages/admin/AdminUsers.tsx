@@ -61,7 +61,7 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 export default function AdminUsers() {
-  const { users, isLoading, updateUser, suspendUser, isUpdating, isSuspending } = useAdminUsers();
+  const { users, isLoading, updateUser, suspendUser, isUpdating } = useAdminUsers();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);

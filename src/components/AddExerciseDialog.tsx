@@ -67,7 +67,16 @@ export const AddExerciseDialog = ({ exercises, onAddExercise, loading }: AddExer
               {filteredExercises.map((exercise) => (
                 <div
                   key={exercise.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedExercise?.id === exercise.id}
                   onClick={() => setSelectedExercise(exercise)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedExercise(exercise);
+                    }
+                  }}
                   className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                     selectedExercise?.id === exercise.id
                       ? 'bg-primary/10 border-primary'

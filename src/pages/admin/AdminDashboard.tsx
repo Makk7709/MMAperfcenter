@@ -2,8 +2,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { useAdminStats } from "@/hooks/useAdminStats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CreditCard, Video, Activity, TrendingUp, UserPlus } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Users, CreditCard, Video, Activity, TrendingUp, UserPlus, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 
 const PLAN_COLORS: Record<string, string> = {
@@ -107,8 +106,8 @@ export default function AdminDashboard() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {planData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {planData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip />

@@ -5,6 +5,40 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Sparkles, RefreshCw, Target, TrendingUp, Utensils, Rocket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { consumeSSEStream } from "@/lib/sse";
+
+const ANALYSIS_ERROR_MESSAGE = "Erreur lors de l'analyse IA";
+
+// Ouvre le flux SSE de l'analyse de stats et renvoie un reader.
+// Les erreurs connues remontent un message utilisateur explicite.
+const openAnalysisStream = async (
+  accessToken: string,
+): Promise<ReadableStreamDefaultReader<Uint8Array>> => {
+  let response: Response;
+  try {
+    response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-stats-analysis`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      }
+    );
+  } catch {
+    throw new Error(ANALYSIS_ERROR_MESSAGE);
+  }
+
+  if (response.status === 429) throw new Error("Limite atteinte, réessayez dans quelques instants");
+  if (response.status === 402) throw new Error("Crédit insuffisant");
+  if (!response.ok) throw new Error(ANALYSIS_ERROR_MESSAGE);
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error(ANALYSIS_ERROR_MESSAGE);
+  return reader;
+};
 
 export function AIStatsAnalysis() {
   const [analysis, setAnalysis] = useState<string>("");
@@ -22,73 +56,18 @@ export function AIStatsAnalysis() {
         return;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-stats-analysis`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({}),
-        }
-      );
+      const reader = await openAnalysisStream(session.access_token);
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Limite atteinte, réessayez dans quelques instants");
-          return;
-        }
-        if (response.status === 402) {
-          toast.error("Crédit insuffisant");
-          return;
-        }
-        throw new Error("Erreur lors de l'analyse");
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No reader available");
-
-      const decoder = new TextDecoder();
-      let textBuffer = "";
       let analysisText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              analysisText += content;
-              setAnalysis(analysisText);
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
+      await consumeSSEStream(reader, (delta) => {
+        analysisText += delta;
+        setAnalysis(analysisText);
+      });
 
       setHasAnalyzed(true);
     } catch (error) {
       console.error("Analysis error:", error);
-      toast.error("Erreur lors de l'analyse IA");
+      toast.error(error instanceof Error ? error.message : ANALYSIS_ERROR_MESSAGE);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +76,7 @@ export function AIStatsAnalysis() {
   const renderAnalysis = (text: string) => {
     const sections = text.split(/(?=## )/);
     
-    return sections.map((section, index) => {
+    return sections.map((section) => {
       if (!section.trim()) return null;
       
       const lines = section.split("\n");
@@ -109,7 +88,6 @@ export function AIStatsAnalysis() {
       
       if (title?.includes("Synthèse") || title?.includes("Performance")) {
         icon = <Target className="h-5 w-5" />;
-        iconColor = "text-primary";
       } else if (title?.includes("Entraînement")) {
         icon = <TrendingUp className="h-5 w-5" />;
         iconColor = "text-secondary";
@@ -118,19 +96,18 @@ export function AIStatsAnalysis() {
         iconColor = "text-accent";
       } else if (title?.includes("Action") || title?.includes("Plan")) {
         icon = <Rocket className="h-5 w-5" />;
-        iconColor = "text-primary";
       }
       
       return (
-        <div key={index} className="mb-6 last:mb-0">
+        <div key={section} className="mb-6 last:mb-0">
           {title && (
             <div className={`flex items-center gap-2 mb-3 ${iconColor}`}>
               {icon}
-              <h3 className="text-lg font-semibold text-foreground">{title.replace(/[🎯💪🍽️📈]/g, "").trim()}</h3>
+              <h3 className="text-lg font-semibold text-foreground">{title.replace(/🎯|💪|🍽️|📈/gu, "").trim()}</h3>
             </div>
           )}
           <div className="text-muted-foreground space-y-2 pl-7">
-            {content.split("\n").map((line, lineIndex) => {
+            {content.split("\n").map((line) => {
               if (!line.trim()) return null;
               
               const formattedLine = line
@@ -139,7 +116,7 @@ export function AIStatsAnalysis() {
               
               return (
                 <p 
-                  key={lineIndex} 
+                  key={line} 
                   className="leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: formattedLine }}
                 />
@@ -149,6 +126,31 @@ export function AIStatsAnalysis() {
         </div>
       );
     });
+  };
+
+  const renderButtonLabel = () => {
+    if (isLoading) {
+      return (
+        <>
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          Analyse...
+        </>
+      );
+    }
+    if (hasAnalyzed) {
+      return (
+        <>
+          <RefreshCw className="h-4 w-4" />
+          Actualiser
+        </>
+      );
+    }
+    return (
+      <>
+        <Sparkles className="h-4 w-4" />
+        Analyser
+      </>
+    );
   };
 
   return (
@@ -173,22 +175,7 @@ export function AIStatsAnalysis() {
             size="sm"
             className="gap-2"
           >
-            {isLoading ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Analyse...
-              </>
-            ) : hasAnalyzed ? (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                Actualiser
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Analyser
-              </>
-            )}
+            {renderButtonLabel()}
           </Button>
         </CardTitle>
       </CardHeader>

@@ -64,6 +64,13 @@ const DIFFICULTY_LABELS: Record<string, string> = {
   expert: "⭐⭐⭐⭐ Expert",
 };
 
+// Champs additionnels exposés côté admin (jointure coach + métadonnées de visibilité/vues)
+type AdminVideoRow = TrainingVideo & {
+  coach_name?: string;
+  visibility?: string;
+  views_count?: number;
+};
+
 export default function AdminVideos() {
   const { videos, isLoading, deleteVideo } = useTrainingVideos();
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,7 +162,9 @@ export default function AdminVideos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVideos?.map((video) => (
+              {filteredVideos?.map((video) => {
+                const row = video as AdminVideoRow;
+                return (
                 <TableRow key={video.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -168,8 +177,8 @@ export default function AdminVideos() {
                       </div>
                       <div>
                         <p className="font-medium line-clamp-1">{video.title}</p>
-                        {(video as any).coach_name && (
-                          <p className="text-sm text-muted-foreground">Coach: {(video as any).coach_name}</p>
+                        {row.coach_name && (
+                          <p className="text-sm text-muted-foreground">Coach: {row.coach_name}</p>
                         )}
                       </div>
                     </div>
@@ -189,8 +198,8 @@ export default function AdminVideos() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={(video as any).visibility === "public" ? "secondary" : "default"}>
-                      {(video as any).visibility === "public" ? (
+                    <Badge variant={row.visibility === "public" ? "secondary" : "default"}>
+                      {row.visibility === "public" ? (
                         <><Eye className="h-3 w-3 mr-1" /> Public</>
                       ) : (
                         <><EyeOff className="h-3 w-3 mr-1" /> Premium</>
@@ -198,7 +207,7 @@ export default function AdminVideos() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {(video as any).views_count || 0}
+                    {row.views_count || 0}
                   </TableCell>
                   <TableCell>
                     {format(new Date(video.created_at), "dd MMM yyyy", { locale: fr })}
@@ -222,7 +231,8 @@ export default function AdminVideos() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filteredVideos?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
