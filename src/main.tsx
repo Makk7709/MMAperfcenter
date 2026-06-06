@@ -5,4 +5,6 @@ import { initSentry } from './lib/sentry'
 
 initSentry();
 
-createRoot(document.getElementById("root")!).render(<App />);
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Root element #root introuvable");
+createRoot(rootElement).render(<App />);

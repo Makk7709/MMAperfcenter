@@ -38,6 +38,10 @@ Chaque lot d'anomalies suit le même cycle :
 | `S6594` (`String.match` vs `RegExp.exec`) | Pour une regex non globale, `String.prototype.match()` remplacé par `RegExp.prototype.exec()` (comportement identique). |
 | `S6551` (coercition d'objet en chaîne) | Plus de `String(error)` sur une valeur inconnue ; helper `errorMessage()` (`_shared/errors.ts`) renvoyant `error.message`, la chaîne brute, ou un `JSON.stringify` — jamais `[object Object]`. |
 | `S7773` (méthodes statiques de `Number`) | `isNaN`/`parseInt`/`parseFloat` globaux remplacés par `Number.isNaN`/`Number.parseInt`/`Number.parseFloat`. |
+| `S7735` (condition négée avec `else`) | Inversion de la condition pour placer le cas positif en premier (`x === a ? … : …` au lieu de `x !== a ? … : …`). |
+| `S7723` (constructeur `Array()`) | Remplacement de `[...Array(n)]` par une liste de clés stables explicites (placeholders) ou `Array.from`. |
+| `S1135` (tags `TODO`) | Reformulation en note neutre lorsque l'information de contexte doit être conservée (sans masquer une tâche réellement faite). |
+| `S6772` (espacement inline ambigu) | Espaces autour d'un élément inline (`<strong>`…) rendus explicites via `{" "}`. |
 
 ---
 
@@ -134,6 +138,27 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 
 **Résultat** : `tsc` OK, build OK, 378 tests passants (front). Les corrections Edge ne modifient aucun contrat d'API. Aucune régression.
 
+### Session 5 — 2026-06-06 — Pages, bannières & composants front
+
+> **Note** : les anomalies S6551 sur `stripe-webhook` (l. 122/196/238) et `customer-portal` (l. 71) figurant dans le lot étaient **déjà corrigées en session 4** (scan Sonar antérieur au push). Revérifié : 0 occurrence de `String(error)` dans les Edge Functions.
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S1128` | MINOR | `src/pages/Index.tsx` | Import inutilisé `heroImage` retiré. |
+| `S1128` | MINOR | `src/components/MeuteCard.tsx` | Import inutilisé `Badge` retiré. |
+| `S1135` | INFO | `src/pages/Legal.tsx` | 4 commentaires `TODO juridique` reformulés en `Note interne` (rappels SIRET / représentant / hébergeur / URL politique conservés, sans tag `TODO`). |
+| `S6772` | MAJOR | `src/pages/Legal.tsx` | Espaces autour du `<strong>` « Politique de confidentialité » rendus explicites (`{" "}`). |
+| `S4325` | MINOR | `src/main.tsx` | Assertion non-null `getElementById("root")!` remplacée par une garde explicite (`if (!rootElement) throw …`). |
+| `S6479` | MAJOR | `src/components/MMANewsBanner.tsx` | `key={index}` remplacé par une clé stable préfixée par copie (`a-/b-` + `link`), la liste étant dupliquée pour le défilement. |
+| `S7723`, `S6479` ×2 | MINOR / MAJOR | `src/components/MMAResultsFeed.tsx` | `[...Array(5)]` + `key={i}` (skeleton) remplacés par une liste de clés explicites ; `key={index}` (résultats) remplacé par `key={result.link}`. |
+| `S3358`, `S7735` | MAJOR / MINOR | `src/components/NotificationsPopover.tsx` | Ternaire imbriqué (chargement / vide / liste) extrait dans `renderNotifications()` ; condition négée `!notification.read ? … : ""` inversée. |
+| `S7735`, `S4325` | MINOR | `src/components/NutritionTracker.tsx` | Condition `quantity !== 100 ? … : …` inversée ; `setMealType(v as any)` typé via l'alias `MealType`. |
+| `S7773` ×2 | MINOR | `src/pages/Onboarding.tsx` | `parseFloat`/`parseInt` remplacés par `Number.parseFloat`/`Number.parseInt` (radix 10 ajouté). |
+
+> Audit hostile complémentaire : deux `key={i}` repérés dans `MeuteCard.tsx` (l. 93) et `Onboarding.tsx` (l. 488) ont été vérifiés — `i` y est la **valeur de l'élément** (`[1,2,3]`, nom de blessure), non l'index : clés stables, hors périmètre S6479, laissées en l'état.
+
+**Résultat** : `tsc` OK, `eslint` OK (fichiers modifiés), build OK, 378 tests passants. Aucune régression.
+
 ---
 
 ## 3. Dette de test connue (préexistante)
@@ -146,6 +171,7 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 | Après session 2 | 378 | 11 (préexistants) | 4 |
 | Après session 3 | 378 | 11 (préexistants) | 4 |
 | Après session 4 | 378 | 11 (préexistants) | 4 |
+| Après session 5 | 378 | 11 (préexistants) | 4 |
 
 ---
 

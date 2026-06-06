@@ -139,6 +139,76 @@ export const NotificationsPopover = () => {
     }
   };
 
+  const renderNotifications = () => {
+    if (loading) {
+      return (
+        <div className="p-8 text-center text-muted-foreground">
+          Chargement...
+        </div>
+      );
+    }
+    if (notifications.length === 0) {
+      return (
+        <div className="p-8 text-center text-muted-foreground">
+          <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
+          <p>Aucune notification</p>
+        </div>
+      );
+    }
+    return (
+      <div className="divide-y divide-border">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`p-4 hover:bg-muted/50 transition-colors ${
+              notification.read ? "" : "bg-accent/10"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">
+                {getNotificationIcon(notification.type)}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {notification.message}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(notification.created_at), {
+                    addSuffix: true,
+                    locale: fr,
+                  })}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                {!notification.read && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => markAsRead(notification.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => deleteNotification(notification.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -166,67 +236,7 @@ export const NotificationsPopover = () => {
           )}
         </div>
         <ScrollArea className="h-[400px]">
-          {loading ? (
-            <div className="p-8 text-center text-muted-foreground">
-              Chargement...
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Aucune notification</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 hover:bg-muted/50 transition-colors ${
-                    !notification.read ? "bg-accent/10" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">
-                      {getNotificationIcon(notification.type)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm mb-1">
-                        {notification.title}
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(notification.created_at), {
-                          addSuffix: true,
-                          locale: fr,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      {!notification.read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => markAsRead(notification.id)}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => deleteNotification(notification.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderNotifications()}
         </ScrollArea>
       </PopoverContent>
     </Popover>

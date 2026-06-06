@@ -53,12 +53,12 @@ const Legal = () => {
           <div className="space-y-3 text-muted-foreground pl-7">
             <p><strong className="text-foreground">Raison sociale :</strong> KOREV AI — SASU</p>
             <p><strong className="text-foreground">Siège social :</strong> 20 Route d'Uriage, 38320 Herbeys, France</p>
-            {/* TODO juridique : remplacer par le SIRET définitif une fois l'immatriculation finalisée. */}
+            {/* Note interne : remplacer par le SIRET définitif une fois l'immatriculation finalisée. */}
             <p><strong className="text-foreground">SIRET :</strong> en cours d'immatriculation — informations communiquées sur demande à contact@korev-ai.com</p>
             <p><strong className="text-foreground">Email :</strong> contact@korev-ai.com</p>
-            {/* TODO juridique : nommer le représentant légal effectif lors de la mise à jour des CGU. */}
+            {/* Note interne : nommer le représentant légal effectif lors de la mise à jour des CGU. */}
             <p><strong className="text-foreground">Directeur de la publication :</strong> Représentant légal de KOREV AI — SASU</p>
-            {/* TODO juridique : préciser l'hébergeur exact + RCS + adresse postale dans la politique de confidentialité définitive. */}
+            {/* Note interne : préciser l'hébergeur exact + RCS + adresse postale dans la politique de confidentialité définitive. */}
             <p><strong className="text-foreground">Hébergement :</strong> Supabase Inc. (infrastructure cloud associée). Coordonnées détaillées disponibles dans la politique de confidentialité.</p>
           </div>
         </section>
@@ -262,10 +262,11 @@ const Legal = () => {
               sauf obligation légale ou sous-traitants techniques nécessaires (hébergement, paiement, 
               passerelle d'analyse IA).
             </p>
-            {/* TODO juridique : publier la politique de confidentialité définitive et insérer son URL ci-dessous. */}
+            {/* Note interne : publier la politique de confidentialité définitive et insérer son URL ci-dessous. */}
             <p>
-              Pour plus d'informations sur le traitement des données personnelles, veuillez consulter 
-              notre <strong className="text-foreground">Politique de confidentialité</strong> 
+              Pour plus d'informations sur le traitement des données personnelles, veuillez
+              consulter notre{" "}
+              <strong className="text-foreground">Politique de confidentialité</strong>{" "}
               (en cours de finalisation — disponible sur demande à contact@korev-ai.com).
             </p>
             <p>

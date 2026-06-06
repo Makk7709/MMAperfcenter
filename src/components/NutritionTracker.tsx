@@ -31,7 +31,8 @@ export const NutritionTracker = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Form states
-  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
+  type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  const [mealType, setMealType] = useState<MealType>('breakfast');
   const [foodName, setFoodName] = useState('');
   // Base macros per 100g (from API or manual)
   const [base, setBase] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
@@ -80,7 +81,7 @@ export const NutritionTracker = () => {
     await addNutritionLog({
       date: new Date().toISOString().split('T')[0],
       meal_type: mealType,
-      food_name: quantity !== 100 ? `${foodName} (${quantity}g)` : foodName,
+      food_name: quantity === 100 ? foodName : `${foodName} (${quantity}g)`,
       calories: computed.calories,
       protein_g: computed.protein,
       carbs_g: computed.carbs,
@@ -230,7 +231,7 @@ export const NutritionTracker = () => {
                 {/* Repas */}
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">Repas</Label>
-                  <Select value={mealType} onValueChange={(v) => setMealType(v as any)}>
+                  <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="breakfast">🌅 Petit-déjeuner</SelectItem>

@@ -40,8 +40,11 @@ export const MMANewsBanner = () => {
     return null;
   }
 
-  // Duplicate results for seamless loop
-  const displayResults = [...results, ...results];
+  // Duplicate results for seamless loop (clé stable préfixée par copie)
+  const displayResults = [
+    ...results.map((r) => ({ ...r, loopKey: `a-${r.link}` })),
+    ...results.map((r) => ({ ...r, loopKey: `b-${r.link}` })),
+  ];
 
   return (
     <div className="bg-card border-y border-border/50 overflow-hidden relative">
@@ -50,9 +53,9 @@ export const MMANewsBanner = () => {
       
       <div className="relative py-3">
         <div className="animate-scroll-left flex gap-8 whitespace-nowrap">
-          {displayResults.map((result, index) => (
+          {displayResults.map((result) => (
             <a
-              key={index}
+              key={result.loopKey}
               href={result.link}
               target="_blank"
               rel="noopener noreferrer"

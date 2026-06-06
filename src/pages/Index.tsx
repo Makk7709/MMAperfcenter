@@ -22,7 +22,6 @@ import {
   Star,
   Zap
 } from "lucide-react";
-import heroImage from "@/assets/mma-fighter-hero.jpg";
 
 const Index = () => {
   const { user, signOut } = useAuth();

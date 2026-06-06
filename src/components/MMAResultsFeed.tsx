@@ -69,8 +69,8 @@ export const MMAResultsFeed = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="space-y-2">
+          {["s1", "s2", "s3", "s4", "s5"].map((id) => (
+            <div key={id} className="space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-full" />
               <Skeleton className="h-3 w-1/2" />
@@ -111,9 +111,9 @@ export const MMAResultsFeed = () => {
       <CardContent>
         <ScrollArea className="h-[500px] pr-4">
           <div className="space-y-4">
-            {results.map((result, index) => (
+            {results.map((result) => (
               <a
-                key={index}
+                key={result.link}
                 href={result.link}
                 target="_blank"
                 rel="noopener noreferrer"

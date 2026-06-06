@@ -141,8 +141,8 @@ export default function Onboarding() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const num = (v: string) => v ? parseFloat(v) : null;
-      const int = (v: string) => v ? parseInt(v) : null;
+      const num = (v: string) => v ? Number.parseFloat(v) : null;
+      const int = (v: string) => v ? Number.parseInt(v, 10) : null;
       const payload: any = {
         full_name: formData.full_name,
         gender: formData.gender,
