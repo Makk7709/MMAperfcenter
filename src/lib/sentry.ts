@@ -15,7 +15,7 @@ export function initSentry() {
     environment: ENV,
     tracesSampleRate: ENV === "production" ? 0.1 : 0,
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: ENV === "production" ? 1.0 : 0,
+    replaysOnErrorSampleRate: ENV === "production" ? 1 : 0,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
@@ -29,4 +29,4 @@ export function initSentry() {
   });
 }
 
-export { Sentry };
+export * as Sentry from "@sentry/react";

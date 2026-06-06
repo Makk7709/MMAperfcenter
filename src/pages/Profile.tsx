@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, User, Save, Trophy, Heart, Moon, Target, Dumbbell } from "lucide-react";
+import { ArrowLeft, User, Save, Heart, Moon, Target, Dumbbell } from "lucide-react";
 
 const GOALS = [
   { value: "perte-poids", label: "Perdre du poids", icon: "⚖️" },
@@ -95,8 +95,8 @@ const Profile = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const num = (v: string) => v ? parseFloat(v) : null;
-    const int = (v: string) => v ? parseInt(v) : null;
+    const num = (v: string) => v ? Number.parseFloat(v) : null;
+    const int = (v: string) => v ? Number.parseInt(v, 10) : null;
     const updates: Partial<ProfileType> = {
       full_name: formData.full_name || null,
       weight: num(formData.weight),

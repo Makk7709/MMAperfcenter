@@ -50,8 +50,7 @@ export const PaywallDialog = ({
             Cette fonctionnalité est réservée aux utilisateurs du plan{' '}
             <span className="font-semibold text-foreground">
               {PLAN_NAMES[requiredPlan]}
-            </span>
-            .
+            </span>.
           </DialogDescription>
         </DialogHeader>
 

@@ -129,7 +129,7 @@ const Pricing = () => {
           </p>
           
           <div className="flex items-center justify-center gap-4 mb-8">
-            <Label htmlFor="billing-toggle" className={!isYearly ? 'font-semibold' : ''}>
+            <Label htmlFor="billing-toggle" className={isYearly ? '' : 'font-semibold'}>
               Mensuel
             </Label>
             <Switch
@@ -193,8 +193,8 @@ const Pricing = () => {
 
                 <CardContent>
                   <ul className="space-y-3">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
                         <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                         <span className="text-sm">{feature}</span>
                       </li>

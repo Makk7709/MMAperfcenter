@@ -42,6 +42,15 @@ Chaque lot d'anomalies suit le même cycle :
 | `S7723` (constructeur `Array()`) | Remplacement de `[...Array(n)]` par une liste de clés stables explicites (placeholders) ou `Array.from`. |
 | `S1135` (tags `TODO`) | Reformulation en note neutre lorsque l'information de contexte doit être conservée (sans masquer une tâche réellement faite). |
 | `S6772` (espacement inline ambigu) | Espaces autour d'un élément inline (`<strong>`…) rendus explicites via `{" "}`. |
+| `S7770` (composant JSX en PascalCase) | Composant tiré d'une propriété en minuscule (`Meta.icon`) réassigné à une variable PascalCase (`MetaIcon`) avant rendu JSX. |
+| `S6353` (classe de caractères concise) | `[0-9]` remplacé par `\d` dans les regex. |
+| `S4138` (boucle `for` simple) | Boucle `for (let i=0; …; i++)` itérant linéairement remplacée par `for…of`. |
+| `S6478` (composant React imbriqué) | Définition de composant remontée au niveau module ; dépendances passées en props (ex. `onWorkoutComplete`). |
+| `S7722` (message d'erreur vide) | `new Error('')` remplacé par un message signifiant (ex. `HTTP 429`), sans impact sur la logique testée. |
+| `S6660` (`if` seul dans un `else`) | `else { if … }` converti en `else if`, ou gardes remplacées par du chaînage optionnel (`cb?.()`). |
+| `S7764` (`globalThis`) | `window`/`global`/`self` remplacés par `globalThis` (cast `as any` conservé uniquement pour les API préfixées non typées comme `webkitAudioContext`). |
+| `S7748` (littéral numérique) | Fraction nulle superflue retirée (`1.0` → `1`). |
+| `S7763` (ré-export) | `import X … ; export { X }` remplacé par `export … from "…"` (`export * as Sentry from …`, `export { toast } from "sonner"`). |
 
 ---
 
@@ -159,6 +168,32 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 
 **Résultat** : `tsc` OK, `eslint` OK (fichiers modifiés), build OK, 378 tests passants. Aucune régression.
 
+### Session 6 — 2026-06-06 — Tarification, timer, retry, outillage de test
+
+> **Note** : l'anomalie S7773 sur `Onboarding.tsx` (l. 145) figurant dans le lot était **déjà corrigée en session 5** (scan Sonar antérieur au push). Revérifié : `Onboarding`, `Profile` et `RoundTimer` utilisent désormais `Number.parseInt/parseFloat`.
+
+| Règle | Sév. | Fichier | Correction |
+|---|---|---|---|
+| `S7770` | MINOR | `src/pages/Onboarding.tsx` | `<Meta.icon …>` (propriété minuscule) réassigné à `MetaIcon` (PascalCase) avant rendu. |
+| `S6772` | MAJOR | `src/components/PaywallDialog.tsx` | Point final collé à `</span>` (suppression de l'espacement ambigu après l'élément inline). |
+| `S3776`, `S1854`, `S6353`, `S4138` | CRITICAL→MINOR | `src/components/PDFExportButton.tsx` | Rendu ligne par ligne extrait en helpers module (`addPageIfNeeded`, `renderHeading`, `renderBullet`, `renderParagraph`, prédicats `isHeadingLine`/`isBulletLine`) → complexité ramenée sous le seuil ; assignation morte `yPosition = 20` retirée ; `[0-9]` → `\d` ; boucle `for` (i=0) → `for…of`. |
+| `S7735`, `S6479` | MINOR / MAJOR | `src/pages/Pricing.tsx` | Condition `!isYearly` inversée ; `key={idx}` → `key={feature}`. |
+| `S1128`, `S6479`, `S3358` | MINOR→MAJOR | `src/components/PricingCard.tsx` | Import `Lock` inutilisé retiré ; `key={index}` → `key={feature}` ; ternaire imbriqué du libellé CTA extrait dans `getCtaLabel()`. |
+| `S1128`, `S7773` ×2 | MINOR | `src/pages/Profile.tsx` | Import `Trophy` inutilisé retiré ; `parseFloat`/`parseInt` → `Number.parseFloat`/`Number.parseInt` (radix 10). |
+| `S6478`, `S6479` ×2 | MAJOR | `src/components/QuickActions.tsx` | `WorkoutButton` remonté au niveau module (prop `onWorkoutComplete`) ; deux `key={index}` → `key={action.title}`. |
+| `S6479` | MAJOR | `src/components/QuickStatsCards.tsx` | `key={index}` → `key={stat.title}` (titres uniques). |
+| `S7722` ×8 | MINOR | `src/utils/retryWithBackoff.test.ts` | `new Error('')` remplacés par des messages signifiants (`HTTP 4xx/5xx`) ; logique de test inchangée (basée sur `.status`). |
+| `S3776`, `S4325` | CRITICAL→MINOR | `src/utils/retryWithBackoff.ts` | Gestion du timeout extraite (`applyTimeout`) et gardes de callbacks (`onSuccess`/`onFailure`/`onRetry`) remplacées par du chaînage optionnel → complexité ramenée sous le seuil ; assertion `result.data!` retirée (redondante, `strictNullChecks` off). |
+| `S1854`, `S6660`, `S7764` ×2, `S7773` ×3, `S6479`, `S3358` ×3, `S7735` | MAJOR→MINOR | `src/components/RoundTimer.tsx` | `audioRef`/`useRef` morts retirés ; `else { if }` → `else if` ; `window`→`globalThis` (×2) ; 3 `parseInt` → `Number.parseInt(…,10)` ; dots via `roundDots` (clés stables) + `getDotClass()` ; couleur timer via `getTimerColorClass()` ; ternaire de contrôle `!isRunning` inversé. |
+| `S7748`, `S7763` | MINOR | `src/lib/sentry.ts` | `1.0` → `1` ; `export { Sentry }` → `export * as Sentry from "@sentry/react"`. |
+| `S7764` ×4, `S6660` | MINOR / MAJOR | `src/test/setup.ts` | `global.*` → `globalThis.*` (Resize/Intersection Observer, `URL`) ; `else { if }` du mock vidéo remplacé par du chaînage optionnel. |
+| `S7764` ×2 | MINOR | `src/components/ui/sidebar.tsx` | Primitive shadcn **importée nulle part** (vérifié) → supprimée comme code mort (~760 lignes) plutôt que de corriger 2 `window`. |
+| `S7763` | MINOR | `src/components/ui/sonner.tsx` | `import { toast } ; export { toast }` → `export { toast } from "sonner"` ; `Toaster` conservé en ré-export local. |
+
+> Audit hostile complémentaire : deux `parseFloat`/`parseInt` globaux non listés ont été corrigés par cohérence (`src/pages/WorkoutJournal.tsx` l. 367, `src/hooks/useGamification.tsx` l. 102). Les `any` restants signalés par ESLint (`retryWithBackoff.ts` l. 41/295, `RoundTimer.tsx` l. 64 `webkitAudioContext`) sont **préexistants** (dette `no-explicit-any` déjà répertoriée), non introduits par cette session.
+
+**Résultat** : `tsc` OK, build OK, 378 tests passants (le `retryWithBackoff.test.ts` modifié reste vert). Aucune régression.
+
 ---
 
 ## 3. Dette de test connue (préexistante)
@@ -172,6 +207,7 @@ Dépendances retirées de `package.json` : `embla-carousel-react`, `react-day-pi
 | Après session 3 | 378 | 11 (préexistants) | 4 |
 | Après session 4 | 378 | 11 (préexistants) | 4 |
 | Après session 5 | 378 | 11 (préexistants) | 4 |
+| Après session 6 | 378 | 11 (préexistants) | 4 |
 
 ---
 

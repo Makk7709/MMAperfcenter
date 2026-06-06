@@ -9,6 +9,80 @@ interface PDFExportButtonProps {
   title?: string;
 }
 
+interface PdfLayout {
+  margin: number;
+  contentWidth: number;
+  lineHeight: number;
+}
+
+const isHeadingLine = (line: string) =>
+  line.startsWith("##") || line.startsWith("**") || /^\d+[.):]\s/.test(line);
+
+const isBulletLine = (line: string) =>
+  line.startsWith("-") || line.startsWith("•") || line.startsWith("*");
+
+// Ajoute une nouvelle page (avec en-tête) si l'espace vertical est insuffisant.
+// Renvoie la position Y à utiliser ensuite.
+const addPageIfNeeded = (doc: jsPDF, y: number, pageWidth: number, pageHeight: number): number => {
+  if (y <= pageHeight - 30) return y;
+  doc.addPage();
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 0, pageWidth, 15, "F");
+  doc.setTextColor(234, 179, 8);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("KOREV AI", 15, 10);
+  return 25;
+};
+
+const renderHeading = (doc: jsPDF, line: string, layout: PdfLayout, y: number): number => {
+  doc.setFillColor(248, 248, 248);
+  doc.roundedRect(layout.margin - 2, y - 4, layout.contentWidth + 4, 8, 1, 1, "F");
+  doc.setTextColor(234, 179, 8);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  const cleanLine = line.replace(/^[#*]+\s*/, "").replace(/\*\*/g, "");
+  const splitLines = doc.splitTextToSize(cleanLine, layout.contentWidth);
+  doc.text(splitLines[0], layout.margin, y);
+  let next = y + layout.lineHeight + 2;
+  for (const splitLine of splitLines.slice(1)) {
+    doc.text(splitLine, layout.margin, next);
+    next += layout.lineHeight;
+  }
+  return next;
+};
+
+const renderBullet = (doc: jsPDF, line: string, layout: PdfLayout, y: number): number => {
+  doc.setTextColor(234, 179, 8);
+  doc.setFontSize(10);
+  doc.text("●", layout.margin, y);
+  doc.setTextColor(60, 60, 60);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const bulletContent = line.replace(/^[-•*]\s*/, "").replace(/\*\*/g, "");
+  const splitLines = doc.splitTextToSize(bulletContent, layout.contentWidth - 8);
+  let next = y;
+  for (const splitLine of splitLines) {
+    doc.text(splitLine, layout.margin + 6, next);
+    next += layout.lineHeight;
+  }
+  return next;
+};
+
+const renderParagraph = (doc: jsPDF, line: string, layout: PdfLayout, y: number): number => {
+  doc.setTextColor(60, 60, 60);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const cleanLine = line.replace(/\*\*/g, "");
+  const splitLines = doc.splitTextToSize(cleanLine, layout.contentWidth);
+  let next = y;
+  for (const splitLine of splitLines) {
+    doc.text(splitLine, layout.margin, next);
+    next += layout.lineHeight;
+  }
+  return next;
+};
+
 export const PDFExportButton = ({ content, title = "Programme d'entraînement" }: PDFExportButtonProps) => {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -89,80 +163,25 @@ export const PDFExportButton = ({ content, title = "Programme d'entraînement" }
 
       // Parse and format content
       const lines = content.split("\n");
+      const layout: PdfLayout = { margin, contentWidth, lineHeight: 6 };
       let yPosition = 90;
-      const lineHeight = 6;
 
       for (const line of lines) {
         const trimmedLine = line.trim();
-        
-        // Check if we need a new page
-        if (yPosition > pageHeight - 30) {
-          doc.addPage();
-          yPosition = 20;
-          
-          // Add header on new pages
-          doc.setFillColor(15, 15, 15);
-          doc.rect(0, 0, pageWidth, 15, "F");
-          doc.setTextColor(234, 179, 8);
-          doc.setFontSize(10);
-          doc.setFont("helvetica", "bold");
-          doc.text("KOREV AI", 15, 10);
-          yPosition = 25;
-        }
+
+        yPosition = addPageIfNeeded(doc, yPosition, pageWidth, pageHeight);
 
         if (!trimmedLine) {
-          yPosition += lineHeight / 2;
+          yPosition += layout.lineHeight / 2;
           continue;
         }
 
-        // Format headers (lines starting with # or all caps or numbered sections)
-        if (trimmedLine.startsWith("##") || trimmedLine.startsWith("**") || /^[0-9]+[.):]\s/.test(trimmedLine)) {
-          doc.setFillColor(248, 248, 248);
-          doc.roundedRect(margin - 2, yPosition - 4, contentWidth + 4, 8, 1, 1, "F");
-          
-          doc.setTextColor(234, 179, 8);
-          doc.setFontSize(12);
-          doc.setFont("helvetica", "bold");
-          const cleanLine = trimmedLine.replace(/^[#*]+\s*/, "").replace(/\*\*/g, "");
-          const splitLines = doc.splitTextToSize(cleanLine, contentWidth);
-          doc.text(splitLines[0], margin, yPosition);
-          yPosition += lineHeight + 2;
-          
-          // Handle remaining split lines
-          for (let i = 1; i < splitLines.length; i++) {
-            doc.text(splitLines[i], margin, yPosition);
-            yPosition += lineHeight;
-          }
-        }
-        // Format bullet points
-        else if (trimmedLine.startsWith("-") || trimmedLine.startsWith("•") || trimmedLine.startsWith("*")) {
-          doc.setTextColor(234, 179, 8);
-          doc.setFontSize(10);
-          doc.text("●", margin, yPosition);
-          
-          doc.setTextColor(60, 60, 60);
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          const bulletContent = trimmedLine.replace(/^[-•*]\s*/, "").replace(/\*\*/g, "");
-          const splitLines = doc.splitTextToSize(bulletContent, contentWidth - 8);
-          
-          for (let i = 0; i < splitLines.length; i++) {
-            doc.text(splitLines[i], margin + 6, yPosition);
-            yPosition += lineHeight;
-          }
-        }
-        // Regular text
-        else {
-          doc.setTextColor(60, 60, 60);
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          const cleanLine = trimmedLine.replace(/\*\*/g, "");
-          const splitLines = doc.splitTextToSize(cleanLine, contentWidth);
-          
-          for (const splitLine of splitLines) {
-            doc.text(splitLine, margin, yPosition);
-            yPosition += lineHeight;
-          }
+        if (isHeadingLine(trimmedLine)) {
+          yPosition = renderHeading(doc, trimmedLine, layout, yPosition);
+        } else if (isBulletLine(trimmedLine)) {
+          yPosition = renderBullet(doc, trimmedLine, layout, yPosition);
+        } else {
+          yPosition = renderParagraph(doc, trimmedLine, layout, yPosition);
         }
       }
 

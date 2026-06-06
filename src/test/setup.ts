@@ -11,7 +11,7 @@ class ResizeObserverMock {
   disconnect = vi.fn();
 }
 
-global.ResizeObserver = ResizeObserverMock as any;
+globalThis.ResizeObserver = ResizeObserverMock as any;
 
 // ============================================
 // INTERSECTION OBSERVER MOCK
@@ -26,7 +26,7 @@ class IntersectionObserverMock {
   thresholds = [];
 }
 
-global.IntersectionObserver = IntersectionObserverMock as any;
+globalThis.IntersectionObserver = IntersectionObserverMock as any;
 
 // ============================================
 // MOCK CONFIG - Global state for video mock
@@ -62,8 +62,8 @@ export function resetMockVideoConfig() {
 // URL MOCKS
 // ============================================
 
-global.URL.createObjectURL = vi.fn(() => 'blob:mock-url-' + Math.random());
-global.URL.revokeObjectURL = vi.fn();
+globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url-' + Math.random());
+globalThis.URL.revokeObjectURL = vi.fn();
 
 // ============================================
 // CANVAS MOCK
@@ -149,13 +149,9 @@ Object.defineProperty(HTMLVideoElement.prototype, 'src', {
     
     setTimeout(() => {
       if (mockConfig.shouldError) {
-        if (callbacks.onerror) {
-          callbacks.onerror(new Error('Mock video error'));
-        }
+        callbacks.onerror?.(new Error('Mock video error'));
       } else {
-        if (callbacks.onloadedmetadata) {
-          callbacks.onloadedmetadata();
-        }
+        callbacks.onloadedmetadata?.();
       }
     }, 5);
   },

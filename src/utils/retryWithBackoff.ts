@@ -168,6 +168,19 @@ function createTimeoutPromise(ms: number): Promise<never> {
 }
 
 /**
+ * Encapsule une promesse dans une course contre un timeout si `timeoutMs` est
+ * défini. Lève synchroniquement si le délai restant est déjà épuisé.
+ */
+function applyTimeout<T>(promise: Promise<T>, timeoutMs: number | undefined, startTime: number): Promise<T> {
+  if (!timeoutMs) return promise;
+  const remainingTime = timeoutMs - (Date.now() - startTime);
+  if (remainingTime <= 0) {
+    throw new Error('Operation timed out');
+  }
+  return Promise.race([promise, createTimeoutPromise(remainingTime)]) as Promise<T>;
+}
+
+/**
  * Sleep for specified duration
  */
 function sleep(ms: number): Promise<void> {
@@ -203,28 +216,10 @@ export async function retryWithBackoff<T>(
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Create the main promise
-      let resultPromise = fn();
-      
-      // Add timeout if specified
-      if (timeoutMs) {
-        const remainingTime = timeoutMs - (Date.now() - startTime);
-        if (remainingTime <= 0) {
-          throw new Error('Operation timed out');
-        }
-        resultPromise = Promise.race([
-          resultPromise,
-          createTimeoutPromise(remainingTime),
-        ]) as Promise<T>;
-      }
-      
-      const result = await resultPromise;
-      
-      // Success!
-      if (onSuccess) {
-        onSuccess(result, attempt);
-      }
-      
+      const result = await applyTimeout(fn(), timeoutMs, startTime);
+
+      onSuccess?.(result, attempt);
+
       return {
         success: true,
         data: result,
@@ -232,21 +227,19 @@ export async function retryWithBackoff<T>(
         errors,
         elapsedMs: Date.now() - startTime,
       };
-      
+
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       errors.push(err);
-      
+
       // Check if we should retry
       const isLastAttempt = attempt >= maxRetries;
       const canRetry = !isLastAttempt && shouldRetry(err, attempt);
-      
+
       if (!canRetry) {
         // Final failure
-        if (onFailure) {
-          onFailure(errors, attempt);
-        }
-        
+        onFailure?.(errors, attempt);
+
         return {
           success: false,
           attempts: attempt,
@@ -255,7 +248,7 @@ export async function retryWithBackoff<T>(
           elapsedMs: Date.now() - startTime,
         };
       }
-      
+
       // Calculate delay for next attempt
       const delay = calculateDelay(
         attempt,
@@ -264,12 +257,9 @@ export async function retryWithBackoff<T>(
         maxDelayMs,
         jitter
       );
-      
-      // Call onRetry callback
-      if (onRetry) {
-        onRetry(attempt, err, delay);
-      }
-      
+
+      onRetry?.(attempt, err, delay);
+
       // Wait before next attempt
       await sleep(delay);
     }
@@ -322,7 +312,7 @@ export async function fetchWithRetry(
     throw result.finalError || new Error('Fetch failed after retries');
   }
   
-  return result.data!;
+  return result.data;
 }
 
 export default {

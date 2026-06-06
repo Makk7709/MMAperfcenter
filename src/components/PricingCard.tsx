@@ -1,4 +1,4 @@
-import { Check, Lock } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -30,6 +30,12 @@ export const PricingCard = ({
   const savings = billingPeriod === 'yearly' && monthlyPrice > 0
     ? Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
     : 0;
+
+  const getCtaLabel = () => {
+    if (isCurrentPlan) return 'Plan actuel';
+    if (price === 0) return 'Commencer gratuitement';
+    return "S'abonner";
+  };
 
   return (
     <Card className={`relative ${isPopular ? 'border-primary shadow-lg' : ''} ${isCurrentPlan ? 'border-primary bg-primary/5' : ''}`}>
@@ -64,8 +70,8 @@ export const PricingCard = ({
 
       <CardContent>
         <ul className="space-y-3">
-          {features.map((feature, index) => (
-            <li key={index} className="flex items-start gap-2">
+          {features.map((feature) => (
+            <li key={feature} className="flex items-start gap-2">
               <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <span className="text-sm">{feature}</span>
             </li>
@@ -80,7 +86,7 @@ export const PricingCard = ({
           onClick={onSubscribe}
           disabled={isCurrentPlan && price > 0}
         >
-          {isCurrentPlan ? 'Plan actuel' : price === 0 ? 'Commencer gratuitement' : 'S\'abonner'}
+          {getCtaLabel()}
         </Button>
       </CardFooter>
     </Card>

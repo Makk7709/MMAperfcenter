@@ -196,6 +196,7 @@ export default function Onboarding() {
   ];
 
   const Meta = stepMeta[step - 1];
+  const MetaIcon = Meta.icon;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
@@ -224,7 +225,7 @@ export default function Onboarding() {
         <Card className="border-primary/20 bg-card/95 backdrop-blur-sm shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Meta.icon className="h-5 w-5 text-primary" /> {Meta.title}
+              <MetaIcon className="h-5 w-5 text-primary" /> {Meta.title}
             </CardTitle>
             <CardDescription>{Meta.desc}</CardDescription>
           </CardHeader>

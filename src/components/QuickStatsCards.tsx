@@ -132,11 +132,11 @@ export const QuickStatsCards = () => {
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {statsData.map((stat, index) => {
+        {statsData.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card
-              key={index}
+              key={stat.title}
               className="liquid-glass-solid border-0 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
             >
               <CardContent className="p-4">

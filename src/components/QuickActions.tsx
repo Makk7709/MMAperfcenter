@@ -21,6 +21,27 @@ interface QuickActionsProps {
   onSwitchTab?: (tab: string) => void;
 }
 
+// Bouton "Workout" couplé à WorkoutManager. Défini au niveau module pour ne pas
+// redéclarer un composant à chaque rendu du parent.
+const WorkoutButton = ({ onWorkoutComplete }: { onWorkoutComplete: (summary: SessionSummary) => void }) => (
+  <WorkoutManager
+    onWorkoutComplete={onWorkoutComplete}
+    trigger={
+      <Button
+        variant="default"
+        className="liquid-glass-btn group relative overflow-hidden h-24 flex-col gap-1.5 p-3 justify-center w-full cursor-pointer text-primary-foreground"
+      >
+        <span className="liquid-glass-shine" aria-hidden="true" />
+        <Dumbbell className="h-6 w-6 relative z-10 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+        <div className="text-center space-y-0.5 relative z-10">
+          <p className="text-xs font-bold leading-tight">Workout</p>
+          <p className="text-[10px] opacity-80 font-medium leading-tight">Démarrer</p>
+        </div>
+      </Button>
+    }
+  />
+);
+
 export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const { addNutritionLog } = useNutrition();
@@ -83,29 +104,6 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
     }
   ] as const;
 
-  // Workout button with WorkoutManager
-  const WorkoutButton = () => {
-    const Icon = Dumbbell;
-    return (
-      <WorkoutManager
-        onWorkoutComplete={handleWorkoutComplete}
-        trigger={
-          <Button
-            variant="default"
-            className="liquid-glass-btn group relative overflow-hidden h-24 flex-col gap-1.5 p-3 justify-center w-full cursor-pointer text-primary-foreground"
-          >
-            <span className="liquid-glass-shine" aria-hidden="true" />
-            <Icon className="h-6 w-6 relative z-10 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
-            <div className="text-center space-y-0.5 relative z-10">
-              <p className="text-xs font-bold leading-tight">Workout</p>
-              <p className="text-[10px] opacity-80 font-medium leading-tight">Démarrer</p>
-            </div>
-          </Button>
-        }
-      />
-    );
-  };
-
   const yellowVariants = new Set(["default", "fitness"]);
 
   return (
@@ -118,10 +116,10 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {actions.map((action, index) => {
+          {actions.map((action) => {
             // Special handling for workout button
             if ('isWorkout' in action && action.isWorkout) {
-              return <WorkoutButton key={index} />;
+              return <WorkoutButton key={action.title} onWorkoutComplete={handleWorkoutComplete} />;
             }
 
             const Icon = action.icon;
@@ -131,7 +129,7 @@ export const QuickActions = ({ onSwitchTab }: QuickActionsProps) => {
               : "liquid-glass-btn-dark";
             return (
               <Button
-                key={index}
+                key={action.title}
                 variant={action.variant}
                 className={`${glassClass} group relative overflow-hidden h-24 flex-col gap-1.5 p-3 justify-center`}
                 onClick={'onClick' in action ? action.onClick : undefined}

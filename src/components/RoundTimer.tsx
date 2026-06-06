@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,6 @@ export const RoundTimer = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isRest, setIsRest] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -47,15 +46,13 @@ export const RoundTimer = () => {
           setTimeLeft(roundDuration);
           setIsRest(false);
         }
-      } else {
+      } else if (currentRound < rounds) {
         // Fin du round, passer au repos
-        if (currentRound < rounds) {
-          setTimeLeft(restDuration);
-          setIsRest(true);
-        } else {
-          // Dernier round terminé
-          setIsRunning(false);
-        }
+        setTimeLeft(restDuration);
+        setIsRest(true);
+      } else {
+        // Dernier round terminé
+        setIsRunning(false);
       }
     }
 
@@ -64,7 +61,7 @@ export const RoundTimer = () => {
 
   const playBeep = () => {
     // Utiliser l'API Web Audio pour créer un bip
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -102,6 +99,20 @@ export const RoundTimer = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const getDotClass = (index: number) => {
+    if (index < currentRound) return "bg-primary";
+    if (index === currentRound - 1) return isRest ? "bg-accent" : "bg-primary animate-pulse";
+    return "bg-muted";
+  };
+
+  const getTimerColorClass = () => {
+    if (isRest) return "text-accent";
+    if (timeLeft <= 10 && isRunning) return "text-destructive animate-pulse";
+    return "text-primary";
+  };
+
+  const roundDots = Array.from({ length: rounds }, (_, index) => ({ id: `round-${index}`, index }));
+
   return (
     <Card className="liquid-glass-solid border-0 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -128,7 +139,7 @@ export const RoundTimer = () => {
                   min="1"
                   max="12"
                   value={rounds}
-                  onChange={(e) => setRounds(parseInt(e.target.value) || 1)}
+                  onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
                   className="bg-input border-border"
                 />
               </div>
@@ -141,7 +152,7 @@ export const RoundTimer = () => {
                   max="600"
                   value={roundDuration}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value) || 30;
+                    const val = Number.parseInt(e.target.value, 10) || 30;
                     setRoundDuration(val);
                     if (!isRunning && !isRest) setTimeLeft(val);
                   }}
@@ -156,7 +167,7 @@ export const RoundTimer = () => {
                   min="15"
                   max="300"
                   value={restDuration}
-                  onChange={(e) => setRestDuration(parseInt(e.target.value) || 15)}
+                  onChange={(e) => setRestDuration(Number.parseInt(e.target.value, 10) || 15)}
                   className="bg-input border-border"
                 />
               </div>
@@ -181,18 +192,10 @@ export const RoundTimer = () => {
             Round {currentRound} / {rounds}
           </p>
           <div className="flex gap-2 justify-center">
-            {Array.from({ length: rounds }).map((_, i) => (
+            {roundDots.map((dot) => (
               <div
-                key={i}
-                className={`h-2 w-12 rounded-full transition-colors ${
-                  i < currentRound
-                    ? "bg-primary"
-                    : i === currentRound - 1
-                    ? isRest
-                      ? "bg-accent"
-                      : "bg-primary animate-pulse"
-                    : "bg-muted"
-                }`}
+                key={dot.id}
+                className={`h-2 w-12 rounded-full transition-colors ${getDotClass(dot.index)}`}
               />
             ))}
           </div>
@@ -200,15 +203,7 @@ export const RoundTimer = () => {
 
         {/* Timer display */}
         <div className="relative">
-          <div
-            className={`text-7xl font-bold transition-all ${
-              isRest
-                ? "text-accent"
-                : timeLeft <= 10 && isRunning
-                ? "text-destructive animate-pulse"
-                : "text-primary"
-            }`}
-          >
+          <div className={`text-7xl font-bold transition-all ${getTimerColorClass()}`}>
             {formatTime(timeLeft)}
           </div>
           {isRest && (
@@ -220,16 +215,7 @@ export const RoundTimer = () => {
 
         {/* Controls */}
         <div className="flex gap-3 justify-center">
-          {!isRunning ? (
-            <Button
-              onClick={handleStart}
-              size="lg"
-              className="bg-primary hover:bg-primary/80"
-            >
-              <Play className="h-5 w-5 mr-2" />
-              Démarrer
-            </Button>
-          ) : (
+          {isRunning ? (
             <Button
               onClick={handlePause}
               size="lg"
@@ -237,6 +223,15 @@ export const RoundTimer = () => {
             >
               <Pause className="h-5 w-5 mr-2" />
               Pause
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStart}
+              size="lg"
+              className="bg-primary hover:bg-primary/80"
+            >
+              <Play className="h-5 w-5 mr-2" />
+              Démarrer
             </Button>
           )}
           <Button onClick={handleReset} size="lg" variant="outline">

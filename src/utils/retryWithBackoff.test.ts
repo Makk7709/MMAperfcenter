@@ -310,11 +310,11 @@ describe('isRetryableError', () => {
   });
 
   it('should identify errors with retryable status codes', () => {
-    const error429 = Object.assign(new Error(''), { status: 429 });
-    const error500 = Object.assign(new Error(''), { status: 500 });
-    const error502 = Object.assign(new Error(''), { status: 502 });
-    const error503 = Object.assign(new Error(''), { status: 503 });
-    const error504 = Object.assign(new Error(''), { status: 504 });
+    const error429 = Object.assign(new Error('HTTP 429'), { status: 429 });
+    const error500 = Object.assign(new Error('HTTP 500'), { status: 500 });
+    const error502 = Object.assign(new Error('HTTP 502'), { status: 502 });
+    const error503 = Object.assign(new Error('HTTP 503'), { status: 503 });
+    const error504 = Object.assign(new Error('HTTP 504'), { status: 504 });
     
     expect(isRetryableError(error429)).toBe(true);
     expect(isRetryableError(error500)).toBe(true);
@@ -324,9 +324,9 @@ describe('isRetryableError', () => {
   });
 
   it('should not identify non-retryable status codes', () => {
-    const error400 = Object.assign(new Error(''), { status: 400 });
-    const error401 = Object.assign(new Error(''), { status: 401 });
-    const error404 = Object.assign(new Error(''), { status: 404 });
+    const error400 = Object.assign(new Error('HTTP 400'), { status: 400 });
+    const error401 = Object.assign(new Error('HTTP 401'), { status: 401 });
+    const error404 = Object.assign(new Error('HTTP 404'), { status: 404 });
     
     expect(isRetryableError(error400)).toBe(false);
     expect(isRetryableError(error401)).toBe(false);

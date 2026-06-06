@@ -99,7 +99,7 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
       const storedXP = localStorage.getItem(`gamification_xp_${user.id}`);
       const storedBadges = localStorage.getItem(`gamification_badges_${user.id}`);
       
-      const totalXP = storedXP ? parseInt(storedXP, 10) : 0;
+      const totalXP = storedXP ? Number.parseInt(storedXP, 10) : 0;
       const unlockedBadges = storedBadges ? JSON.parse(storedBadges) : [];
 
       // Calculate streak from workout dates

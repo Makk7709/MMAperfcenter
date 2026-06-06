@@ -364,7 +364,7 @@ function JournalDialog({
             <Input
               type="number" step="0.1" placeholder="Optionnel"
               value={formData.weight_kg ?? ""}
-              onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value ? parseFloat(e.target.value) : undefined })}
+              onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value ? Number.parseFloat(e.target.value) : undefined })}
               className="mt-1.5"
             />
           </div>
