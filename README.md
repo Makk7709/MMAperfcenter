@@ -39,7 +39,7 @@ cp .env.example .env  # remplir les valeurs
 npm run dev
 ```
 
-Application accessible sur http://localhost:8080.
+Application accessible sur <http://localhost:8080>.
 
 ## Variables d'environnement
 
@@ -87,7 +87,7 @@ jamais figurer dans le dépôt ni dans le bundle.
 
 ## Structure du dépôt
 
-```
+```text
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
   functions/          Edge Functions Deno (8 fonctions + _shared)
@@ -100,6 +100,19 @@ docs/audit/           Documentation d'audit et de gouvernance
 ```
 
 ## Documentation
+
+Index complet : [`docs/README.md`](docs/README.md)
+
+**Opérationnelle et utilisateur :**
+
+- [`docs/user/MANUEL_UTILISATEUR.md`](docs/user/MANUEL_UTILISATEUR.md) — manuel utilisateur
+- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) — architecture système
+- [`docs/architecture/DATABASE.md`](docs/architecture/DATABASE.md) — schéma base de données
+- [`docs/architecture/EDGE_FUNCTIONS.md`](docs/architecture/EDGE_FUNCTIONS.md) — Edge Functions
+- [`docs/development/DEVELOPMENT.md`](docs/development/DEVELOPMENT.md) — guide de développement
+- [`docs/development/DEPLOYMENT.md`](docs/development/DEPLOYMENT.md) — guide de déploiement
+
+**Audit et gouvernance :**
 
 - `docs/audit/PROJECT_DOCUMENTATION_STANDARD.md` — documentation technique standardisée
 - `docs/audit/SCHEMA_DRIFT.md` — matrice types/migrations
