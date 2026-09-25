@@ -73,19 +73,9 @@ export const useSubscription = () => {
 
       if (error && error.code !== 'PGRST116') throw error;
       
-      // Si pas d'abonnement, créer un compte free
-      if (!data) {
-        const { data: newSub, error: createError } = await supabase
-          .from('subscriptions')
-          .insert({ user_id: user?.id, plan: 'free', status: 'active' })
-          .select()
-          .single();
-        
-        if (createError) throw createError;
-        setSubscription(newSub);
-      } else {
-        setSubscription(data);
-      }
+      // La ligne est créée par le trigger d'inscription ; les écritures client
+      // sur subscriptions sont interdites. En son absence, on affiche le plan free.
+      setSubscription(data ?? { id: '', user_id: user?.id ?? '', plan: 'free', status: 'active' });
     } catch (error) {
       console.error('Error fetching subscription:', error);
       toast.error('Erreur lors du chargement de l\'abonnement');
@@ -94,34 +84,9 @@ export const useSubscription = () => {
     }
   };
 
-  const hasFeatureAccess = (feature: string): boolean => {
-    if (!subscription) return false;
-    
-    const plan = subscription.plan;
-    
-    // Free features
-    if (plan === 'free') {
-      return ['basic_training', 'hydration_log', 'limited_scan'].includes(feature);
-    }
-    
-    // Pro features
-    if (plan === 'pro') {
-      return !['ai_videos', 'advanced_recovery', 'priority_support', 'multi_athletes'].includes(feature);
-    }
-    
-    // Elite features
-    if (plan === 'elite') {
-      return !['multi_athletes', 'collective_tracking', 'pdf_export'].includes(feature);
-    }
-    
-    // Sensei has all features
-    return plan === 'sensei';
-  };
-
   return {
     subscription,
     loading,
-    hasFeatureAccess,
     refreshSubscription: fetchSubscription,
   };
 };

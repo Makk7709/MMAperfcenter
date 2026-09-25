@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Enums } from "@/integrations/supabase/types";
 
+// RLS silently filters out rows the caller may not write: an update that
+// matched nothing must be reported as a failure, not as a success.
+const assertRowsUpdated = (rows: unknown[] | null) => {
+  if (!rows || rows.length === 0) {
+    throw new Error("Modification refusée : cette action admin n'est pas encore disponible côté serveur.");
+  }
+};
+
 export interface AdminUser {
   id: string;
   email: string | null;
@@ -75,12 +83,14 @@ export const useAdminUsers = () => {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<{ full_name: string; email: string; fitness_level: string }> }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (error) throw error;
+      assertRowsUpdated(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -88,18 +98,20 @@ export const useAdminUsers = () => {
     },
     onError: (error) => {
       console.error('Update user error:', error);
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
     },
   });
 
   const suspendUserMutation = useMutation({
     mutationFn: async ({ userId, suspend }: { userId: string; suspend: boolean }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('subscriptions')
         .update({ status: suspend ? 'suspended' : 'active' })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('id');
 
       if (error) throw error;
+      assertRowsUpdated(data);
     },
     onSuccess: (_, { suspend }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -107,18 +119,20 @@ export const useAdminUsers = () => {
     },
     onError: (error) => {
       console.error('Suspend user error:', error);
-      toast.error("Erreur lors de l'opération");
+      toast.error(error instanceof Error ? error.message : "Erreur lors de l'opération");
     },
   });
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ userId, plan }: { userId: string; plan: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('subscriptions')
         .update({ plan: plan as Enums<"subscription_plan"> })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('id');
 
       if (error) throw error;
+      assertRowsUpdated(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -126,7 +140,7 @@ export const useAdminUsers = () => {
     },
     onError: (error) => {
       console.error('Update subscription error:', error);
-      toast.error("Erreur lors de la mise à jour de l'abonnement");
+      toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour de l'abonnement");
     },
   });
 

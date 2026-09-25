@@ -51,6 +51,7 @@ import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtrac
 import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
 import { convertToSignedUrl } from "@/utils/storageUtils";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { readFunctionError } from "@/lib/functionError";
 import { FeaturePaywall } from "@/components/FeaturePaywall";
 
 // Types améliorés
@@ -171,22 +172,14 @@ const validateVideoFile = (file: File): string | null => {
 };
 
 // Indique si un message d'erreur passerelle justifie une nouvelle tentative.
-const isRetryableMessage = (msg: string): boolean =>
-  msg.includes('429') || msg.includes('rate limit') || msg.includes('500') || msg.includes('timeout');
+// Only transient failures are retried. Quota (402), validation (400/413),
+// ownership (403/404) and internal errors (500) are final. `undefined`
+// means the request never got an HTTP response (network failure).
+const isRetryableStatus = (status: number | undefined): boolean =>
+  status === undefined || [429, 502, 503, 504].includes(status);
 
-// Traduit un message d'erreur technique en message utilisateur lisible.
-const friendlyAnalysisError = (errorMessage: string): string => {
-  if (errorMessage.includes('Limite') || errorMessage.includes('429')) {
-    return '🚫 Trop de requêtes. Attendez 1 minute et réessayez.';
-  }
-  if (errorMessage.includes('Crédits') || errorMessage.includes('402')) {
-    return '💳 Crédits IA insuffisants. Contactez le support.';
-  }
-  if (errorMessage.includes('volumineux') || errorMessage.includes('413')) {
-    return '📦 Vidéo trop grande. Essayez une vidéo plus courte.';
-  }
-  return `❌ ${errorMessage}`;
-};
+// Server messages are already user-facing; only prefix them.
+const friendlyAnalysisError = (errorMessage: string): string => `❌ ${errorMessage}`;
 
 // Composant Score circulaire
 const CircularScore = ({ 
@@ -553,23 +546,18 @@ export const SparringAnalysisV2 = () => {
         });
 
         if (error) {
-          const message = error.message || '';
-          if (isRetryableMessage(message)) throw new RetryableError(message);
+          const { message, status } = await readFunctionError(error, "Erreur d'analyse");
+          if (isRetryableStatus(status)) throw new RetryableError(message);
           throw new Error(message);
         }
 
-        if (!data?.success) {
-          const errorMsg = data?.error || "Erreur d'analyse";
-          if (errorMsg.includes('Limite') || errorMsg.includes('429') || errorMsg.includes('500')) {
-            throw new RetryableError(errorMsg);
-          }
-          throw new Error(errorMsg);
-        }
+        if (!data?.success) throw new Error(data?.error || "Erreur d'analyse");
 
         return data;
       },
       {
         maxRetries: 3,
+        shouldRetry: (err) => err instanceof RetryableError,
         initialDelayMs: 3000,
         backoffMultiplier: 2,
         maxDelayMs: 15000,
@@ -596,7 +584,7 @@ export const SparringAnalysisV2 = () => {
       return;
     }
 
-    // Gate accès (free = 3/mois) — incrémente le compteur côté DB
+    // Vérifie l'accès (lecture seule) ; le quota est consommé par l'Edge Function.
     const allowed = await gate();
     if (!allowed) return;
 

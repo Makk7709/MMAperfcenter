@@ -38,8 +38,8 @@ const openCoachStream = async (
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Erreur de communication avec le Coach IA");
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || "Erreur de communication avec le Coach IA");
   }
   if (!response.body) {
     throw new Error("Pas de réponse du serveur");

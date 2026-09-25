@@ -135,6 +135,10 @@ export const FEATURE_CONFIG = {
 } as const;
 
 export type FeatureKey = keyof typeof FEATURE_CONFIG;
+
+// Features whose quota is consumed by the Edge Function itself (atomic, with
+// refund on failure). The client must only read their usage, never increment it.
+const SERVER_COUNTED_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['ai_coach', 'sparring_analysis']);
 export type PlanType = 'free' | 'pro' | 'elite' | 'sensei';
 
 export const PLAN_INFO: Record<PlanType, { name: string; price: string; cta: string }> = {
@@ -242,6 +246,15 @@ export const useFeatureAccess = () => {
     if (!access.hasAccess) return { allowed: false, newUsage: access.currentUsage, access };
 
     const config = FEATURE_CONFIG[feature];
+    if (SERVER_COUNTED_FEATURES.has(feature)) {
+      // The server will consume one unit: drop the cached value so the next
+      // read reflects it.
+      setUsageCache(prev => {
+        const { [feature]: _stale, ...rest } = prev;
+        return rest;
+      });
+      return { allowed: true, newUsage: access.currentUsage + 1, access };
+    }
     if (!access.privileged && config.counted && !access.isUnlimited) {
       const newUsage = await incrementUsage(feature);
       return { allowed: true, newUsage, access };

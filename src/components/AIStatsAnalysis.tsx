@@ -3,11 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Sparkles, RefreshCw, Target, TrendingUp, Utensils, Rocket } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { consumeSSEStream } from "@/lib/sse";
 
 const ANALYSIS_ERROR_MESSAGE = "Erreur lors de l'analyse IA";
+
+// Renders **bold** segments as <strong> without ever interpreting the AI
+// output as HTML.
+const renderInline = (line: string) =>
+  line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4
+      ? <strong key={i} className="text-foreground">{part.slice(2, -2)}</strong>
+      : part
+  );
 
 // Ouvre le flux SSE de l'analyse de stats et renvoie un reader.
 // Les erreurs connues remontent un message utilisateur explicite.
@@ -17,12 +26,13 @@ const openAnalysisStream = async (
   let response: Response;
   try {
     response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-stats-analysis`,
+      `${SUPABASE_URL}/functions/v1/ai-stats-analysis`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({}),
       }
@@ -31,9 +41,10 @@ const openAnalysisStream = async (
     throw new Error(ANALYSIS_ERROR_MESSAGE);
   }
 
-  if (response.status === 429) throw new Error("Limite atteinte, réessayez dans quelques instants");
-  if (response.status === 402) throw new Error("Crédit insuffisant");
-  if (!response.ok) throw new Error(ANALYSIS_ERROR_MESSAGE);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(typeof body?.error === "string" ? body.error : ANALYSIS_ERROR_MESSAGE);
+  }
 
   const reader = response.body?.getReader();
   if (!reader) throw new Error(ANALYSIS_ERROR_MESSAGE);
@@ -110,16 +121,10 @@ export function AIStatsAnalysis() {
             {content.split("\n").map((line) => {
               if (!line.trim()) return null;
               
-              const formattedLine = line
-                .replace(/^\s*-\s*/, "• ")
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>');
-              
               return (
-                <p 
-                  key={line} 
-                  className="leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: formattedLine }}
-                />
+                <p key={line} className="leading-relaxed">
+                  {renderInline(line.replace(/^\s*-\s*/, "• "))}
+                </p>
               );
             })}
           </div>

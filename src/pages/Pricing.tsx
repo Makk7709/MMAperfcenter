@@ -9,6 +9,11 @@ import { Check, Crown, Flame, Shield, Users } from 'lucide-react';
 import { useSubscription, PLAN_FEATURES, PLAN_PRICES } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { readFunctionError } from '@/lib/functionError';
+
+// No yearly Stripe prices exist yet: enabling this without adding yearly
+// price IDs (front + CHECKOUT_PRICE_TO_PLAN) would bill the monthly price.
+const YEARLY_BILLING_ENABLED = false;
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -84,11 +89,12 @@ const Pricing = () => {
       if (error) throw error;
       
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.location.assign(data.url);
       }
     } catch (error) {
       console.error('Error creating checkout:', error);
-      toast.error('Erreur lors de la création du paiement');
+      const { message } = await readFunctionError(error, 'Erreur lors de la création du paiement');
+      toast.error(message);
     } finally {
       setLoadingCheckout(null);
     }
@@ -101,11 +107,12 @@ const Pricing = () => {
       if (error) throw error;
       
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.location.assign(data.url);
       }
     } catch (error) {
       console.error('Error opening customer portal:', error);
-      toast.error('Erreur lors de l\'ouverture du portail client');
+      const { message } = await readFunctionError(error, 'Erreur lors de l\'ouverture du portail client');
+      toast.error(message);
     }
   };
 
@@ -128,22 +135,24 @@ const Pricing = () => {
             Boostez vos performances avec l'IA
           </p>
           
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <Label htmlFor="billing-toggle" className={isYearly ? '' : 'font-semibold'}>
-              Mensuel
-            </Label>
-            <Switch
-              id="billing-toggle"
-              checked={isYearly}
-              onCheckedChange={setIsYearly}
-            />
-            <Label htmlFor="billing-toggle" className={isYearly ? 'font-semibold' : ''}>
-              Annuel
-              <Badge variant="secondary" className="ml-2">
-                -20%
-              </Badge>
-            </Label>
-          </div>
+          {YEARLY_BILLING_ENABLED && (
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <Label htmlFor="billing-toggle" className={isYearly ? '' : 'font-semibold'}>
+                Mensuel
+              </Label>
+              <Switch
+                id="billing-toggle"
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+              />
+              <Label htmlFor="billing-toggle" className={isYearly ? 'font-semibold' : ''}>
+                Annuel
+                <Badge variant="secondary" className="ml-2">
+                  -20%
+                </Badge>
+              </Label>
+            </div>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
