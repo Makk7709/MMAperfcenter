@@ -20,7 +20,7 @@
 
 import { createServiceClient, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
-import { createStripe, Stripe, syncArgs, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
+import { createStripe, Stripe, syncSubscriptionRow, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
 const log = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -78,9 +78,12 @@ Deno.serve(async (req) => {
 
       case "customer.subscription.created":
       case "customer.subscription.updated":
-      case "customer.subscription.deleted":
-        await syncSubscription(supabase, stripe, event.data.object as Stripe.Subscription, null);
+      case "customer.subscription.deleted": {
+        // Events can arrive out of order: always sync the current state.
+        const { id } = event.data.object as Stripe.Subscription;
+        await syncSubscription(supabase, stripe, await stripe.subscriptions.retrieve(id), null);
         break;
+      }
 
       default:
         log("Event type not handled", { type: event.type });
@@ -143,7 +146,6 @@ async function syncSubscription(
     throw new Error(`Could not resolve user for subscription ${sub.id}`);
   }
 
-  const { error } = await supabase.rpc("sync_stripe_subscription", syncArgs(userId, sub));
-  if (error) throw new Error(`sync_stripe_subscription failed: ${error.message}`);
-  log("Subscription synced", { userId, subscriptionId: sub.id, status: sub.status });
+  const { skipped } = await syncSubscriptionRow(supabase, userId, sub);
+  log(skipped ? "Stale subscription ignored" : "Subscription synced", { userId, subscriptionId: sub.id, status: sub.status });
 }

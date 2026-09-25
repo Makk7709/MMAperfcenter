@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     const supabase = createServiceClient();
     const user = await requireUser(supabase, req);
 
-    await consumeQuota(supabase, user.id, "ai_coach");
+    const ticket = await consumeQuota(supabase, user.id, "ai_coach");
     try {
       const systemPrompt = await buildAnalysisPrompt(supabase, user.id);
       const stream = await streamChatCompletion({
@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       });
       return streamResponse(req, stream);
     } catch (e) {
-      await refundQuota(supabase, user.id, "ai_coach");
+      await refundQuota(supabase, ticket);
       throw e;
     }
   } catch (e) {

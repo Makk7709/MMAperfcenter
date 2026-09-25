@@ -663,14 +663,14 @@ Deno.serve(async (req) => {
     const input = parseRequest(await req.json().catch(() => null));
     if (input.analysisId) await assertOwnsAnalysis(supabase, input.analysisId, user.id);
 
-    await consumeQuota(supabase, user.id, 'sparring_analysis');
+    const ticket = await consumeQuota(supabase, user.id, 'sparring_analysis');
     try {
       await updateAnalysis(supabase, input.analysisId, user.id, { status: 'processing' });
       const analysis = await runAnalysis(input);
       await updateAnalysis(supabase, input.analysisId, user.id, { analysis, status: 'completed' });
       return jsonResponse(req, { success: true, analysis });
     } catch (e) {
-      await refundQuota(supabase, user.id, 'sparring_analysis');
+      await refundQuota(supabase, ticket);
       const message = e instanceof PublicError ? e.message : "L'analyse a échoué";
       await updateAnalysis(supabase, input.analysisId, user.id, { status: 'error', analysis: { error: message } });
       throw e;

@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const messages = parseMessages(body?.messages);
 
-    await consumeQuota(supabase, user.id, "ai_coach");
+    const ticket = await consumeQuota(supabase, user.id, "ai_coach");
     try {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
       const stream = await streamChatCompletion({
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       });
       return streamResponse(req, stream);
     } catch (e) {
-      await refundQuota(supabase, user.id, "ai_coach");
+      await refundQuota(supabase, ticket);
       throw e;
     }
   } catch (e) {

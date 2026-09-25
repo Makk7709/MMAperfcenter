@@ -118,8 +118,13 @@ $$;
 -- ---- 3. Quota atomique pour les Edge Functions -----------------------------
 -- Vérifie ET consomme en une seule instruction : l'UPDATE conditionnel sous
 -- verrou de ligne empêche N requêtes parallèles de passer toutes le contrôle.
-CREATE OR REPLACE FUNCTION public.consume_feature_quota(_user_id uuid, _feature text)
-RETURNS boolean
+-- Retourne :
+--   'counted'   : une unité a été consommée (à rembourser si l'appel échoue) ;
+--   'unlimited' : accès sans décompte (admin, coach, plan illimité) ;
+--   'denied'    : pas d'accès ou quota épuisé.
+DROP FUNCTION IF EXISTS public.consume_feature_quota(uuid, text);
+CREATE FUNCTION public.consume_feature_quota(_user_id uuid, _feature text)
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -130,7 +135,7 @@ DECLARE
   v_count integer;
 BEGIN
   IF public.has_role(_user_id, 'admin') OR public.has_role(_user_id, 'coach') THEN
-    RETURN true;
+    RETURN 'unlimited';
   END IF;
 
   SELECT plan INTO v_plan
@@ -140,10 +145,12 @@ BEGIN
   v_limit := public.get_feature_limit(coalesce(v_plan, 'free'), _feature);
 
   IF v_limit = -1 THEN
-    RETURN public.has_feature_access(_user_id, _feature);
+    RETURN CASE WHEN public.has_feature_access(_user_id, _feature) THEN 'unlimited' ELSE 'denied' END;
   END IF;
-  IF v_limit <= 0 THEN
-    RETURN false;
+  -- NULL doit refuser : sinon le premier INSERT (sans conflit) passerait
+  -- sans jamais évaluer la limite.
+  IF v_limit IS NULL OR v_limit <= 0 THEN
+    RETURN 'denied';
   END IF;
 
   INSERT INTO public.feature_usage (user_id, feature_name, usage_count, month)
@@ -153,7 +160,7 @@ BEGIN
   WHERE feature_usage.usage_count < v_limit
   RETURNING usage_count INTO v_count;
 
-  RETURN v_count IS NOT NULL;
+  RETURN CASE WHEN v_count IS NOT NULL THEN 'counted' ELSE 'denied' END;
 END;
 $$;
 

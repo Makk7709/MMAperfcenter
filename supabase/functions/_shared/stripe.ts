@@ -72,6 +72,31 @@ export function syncArgs(userId: string, sub: Stripe.Subscription) {
   };
 }
 
+// Writes a Stripe subscription onto the user's row. A non-entitled
+// subscription never overwrites a row that tracks a *different* subscription:
+// the end of an old subscription must not downgrade a newer paid one, and
+// out-of-order events cannot revert the current state.
+export async function syncSubscriptionRow(
+  supabase: ServiceClient,
+  userId: string,
+  sub: Stripe.Subscription,
+): Promise<{ args: ReturnType<typeof syncArgs>; skipped: boolean }> {
+  const args = syncArgs(userId, sub);
+  if (args.p_plan === "free") {
+    const { data: row, error } = await supabase
+      .from("subscriptions")
+      .select("stripe_subscription_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(`subscriptions lookup failed: ${error.message}`);
+    const tracked = row?.stripe_subscription_id as string | null | undefined;
+    if (tracked && tracked !== sub.id) return { args, skipped: true };
+  }
+  const { error } = await supabase.rpc("sync_stripe_subscription", args);
+  if (error) throw new Error(`sync_stripe_subscription failed: ${error.message}`);
+  return { args, skipped: false };
+}
+
 // Picks the subscription that should drive the user's plan: entitled first,
 // then the most recently created one.
 export function pickRelevantSubscription(subs: Stripe.Subscription[]): Stripe.Subscription | null {
@@ -81,22 +106,26 @@ export function pickRelevantSubscription(subs: Stripe.Subscription[]): Stripe.Su
 
 // Finds the Stripe customer of an app user without trusting email alone:
 // 1. the customer id already stored on the user's subscription row;
-// 2. a customer with the same email that is not tagged with another user id.
+// 2. a customer with the same *confirmed* email that is not tagged with
+//    another user id. An untagged match is claimed (tagged) on first use so it
+//    can never be matched to a different account later.
 export async function findCustomerId(supabase: ServiceClient, stripe: Stripe, user: User): Promise<string | null> {
-  const { data: row } = await supabase
+  const { data: row, error } = await supabase
     .from("subscriptions")
     .select("stripe_customer_id")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (error) throw new Error(`subscriptions lookup failed: ${error.message}`);
   if (row?.stripe_customer_id) return row.stripe_customer_id as string;
 
-  if (!user.email) return null;
+  if (!user.email || !user.email_confirmed_at) return null;
   const { data: customers } = await stripe.customers.list({ email: user.email, limit: 10 });
-  const match = customers.find((c: Stripe.Customer) => {
-    const owner = c.metadata?.[USER_ID_METADATA_KEY];
-    return !owner || owner === user.id;
-  });
-  return match?.id ?? null;
+  const owned = customers.find((c: Stripe.Customer) => c.metadata?.[USER_ID_METADATA_KEY] === user.id);
+  if (owned) return owned.id;
+  const unowned = customers.find((c: Stripe.Customer) => !c.metadata?.[USER_ID_METADATA_KEY]);
+  if (!unowned) return null;
+  await stripe.customers.update(unowned.id, { metadata: { [USER_ID_METADATA_KEY]: user.id } });
+  return unowned.id;
 }
 
 export async function getOrCreateCustomerId(supabase: ServiceClient, stripe: Stripe, user: User): Promise<string> {
