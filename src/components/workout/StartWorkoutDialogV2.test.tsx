@@ -53,7 +53,7 @@ describe('StartWorkoutDialogV2 - Rendering', () => {
   it('should render workout name input', () => {
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    expect(screen.getByPlaceholderText(/nom|entraînement|workout/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/nom de la séance/i)).toBeInTheDocument();
   });
 
   it('should render start button', () => {
@@ -138,7 +138,7 @@ describe('StartWorkoutDialogV2 - MMA Templates', () => {
     
     if (templateButtons.length > 0) {
       await user.click(templateButtons[0]);
-      const input = screen.getByPlaceholderText(/nom|entraînement|workout/i) as HTMLInputElement;
+      const input = screen.getByLabelText(/nom de la séance/i) as HTMLInputElement;
       expect(input.value).toContain('Shadow');
     } else {
       // Fallback: check that clicking any template fills the input
@@ -147,7 +147,7 @@ describe('StartWorkoutDialogV2 - MMA Templates', () => {
       );
       if (anyTemplateBtn) {
         await user.click(anyTemplateBtn);
-        const input = screen.getByPlaceholderText(/nom|entraînement|workout/i) as HTMLInputElement;
+        const input = screen.getByLabelText(/nom de la séance/i) as HTMLInputElement;
         expect(input.value.length).toBeGreaterThan(0);
       }
     }
@@ -205,10 +205,13 @@ describe('StartWorkoutDialogV2 - Workout Configuration', () => {
     }
   });
 
-  it('should render rest time configuration', () => {
+  it('should render rest time configuration', async () => {
+    const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
-    
-    expect(screen.getByText(/repos|rest/i)).toBeInTheDocument();
+
+    await user.click(screen.getByText(/mode rounds/i));
+
+    expect(screen.getByText(/^repos$/i)).toBeInTheDocument();
   });
 });
 
@@ -226,7 +229,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
     // Fill workout name
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Mon Entraînement');
     
     // Submit
@@ -245,7 +248,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test Workout');
     
     const startBtn = screen.getByRole('button', { name: /démarrer|start|commencer/i });
@@ -262,7 +265,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test Workout');
     
     const startBtn = screen.getByRole('button', { name: /démarrer|start|commencer/i });
@@ -288,7 +291,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
       await user.click(templateButtons[0]);
     } else {
       // Fallback: type a name manually
-      const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+      const input = screen.getByLabelText(/nom de la séance/i);
       await user.type(input, 'Test Boxing');
     }
     
@@ -313,7 +316,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test');
     
     const startBtn = screen.getByRole('button', { name: /démarrer|start|commencer/i });
@@ -324,7 +327,7 @@ describe('StartWorkoutDialogV2 - Form Submission', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test');
     
     const startBtn = screen.getByRole('button', { name: /démarrer|start|commencer/i });
@@ -358,7 +361,7 @@ describe('StartWorkoutDialogV2 - Cancel/Close', () => {
     const { rerender } = render(<StartWorkoutDialogV2 {...defaultProps} />);
     
     // Type something
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test Workout');
     
     // Close dialog
@@ -367,7 +370,7 @@ describe('StartWorkoutDialogV2 - Cancel/Close', () => {
     // Reopen
     rerender(<StartWorkoutDialogV2 {...defaultProps} open={true} />);
     
-    const newInput = screen.getByPlaceholderText(/nom|entraînement|workout/i) as HTMLInputElement;
+    const newInput = screen.getByLabelText(/nom de la séance/i) as HTMLInputElement;
     expect(newInput.value).toBe('');
   });
 
@@ -375,7 +378,7 @@ describe('StartWorkoutDialogV2 - Cancel/Close', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i);
+    const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test');
     
     const cancelBtn = screen.getByRole('button', { name: /annuler|cancel|fermer/i });
@@ -515,7 +518,7 @@ describe('StartWorkoutDialogV2 - Recent Workouts', () => {
     const recentBtn = screen.getByText(/Boxing Session/i);
     await user.click(recentBtn);
     
-    const input = screen.getByPlaceholderText(/nom|entraînement|workout/i) as HTMLInputElement;
+    const input = screen.getByLabelText(/nom de la séance/i) as HTMLInputElement;
     expect(input.value).toBe('Boxing Session');
   });
 });
