@@ -27,6 +27,8 @@ const log = (step: string, details?: unknown) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
+const MAX_EVENT_BYTES = 1024 * 1024;
+
 const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
@@ -43,6 +45,9 @@ Deno.serve(async (req) => {
   // ---- Signature verification ---------------------------------------------
   const signature = req.headers.get("stripe-signature");
   if (!signature) return json({ error: "Missing signature" }, 400);
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_EVENT_BYTES) {
+    return json({ error: "Payload too large" }, 413);
+  }
 
   const rawBody = await req.text();
   let event: Stripe.Event;
@@ -146,11 +151,12 @@ async function syncSubscription(
     throw new Error(`Could not resolve user for subscription ${sub.id}`);
   }
 
-  // A deleted account (delete-account cancels its subscription) has nothing
-  // left to sync: acknowledge instead of letting Stripe retry for days.
+  // A deleted account must never be billed: a checkout completed after the
+  // deletion would otherwise start a subscription nobody can use or cancel.
   const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
   if (authError?.status === 404 || (!authError && !authUser?.user)) {
-    log("Subscription of a deleted user ignored", { userId, subscriptionId: sub.id });
+    if (!["canceled", "incomplete_expired"].includes(sub.status)) await stripe.subscriptions.cancel(sub.id);
+    log("Subscription of a deleted user cancelled", { userId, subscriptionId: sub.id });
     return;
   }
   if (authError) throw new Error(`getUserById failed: ${authError.message}`);

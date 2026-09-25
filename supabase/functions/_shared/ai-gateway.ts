@@ -8,9 +8,11 @@
 
 import { PublicError } from "./http.ts";
 
-export const AI_GATEWAY_URL =
-  Deno.env.get("AI_GATEWAY_URL") ??
-  "https://ai-gateway.internal/v1/chat/completions";
+export function getAiGatewayUrl(): string {
+  const url = Deno.env.get("AI_GATEWAY_URL");
+  if (!url) throw new Error("AI gateway URL is not configured (set AI_GATEWAY_URL)");
+  return url;
+}
 
 export function getAiGatewayKey(): string {
   const key =
@@ -25,7 +27,7 @@ export function getAiGatewayKey(): string {
 
 // Streaming chat completion. Throws a PublicError when the gateway refuses.
 export async function streamChatCompletion(body: Record<string, unknown>): Promise<ReadableStream<Uint8Array> | null> {
-  const response = await fetch(AI_GATEWAY_URL, {
+  const response = await fetch(getAiGatewayUrl(), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${getAiGatewayKey()}`,

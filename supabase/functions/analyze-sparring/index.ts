@@ -1,4 +1,4 @@
-import { AI_GATEWAY_URL, assertGatewayOk, getAiGatewayKey } from "../_shared/ai-gateway.ts";
+import { assertGatewayOk, getAiGatewayKey, getAiGatewayUrl } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
 import { errorResponse, jsonResponse, preflight, PublicError, readJsonBody } from "../_shared/http.ts";
@@ -16,7 +16,6 @@ const AI_CONFIG = {
   maxTokens: 8000,
   temperature: 0.15,
   maxFrames: 60, // 60 frames = ~2x plus de couverture temporelle (était 32)
-  apiUrl: AI_GATEWAY_URL,
 };
 
 // Supabase kills a function after 150 s (free) / 400 s (paid) of wall-clock
@@ -622,7 +621,7 @@ async function runAnalysis(input: SparringRequest, deadline: number) {
     image_url: { url: `data:image/jpeg;base64,${frame.base64}` },
   }));
 
-  const response = await fetchWithRetry(AI_CONFIG.apiUrl, {
+  const response = await fetchWithRetry(getAiGatewayUrl(), {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${getAiGatewayKey()}`,

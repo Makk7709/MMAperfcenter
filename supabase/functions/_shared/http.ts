@@ -25,14 +25,18 @@ export function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
+const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 // Base URL used for redirects back to the app (Stripe success/cancel/return).
 // SITE_URL is authoritative; otherwise the request origin is used only if it
-// is an allowed origin (or when no allow-list is configured, in development).
+// is an allowed origin. Without an allow-list only local origins qualify: the
+// Origin header is attacker-controlled outside a browser.
 export function appBaseUrl(req: Request): string {
   const site = Deno.env.get("SITE_URL");
   if (site) return site.replace(/\/+$/, "");
   const origin = req.headers.get("origin") ?? "";
-  if (origin && (ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin))) return origin;
+  const allowed = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS.includes(origin) : LOCAL_ORIGIN.test(origin);
+  if (allowed) return origin;
   throw new Error("SITE_URL is not configured and the request origin is not allowed");
 }
 

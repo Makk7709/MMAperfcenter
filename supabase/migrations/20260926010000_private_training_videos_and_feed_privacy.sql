@@ -152,7 +152,12 @@ AS $$
 DECLARE
   v_user_name TEXT;
 BEGIN
-  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') THEN
+  -- Une séance n'est publiée qu'une fois, même si son statut bascule en boucle.
+  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed')
+     AND NOT EXISTS (
+       SELECT 1 FROM public.community_activities
+       WHERE workout_id = NEW.id AND activity_type = 'workout_completed'
+     ) THEN
     -- Le fil est lu par tous les membres : seul le nom affiché y figure,
     -- jamais l'adresse e-mail.
     SELECT nullif(btrim(full_name), '') INTO v_user_name
