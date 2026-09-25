@@ -3,6 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import type { Enums } from "@/integrations/supabase/types";
+import { extractFilePathFromUrl } from "@/utils/storageUtils";
+
+const BUCKET = 'training-videos';
+// Signed URLs outlive the cached list: it is refetched before they expire.
+const SIGNED_URL_TTL_SECONDS = 2 * 60 * 60;
+const LIST_STALE_MS = 60 * 60 * 1000;
+
+// video_url holds the object path; rows created before the bucket went
+// private may still hold a public URL.
+const storagePathOf = (videoUrl: string): string =>
+  extractFilePathFromUrl(videoUrl, BUCKET) ?? videoUrl;
 
 export interface TrainingVideo {
   id: string;
@@ -17,6 +28,8 @@ export interface TrainingVideo {
   technique_type?: 'pied' | 'poings' | 'combo';
   difficulty_level?: 'debutant' | 'intermediaire' | 'avance' | 'expert';
   thumbnail_url?: string;
+  /** Signed URL for uploaded videos, resolved when the list is loaded. */
+  playback_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -34,9 +47,27 @@ export const useTrainingVideos = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as TrainingVideo[];
+      const rows = data as TrainingVideo[];
+
+      const paths = rows
+        .filter(v => v.video_type === 'upload' && v.video_url)
+        .map(v => storagePathOf(v.video_url!));
+      if (paths.length === 0) return rows;
+
+      const { data: signed, error: signError } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+      if (signError) throw signError;
+
+      const urlByPath = new Map(signed.filter(s => s.signedUrl).map(s => [s.path, s.signedUrl]));
+      return rows.map(v =>
+        v.video_type === 'upload' && v.video_url
+          ? { ...v, playback_url: urlByPath.get(storagePathOf(v.video_url)) }
+          : v
+      );
     },
     enabled: !!user,
+    staleTime: LIST_STALE_MS,
   });
 
   const uploadVideoMutation = useMutation({
@@ -54,14 +85,10 @@ export const useTrainingVideos = () => {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('training-videos')
+        .from(BUCKET)
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('training-videos')
-        .getPublicUrl(fileName);
 
       const { error: insertError } = await supabase
         .from('training_videos')
@@ -71,12 +98,15 @@ export const useTrainingVideos = () => {
           description,
           category,
           video_type: 'upload',
-          video_url: publicUrl,
+          video_url: fileName,
           technique_type: techniqueType as Enums<"technique_type">,
           difficulty_level: difficultyLevel as Enums<"difficulty_level">,
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        await supabase.storage.from(BUCKET).remove([fileName]);
+        throw insertError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['training-videos'] });
@@ -129,10 +159,9 @@ export const useTrainingVideos = () => {
       const video = videos?.find(v => v.id === videoId);
       
       if (video?.video_type === 'upload' && video.video_url) {
-        const filePath = video.video_url.split('/').slice(-2).join('/');
         await supabase.storage
-          .from('training-videos')
-          .remove([filePath]);
+          .from(BUCKET)
+          .remove([storagePathOf(video.video_url)]);
       }
 
       const { error } = await supabase

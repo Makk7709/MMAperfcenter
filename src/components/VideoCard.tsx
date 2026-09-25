@@ -96,9 +96,9 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
                 <Play className="h-16 w-16 text-white" />
               </div>
             )
-          ) : video.video_url ? (
+          ) : video.playback_url ? (
             <video
-              src={video.video_url}
+              src={video.playback_url}
               controls
               className="w-full h-full object-cover"
             />
