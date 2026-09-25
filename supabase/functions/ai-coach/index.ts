@@ -1,45 +1,30 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
+import { streamChatCompletion } from "../_shared/ai-gateway.ts";
+import { createServiceClient, requireUser } from "../_shared/auth.ts";
+import { errorResponse, preflight, PublicError, streamResponse } from "../_shared/http.ts";
+import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const MAX_HISTORY = 30;
+const MAX_MESSAGE_CHARS = 4000;
 
-const jsonResponse = (body: unknown, status: number) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
+// Only user/assistant turns are forwarded: the system prompt is ours alone.
+// Older turns beyond MAX_HISTORY are dropped to bound the token cost.
+function parseMessages(raw: unknown): ChatMessage[] {
+  if (!Array.isArray(raw) || raw.length === 0) throw new PublicError("Conversation vide");
+  const messages = raw.slice(-MAX_HISTORY).map((m) => {
+    const role = (m as { role?: unknown })?.role;
+    const content = (m as { content?: unknown })?.content;
+    if ((role !== "user" && role !== "assistant") || typeof content !== "string" || !content.trim()) {
+      throw new PublicError("Format de message invalide");
+    }
+    if (content.length > MAX_MESSAGE_CHARS) {
+      throw new PublicError(`Message trop long (${MAX_MESSAGE_CHARS} caractères maximum)`);
+    }
+    return { role, content } as ChatMessage;
   });
-
-// deno-lint-ignore no-explicit-any
-async function authenticateUser(supabase: any, token: string) {
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) {
-    console.error("User not authenticated:", error?.message);
-    return null;
-  }
-  return user;
-}
-
-// Applique le gating serveur (free = quota mensuel). Renvoie true si l'accès
-// est autorisé (admin/coach toujours autorisés), false sinon.
-// deno-lint-ignore no-explicit-any
-async function checkAiCoachAccess(supabase: any, userId: string): Promise<boolean> {
-  const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  const { data: isCoach } = await supabase.rpc("has_role", { _user_id: userId, _role: "coach" });
-  if (isAdmin === true || isCoach === true) return true;
-
-  const { data: allowed, error: gateErr } = await supabase.rpc("has_feature_access", {
-    _user_id: userId,
-    _feature: "ai_coach",
-  });
-  if (gateErr) console.error("has_feature_access error:", gateErr);
-  if (allowed !== true) return false;
-
-  await supabase.rpc("increment_feature_usage", { _user_id: userId, _feature_name: "ai_coach" });
-  return true;
+  if (messages[messages.length - 1].role !== "user") throw new PublicError("Le dernier message doit venir de l'utilisateur");
+  return messages;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -118,85 +103,29 @@ NUTRITION & MACROS:
   return systemPrompt;
 }
 
-async function handleGatewayError(response: Response): Promise<Response> {
-  if (response.status === 429) {
-    return jsonResponse({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }, 429);
-  }
-  if (response.status === 402) {
-    return jsonResponse({ error: "Crédit insuffisant, contactez le support." }, 402);
-  }
-  const t = await response.text();
-  console.error("AI gateway error:", response.status, t);
-  return jsonResponse({ error: "Erreur du service IA" }, 500);
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+Deno.serve(async (req) => {
+  const pre = preflight(req);
+  if (pre) return pre;
 
   try {
-    const { messages } = await req.json();
-    const aiGatewayKey = getAiGatewayKey();
+    const supabase = createServiceClient();
+    const user = await requireUser(supabase, req);
+    const body = await req.json().catch(() => ({}));
+    const messages = parseMessages(body?.messages);
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return jsonResponse({ error: "No authorization header" }, 401);
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const user = await authenticateUser(supabase, token);
-    if (!user) {
-      return jsonResponse({ error: "User not authenticated" }, 401);
-    }
-    console.log("User authenticated:", user.id);
-
-    // Feature gating (server-side enforcement)
-    const allowed = await checkAiCoachAccess(supabase, user.id);
-    if (!allowed) {
-      return jsonResponse(
-        { error: "Limite mensuelle atteinte pour Coach IA. Passe au plan Pro pour un accès illimité.", code: "FEATURE_LIMIT_REACHED" },
-        402,
-      );
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    const systemPrompt = buildSystemPrompt(profile);
-
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${aiGatewayKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    await consumeQuota(supabase, user.id, "ai_coach");
+    try {
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const stream = await streamChatCompletion({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      return await handleGatewayError(response);
+        messages: [{ role: "system", content: buildSystemPrompt(profile) }, ...messages],
+      });
+      return streamResponse(req, stream);
+    } catch (e) {
+      await refundQuota(supabase, user.id, "ai_coach");
+      throw e;
     }
-
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
   } catch (e) {
-    console.error("ai-coach error:", e);
-    return jsonResponse({ error: e instanceof Error ? e.message : "Erreur inconnue" }, 500);
+    return errorResponse(req, e, "ai-coach");
   }
 });

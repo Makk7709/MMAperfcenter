@@ -1,12 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
+import { AI_GATEWAY_URL, assertGatewayOk, getAiGatewayKey } from "../_shared/ai-gateway.ts";
+import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { errorResponse, jsonResponse, preflight, PublicError } from "../_shared/http.ts";
+import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
 // ============================================
 // CONFIGURATION
@@ -29,6 +25,14 @@ const RETRY_CONFIG = {
   backoffMultiplier: 2,
   maxDelayMs: 15000,
   retryableStatuses: [429, 500, 502, 503, 504],
+  attemptTimeoutMs: 120_000,
+};
+
+const INPUT_LIMITS = {
+  maxFrames: 120,
+  maxFrameBase64Chars: 2_000_000,
+  maxDurationSeconds: 3600,
+  maxTextChars: 200,
 };
 
 // ============================================
@@ -47,7 +51,7 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     try {
       console.log(`🔄 AI call attempt ${attempt}/${RETRY_CONFIG.maxRetries}`);
       const start = Date.now();
-      const response = await fetch(url, init);
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(RETRY_CONFIG.attemptTimeoutMs) });
       console.log(`   Response: ${response.status} in ${Date.now() - start}ms`);
 
       if (response.ok || !RETRY_CONFIG.retryableStatuses.includes(response.status)) {
@@ -512,178 +516,166 @@ function validateAnalysis(data: any, totalDuration: number, profile: DisciplineP
 // MAIN HANDLER
 // ============================================
 
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+type SparringRequest = {
+  frames: { base64: string }[];
+  totalDuration: number;
+  analysisId?: string;
+  videoName: string;
+  qualityMode: 'fast' | 'pro';
+  discipline?: string;
+};
 
-function assertFramesValid(frames: unknown): asserts frames is unknown[] {
-  if (!frames || !Array.isArray(frames) || frames.length === 0) {
-    throw new Error('Video frames required');
-  }
-  if (frames.length < 3) {
-    throw new Error('Minimum 3 frames requis');
-  }
-}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
-// Vérifie l'authentification puis le gating serveur. Renvoie une Response prête
-// à retourner en cas de refus, sinon null si l'accès est autorisé.
+const optionalText = (v: unknown): string | undefined =>
+  typeof v === 'string' && v.trim() ? v.trim().slice(0, INPUT_LIMITS.maxTextChars) : undefined;
+
 // deno-lint-ignore no-explicit-any
-async function authorizeSparring(supabase: any, req: Request): Promise<Response | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader) return jsonResponse({ error: 'No authorization header' }, 401);
+function parseRequest(body: any): SparringRequest {
+  const frames = body?.frames;
+  if (!Array.isArray(frames) || frames.length < 3) throw new PublicError('Minimum 3 frames requis');
+  if (frames.length > INPUT_LIMITS.maxFrames) throw new PublicError(`Maximum ${INPUT_LIMITS.maxFrames} frames`, 413);
 
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return jsonResponse({ error: 'User not authenticated' }, 401);
-
-  const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
-  const { data: isCoach } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'coach' });
-  if (isAdmin === true || isCoach === true) return null;
-
-  const { data: allowed } = await supabase.rpc('has_feature_access', {
-    _user_id: user.id, _feature: 'sparring_analysis',
+  const cleanFrames = frames.map((f: unknown) => {
+    const b64 = (f as { base64?: unknown })?.base64;
+    if (typeof b64 !== 'string' || !BASE64_RE.test(b64)) throw new PublicError('Frame invalide');
+    if (b64.length > INPUT_LIMITS.maxFrameBase64Chars) throw new PublicError('Frame trop volumineuse', 413);
+    return { base64: b64 };
   });
-  if (allowed !== true) {
-    return jsonResponse(
-      { error: 'Limite mensuelle atteinte pour l\'analyse PRISM. Passe au plan Pro pour un accès illimité.', code: 'FEATURE_LIMIT_REACHED' },
-      402,
-    );
+
+  const totalDuration = Number(body?.totalDuration);
+  if (!Number.isFinite(totalDuration) || totalDuration <= 0 || totalDuration > INPUT_LIMITS.maxDurationSeconds) {
+    throw new PublicError('Durée de vidéo invalide');
   }
-  await supabase.rpc('increment_feature_usage', { _user_id: user.id, _feature_name: 'sparring_analysis' });
-  return null;
+
+  const analysisId = body?.analysisId;
+  if (analysisId !== undefined && analysisId !== null && (typeof analysisId !== 'string' || !UUID_RE.test(analysisId))) {
+    throw new PublicError('Identifiant d\'analyse invalide');
+  }
+
+  return {
+    frames: cleanFrames,
+    totalDuration,
+    analysisId: analysisId ?? undefined,
+    videoName: optionalText(body?.videoName) ?? 'video',
+    qualityMode: body?.qualityMode === 'fast' ? 'fast' : 'pro',
+    discipline: optionalText(body?.discipline),
+  };
 }
 
-function selectFrames(frames: any[]): any[] {
+function selectFrames<T>(frames: T[]): T[] {
   if (frames.length <= AI_CONFIG.maxFrames) return frames;
   const step = Math.ceil(frames.length / AI_CONFIG.maxFrames);
-  return frames.filter((_: any, i: number) => i % step === 0).slice(0, AI_CONFIG.maxFrames);
+  return frames.filter((_, i) => i % step === 0).slice(0, AI_CONFIG.maxFrames);
 }
 
-async function ensureAiResponseOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const errorText = await response.text();
-  console.error('AI error:', response.status, errorText);
-  if (response.status === 429) throw new Error('Limite de requêtes. Réessayez dans 1 minute.');
-  if (response.status === 402) throw new Error('Crédits IA insuffisants.');
-  if (response.status === 413) throw new Error('Vidéo trop volumineuse.');
-  throw new Error(`Erreur d'analyse: ${response.status}`);
-}
-
+// deno-lint-ignore no-explicit-any
 function parseToolCall(data: any): any {
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     console.error('No tool call returned, raw:', JSON.stringify(data).substring(0, 500));
-    throw new Error("L'IA n'a pas retourné de structure d'analyse valide");
+    throw new PublicError("L'IA n'a pas retourné d'analyse exploitable, réessayez.", 502);
   }
   try {
     return JSON.parse(toolCall.function.arguments);
   } catch (e) {
     console.error('Tool args parse error:', e);
-    throw new Error("Format de réponse IA invalide");
+    throw new PublicError("Format de réponse IA invalide, réessayez.", 502);
   }
 }
 
-// deno-lint-ignore no-explicit-any
-async function markAnalysisError(supabase: any, analysisId: string | undefined, error: unknown): Promise<void> {
-  if (!analysisId || !supabase) return;
-  await supabase
+async function assertOwnsAnalysis(supabase: ServiceClient, analysisId: string, userId: string): Promise<void> {
+  const { data, error } = await supabase
     .from('sparring_analyses')
-    .update({
-      status: 'error',
-      analysis: { error: errorMessage(error) },
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', analysisId);
+    .select('id')
+    .eq('id', analysisId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(`ownership check failed: ${error.message}`);
+  if (!data) throw new PublicError('Analyse introuvable', 404);
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+async function updateAnalysis(
+  supabase: ServiceClient,
+  analysisId: string | undefined,
+  userId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  if (!analysisId) return;
+  const { error } = await supabase
+    .from('sparring_analyses')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', analysisId)
+    .eq('user_id', userId);
+  if (error) console.error('sparring_analyses update failed:', error.message);
+}
 
-  let analysisId: string | undefined;
-  let supabase: ReturnType<typeof createClient> | undefined;
+async function runAnalysis(input: SparringRequest) {
+  const profile = getDisciplineProfile(input.discipline);
+  const model = input.qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
+  const selectedFrames = selectFrames(input.frames);
+  console.log(`📹 Analyzing: ${input.videoName} (${input.frames.length} frames, ${Math.round(input.totalDuration)}s) — model=${model} — discipline=${profile.label}`);
+
+  const imageContents = selectedFrames.map((frame) => ({
+    type: 'image_url',
+    image_url: { url: `data:image/jpeg;base64,${frame.base64}` },
+  }));
+
+  const response = await fetchWithRetry(AI_CONFIG.apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${getAiGatewayKey()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: createSystemPrompt(selectedFrames.length, input.totalDuration, profile) },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: createUserPrompt(selectedFrames.length) },
+            ...imageContents,
+          ],
+        },
+      ],
+      tools: [submitAnalysisTool],
+      tool_choice: { type: 'function', function: { name: 'submit_sparring_analysis' } },
+      max_tokens: AI_CONFIG.maxTokens,
+      temperature: AI_CONFIG.temperature,
+    }),
+  });
+
+  await assertGatewayOk(response);
+  const analysis = validateAnalysis(parseToolCall(await response.json()), input.totalDuration, profile);
+  console.log(`✅ Analysis validated (confidence: ${analysis.analysis_quality.confidence}/100)`);
+  return analysis;
+}
+
+Deno.serve(async (req) => {
+  const pre = preflight(req);
+  if (pre) return pre;
 
   try {
-    const { frames, analysisId: aid, videoName, totalDuration, qualityMode, discipline } = await req.json();
-    const profile = getDisciplineProfile(discipline);
-    analysisId = aid;
+    const supabase = createServiceClient();
+    const user = await requireUser(supabase, req);
+    const input = parseRequest(await req.json().catch(() => null));
+    if (input.analysisId) await assertOwnsAnalysis(supabase, input.analysisId, user.id);
 
-    assertFramesValid(frames);
-
-    const aiGatewayKey = getAiGatewayKey();
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // ===== Auth + feature gating =====
-    const denied = await authorizeSparring(supabase, req);
-    if (denied) return denied;
-
-    if (analysisId) {
-      await supabase.from('sparring_analyses').update({ status: 'processing' }).eq('id', analysisId);
+    await consumeQuota(supabase, user.id, 'sparring_analysis');
+    try {
+      await updateAnalysis(supabase, input.analysisId, user.id, { status: 'processing' });
+      const analysis = await runAnalysis(input);
+      await updateAnalysis(supabase, input.analysisId, user.id, { analysis, status: 'completed' });
+      return jsonResponse(req, { success: true, analysis });
+    } catch (e) {
+      await refundQuota(supabase, user.id, 'sparring_analysis');
+      const message = e instanceof PublicError ? e.message : "L'analyse a échoué";
+      await updateAnalysis(supabase, input.analysisId, user.id, { status: 'error', analysis: { error: message } });
+      throw e;
     }
-
-    const model = qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
-    console.log(`📹 Analyzing: ${videoName} (${frames.length} frames, ${Math.round(totalDuration)}s) — model=${model} — discipline=${profile.label}`);
-
-    const selectedFrames = selectFrames(frames);
-
-    const imageContents = selectedFrames.map((frame: { base64: string }) => ({
-      type: 'image_url',
-      image_url: { url: `data:image/jpeg;base64,${frame.base64}` },
-    }));
-
-    console.log(`   Sending ${imageContents.length} frames to AI (tool calling)...`);
-
-    const response = await fetchWithRetry(AI_CONFIG.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${aiGatewayKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: createSystemPrompt(selectedFrames.length, totalDuration, profile) },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: createUserPrompt(selectedFrames.length) },
-              ...imageContents,
-            ],
-          },
-        ],
-        tools: [submitAnalysisTool],
-        tool_choice: { type: 'function', function: { name: 'submit_sparring_analysis' } },
-        max_tokens: AI_CONFIG.maxTokens,
-        temperature: AI_CONFIG.temperature,
-      }),
-    });
-
-    await ensureAiResponseOk(response);
-
-    const data = await response.json();
-    const parsedArgs = parseToolCall(data);
-
-    const analysis = validateAnalysis(parsedArgs, totalDuration, profile);
-    console.log(`✅ Analysis validated (confidence: ${analysis.analysis_quality.confidence}/100)`);
-
-    if (analysisId && supabase) {
-      await supabase
-        .from('sparring_analyses')
-        .update({ analysis, status: 'completed', updated_at: new Date().toISOString() })
-        .eq('id', analysisId);
-      console.log('✅ Saved to DB');
-    }
-
-    return jsonResponse({ success: true, analysis });
-  } catch (error) {
-    console.error('❌ Error:', error);
-    await markAnalysisError(supabase, analysisId, error);
-    return jsonResponse({ success: false, error: errorMessage(error) }, 500);
+  } catch (e) {
+    return errorResponse(req, e, 'analyze-sparring');
   }
 });

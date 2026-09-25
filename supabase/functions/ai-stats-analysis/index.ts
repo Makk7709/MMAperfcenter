@@ -1,28 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { subDays } from "https://esm.sh/date-fns@3.6.0";
-import { AI_GATEWAY_URL, getAiGatewayKey } from "../_shared/ai-gateway.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const jsonResponse = (body: unknown, status: number) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-
-// deno-lint-ignore no-explicit-any
-async function authenticateUser(supabase: any, token: string) {
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) {
-    console.error("User not authenticated:", error?.message);
-    return null;
-  }
-  return user;
-}
+import { streamChatCompletion } from "../_shared/ai-gateway.ts";
+import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
+import { errorResponse, preflight, streamResponse } from "../_shared/http.ts";
+import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
 const dailyAverage = (sum: number, days: number) => (days > 0 ? Math.round(sum / days) : 0);
 
@@ -32,47 +12,13 @@ const describeTrend = (trend: number) => {
   return "stable";
 };
 
-async function handleGatewayError(response: Response): Promise<Response> {
-  if (response.status === 429) {
-    return jsonResponse({ error: "Limite de requêtes atteinte, réessayez dans quelques instants." }, 429);
-  }
-  if (response.status === 402) {
-    return jsonResponse({ error: "Crédit insuffisant, contactez le support." }, 402);
-  }
-  const t = await response.text();
-  console.error("AI gateway error:", response.status, t);
-  return jsonResponse({ error: "Erreur du service IA" }, 500);
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-  try {
-    const aiGatewayKey = getAiGatewayKey();
-
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return jsonResponse({ error: "No authorization header" }, 401);
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const user = await authenticateUser(supabase, token);
-    if (!user) {
-      return jsonResponse({ error: "User not authenticated" }, 401);
-    }
-    console.log("User authenticated:", user.id);
-
+// Builds the system prompt from the user's last 30 days of data.
+async function buildAnalysisPrompt(supabase: ServiceClient, userId: string): Promise<string> {
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     // Fetch workout data (last 30 days)
@@ -80,7 +26,7 @@ serve(async (req) => {
     const { data: workouts } = await supabase
       .from("workouts")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("status", "completed")
       .gte("completed_at", thirtyDaysAgo)
       .order("completed_at", { ascending: true });
@@ -90,7 +36,7 @@ serve(async (req) => {
     const { data: nutritionLogs } = await supabase
       .from("nutrition_logs")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .gte("date", thirtyDaysAgoDate)
       .order("date", { ascending: true });
 
@@ -98,7 +44,7 @@ serve(async (req) => {
     const { data: nutritionGoals } = await supabase
       .from("nutrition_goals")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     // Calculate statistics
@@ -199,35 +145,38 @@ Structure ta réponse en 4 sections:
 RÈGLES:
 - Sois précis, utilise LES DONNÉES RÉELLES fournies
 - Adapte tes conseils à la discipline: ${profile?.martial_arts_discipline || "arts martiaux"}
-- Niveau: ${profile?.fitnessLevel || "intermédiaire"}
+- Niveau: ${profile?.fitness_level || "intermédiaire"}
 - Objectifs: ${profile?.goals?.join(", ") || "performance générale"}
 - Réponds en français, sois motivant mais réaliste`;
 
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${aiGatewayKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    return systemPrompt;
+}
+
+// Counted against the same monthly AI quota as the coach chat.
+Deno.serve(async (req) => {
+  const pre = preflight(req);
+  if (pre) return pre;
+
+  try {
+    const supabase = createServiceClient();
+    const user = await requireUser(supabase, req);
+
+    await consumeQuota(supabase, user.id, "ai_coach");
+    try {
+      const systemPrompt = await buildAnalysisPrompt(supabase, user.id);
+      const stream = await streamChatCompletion({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: "Analyse ma progression et donne-moi des recommandations personnalisées pour atteindre mes objectifs." },
         ],
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      return await handleGatewayError(response);
+      });
+      return streamResponse(req, stream);
+    } catch (e) {
+      await refundQuota(supabase, user.id, "ai_coach");
+      throw e;
     }
-
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
   } catch (e) {
-    console.error("ai-stats-analysis error:", e);
-    return jsonResponse({ error: e instanceof Error ? e.message : "Erreur inconnue" }, 500);
+    return errorResponse(req, e, "ai-stats-analysis");
   }
 });

@@ -1,77 +1,48 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createServiceClient, requireUser } from "../_shared/auth.ts";
+import { appBaseUrl, errorResponse, jsonResponse, preflight, PublicError } from "../_shared/http.ts";
+import { CHECKOUT_PRICE_TO_PLAN, createStripe, getOrCreateCustomerId, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
+Deno.serve(async (req) => {
+  const pre = preflight(req);
+  if (pre) return pre;
 
   try {
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    
-    if (!user?.email) {
-      throw new Error("User not authenticated or email not available");
+    const supabase = createServiceClient();
+    const user = await requireUser(supabase, req);
+    if (!user.email) throw new PublicError("Un email vérifié est requis pour s'abonner", 400);
+
+    const { priceId } = await req.json().catch(() => ({}));
+    if (typeof priceId !== "string" || !CHECKOUT_PRICE_TO_PLAN[priceId]) {
+      throw new PublicError("Offre inconnue", 400);
     }
 
-    const { priceId } = await req.json();
-    
-    if (!priceId) {
-      throw new Error("Price ID is required");
+    // A second checkout would create a second, parallel subscription.
+    const { data: current } = await supabase
+      .from("subscriptions")
+      .select("plan, status, stripe_subscription_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (current?.plan !== "free" && current?.status === "active" && current?.stripe_subscription_id) {
+      throw new PublicError("Tu as déjà un abonnement actif : change d'offre depuis « Gérer mon abonnement ».", 409);
     }
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
-    });
+    const stripe = createStripe();
+    const customerId = await getOrCreateCustomerId(supabase, stripe, user);
+    const baseUrl = appBaseUrl(req);
 
-    // Check if customer exists
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    }
-
-    // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      client_reference_id: user.id,
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/pricing`,
+      subscription_data: { metadata: { [USER_ID_METADATA_KEY]: user.id } },
+      metadata: { [USER_ID_METADATA_KEY]: user.id },
+      success_url: `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
     });
 
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return jsonResponse(req, { url: session.url });
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    return errorResponse(req, error, "create-checkout");
   }
 });

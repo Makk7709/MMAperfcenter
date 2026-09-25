@@ -14,76 +14,35 @@
 // Security:
 //   - JWT verification is disabled for this function (Stripe authenticates via
 //     signature). See supabase/config.toml.
-//   - Service role key is read from Deno env and never exposed.
+//   - The user is resolved from ids we set ourselves at checkout
+//     (client_reference_id / metadata), never from a user-editable field.
 // ============================================================================
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createServiceClient, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "stripe-signature, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { createStripe, Stripe, syncArgs, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
 const log = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
-// Stripe product → application plan. Kept in sync with check-subscription.
-const PRODUCT_TO_PLAN: Record<string, "free" | "pro" | "elite" | "sensei"> = {
-  prod_TNCk7vRlC8fceD: "pro",
-  prod_TNCkyK26dRxZ2p: "elite",
-  prod_TNClwYw2iSTuXI: "sensei",
-};
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-function planFromSubscription(sub: Stripe.Subscription): "free" | "pro" | "elite" | "sensei" {
-  const productId = sub.items?.data?.[0]?.price?.product as string | undefined;
-  if (!productId) return "free";
-  return PRODUCT_TO_PLAN[productId] ?? "free";
-}
+Deno.serve(async (req) => {
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-function priceIdFromSubscription(sub: Stripe.Subscription): string | null {
-  return (sub.items?.data?.[0]?.price?.id as string | undefined) ?? null;
-}
-
-function tsToIso(seconds: number | null | undefined): string | null {
-  if (!seconds) return null;
-  return new Date(seconds * 1000).toISOString();
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
-  }
-
-  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  if (!stripeKey || !webhookSecret) {
-    log("Missing secrets", { hasKey: !!stripeKey, hasWebhookSecret: !!webhookSecret });
-    return new Response(JSON.stringify({ error: "Webhook not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (!webhookSecret || !Deno.env.get("STRIPE_SECRET_KEY")) {
+    log("Missing secrets");
+    return json({ error: "Webhook not configured" }, 500);
   }
-
-  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+  const stripe = createStripe();
 
   // ---- Signature verification ---------------------------------------------
   const signature = req.headers.get("stripe-signature");
-  if (!signature) {
-    log("Missing stripe-signature header");
-    return new Response(JSON.stringify({ error: "Missing signature" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (!signature) return json({ error: "Missing signature" }, 400);
 
   const rawBody = await req.text();
   let event: Stripe.Event;
@@ -91,115 +50,55 @@ serve(async (req) => {
     event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
   } catch (err) {
     log("Signature verification failed", { error: errorMessage(err) });
-    return new Response(JSON.stringify({ error: "Invalid signature" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Invalid signature" }, 400);
   }
 
   log("Event received", { id: event.id, type: event.type });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } },
-  );
+  const supabase = createServiceClient();
 
   // ---- Idempotence check ---------------------------------------------------
-  try {
-    const { data: already, error: idemErr } = await supabase.rpc("is_webhook_processed", {
-      p_event_id: event.id,
-    });
-    if (idemErr) {
-      log("is_webhook_processed RPC error", { error: idemErr.message });
-    } else if (already === true) {
-      log("Event already processed, acknowledging", { id: event.id });
-      return new Response(JSON.stringify({ received: true, duplicate: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  } catch (err) {
-    log("Idempotence check failed (continuing)", { error: errorMessage(err) });
-  }
+  const { data: already, error: idemErr } = await supabase.rpc("is_webhook_processed", { p_event_id: event.id });
+  if (idemErr) log("is_webhook_processed RPC error (continuing)", { error: idemErr.message });
+  if (already === true) return json({ received: true, duplicate: true }, 200);
 
   // ---- Event routing -------------------------------------------------------
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const customerId = (session.customer as string) ?? null;
-        const subscriptionId = (session.subscription as string) ?? null;
-
-        if (customerId && subscriptionId) {
+        const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+        if (subscriptionId) {
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
-          await syncSubscription(supabase, stripe, sub, customerId);
+          await syncSubscription(supabase, stripe, sub, session.client_reference_id);
         } else {
-          log("checkout.session.completed without customer/subscription", {
-            customerId,
-            subscriptionId,
-          });
+          log("checkout.session.completed without subscription", { sessionId: session.id });
         }
         break;
       }
 
       case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = (sub.customer as string) ?? null;
-        if (customerId) {
-          await syncSubscription(supabase, stripe, sub, customerId);
-        }
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+        await syncSubscription(supabase, stripe, event.data.object as Stripe.Subscription, null);
         break;
-      }
-
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = (sub.customer as string) ?? null;
-        const userId = await resolveUserId(supabase, stripe, customerId);
-        if (userId) {
-          await supabase.rpc("sync_stripe_subscription", {
-            p_user_id: userId,
-            p_stripe_customer_id: customerId,
-            p_stripe_subscription_id: sub.id,
-            p_stripe_price_id: priceIdFromSubscription(sub),
-            p_plan: "free",
-            p_status: "canceled",
-            p_current_period_start: tsToIso(sub.current_period_start),
-            p_current_period_end: tsToIso(sub.current_period_end),
-            p_cancel_at_period_end: sub.cancel_at_period_end ?? false,
-          });
-          log("Subscription canceled and synced", { userId, subscriptionId: sub.id });
-        }
-        break;
-      }
 
       default:
         log("Event type not handled", { type: event.type });
         break;
     }
 
-    // ---- Mark as processed (idempotence) ----------------------------------
     const { error: markErr } = await supabase.rpc("mark_webhook_processed", {
       p_event_id: event.id,
       p_event_type: event.type,
       p_payload: event as unknown as Record<string, unknown>,
     });
-    if (markErr) {
-      log("mark_webhook_processed RPC error", { error: markErr.message });
-    }
+    if (markErr) log("mark_webhook_processed RPC error", { error: markErr.message });
 
-    return new Response(JSON.stringify({ received: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ received: true }, 200);
   } catch (err) {
     log("Handler error", { error: errorMessage(err) });
     // Return 500 so Stripe retries — the idempotence guard will deduplicate.
-    return new Response(JSON.stringify({ error: "Handler failure" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Handler failure" }, 500);
   }
 });
 
@@ -208,66 +107,43 @@ serve(async (req) => {
 // ============================================================================
 
 async function resolveUserId(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ServiceClient,
   stripe: Stripe,
-  customerId: string | null,
+  sub: Stripe.Subscription,
+  clientReferenceId: string | null,
 ): Promise<string | null> {
-  if (!customerId) return null;
+  const fromMetadata = sub.metadata?.[USER_ID_METADATA_KEY];
+  if (fromMetadata) return fromMetadata;
+  if (clientReferenceId) return clientReferenceId;
 
-  // 1. Try via existing `subscriptions` row.
-  const { data: viaRpc, error: rpcErr } = await supabase.rpc(
-    "get_user_id_by_stripe_customer",
-    { p_stripe_customer_id: customerId },
-  );
-  if (!rpcErr && viaRpc) return viaRpc as string;
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { data: viaRow, error } = await supabase.rpc("get_user_id_by_stripe_customer", {
+    p_stripe_customer_id: customerId,
+  });
+  if (!error && viaRow) return viaRow as string;
 
-  // 2. Fallback: resolve via Stripe customer email → Supabase auth user.
-  try {
-    const customer = await stripe.customers.retrieve(customerId);
-    const email = (customer as Stripe.Customer).email ?? null;
-    if (!email) return null;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (error || !data) return null;
-    return data.id as string;
-  } catch (err) {
-    log("resolveUserId fallback failed", { error: errorMessage(err) });
-    return null;
+  const customer = await stripe.customers.retrieve(customerId);
+  if (!customer.deleted) {
+    const fromCustomer = customer.metadata?.[USER_ID_METADATA_KEY];
+    if (fromCustomer) return fromCustomer;
   }
+  return null;
 }
 
 async function syncSubscription(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ServiceClient,
   stripe: Stripe,
   sub: Stripe.Subscription,
-  customerId: string,
+  clientReferenceId: string | null,
 ): Promise<void> {
-  const userId = await resolveUserId(supabase, stripe, customerId);
+  const userId = await resolveUserId(supabase, stripe, sub, clientReferenceId);
   if (!userId) {
-    log("Could not resolve user from customer", { customerId });
-    return;
+    // Throwing makes Stripe retry: the user may be linked later by
+    // check-subscription, and the event must not be marked as processed.
+    throw new Error(`Could not resolve user for subscription ${sub.id}`);
   }
 
-  const { error } = await supabase.rpc("sync_stripe_subscription", {
-    p_user_id: userId,
-    p_stripe_customer_id: customerId,
-    p_stripe_subscription_id: sub.id,
-    p_stripe_price_id: priceIdFromSubscription(sub),
-    p_plan: planFromSubscription(sub),
-    p_status: sub.status,
-    p_current_period_start: tsToIso(sub.current_period_start),
-    p_current_period_end: tsToIso(sub.current_period_end),
-    p_cancel_at_period_end: sub.cancel_at_period_end ?? false,
-  });
-
-  if (error) {
-    log("sync_stripe_subscription RPC error", { error: error.message });
-    throw error;
-  }
+  const { error } = await supabase.rpc("sync_stripe_subscription", syncArgs(userId, sub));
+  if (error) throw new Error(`sync_stripe_subscription failed: ${error.message}`);
   log("Subscription synced", { userId, subscriptionId: sub.id, status: sub.status });
 }
