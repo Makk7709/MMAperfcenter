@@ -60,6 +60,41 @@ export class PublicError extends Error {
   }
 }
 
+// Reads and parses a JSON body without ever buffering more than maxBytes,
+// whether or not the client sent a (possibly lying) Content-Length.
+export async function readJsonBody(req: Request, maxBytes: number): Promise<unknown> {
+  const tooLarge = () => new PublicError("Requête trop volumineuse", 413);
+  const declared = Number(req.headers.get("content-length") ?? "0");
+  if (declared > maxBytes) throw tooLarge();
+  if (!req.body) throw new PublicError("Corps de requête manquant");
+
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = req.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new PublicError("JSON invalide");
+  }
+}
+
 // Converts any thrown value into a response without leaking internal details.
 export function errorResponse(req: Request, error: unknown, context: string): Response {
   if (error instanceof PublicError) {

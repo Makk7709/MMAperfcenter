@@ -1,5 +1,5 @@
 import { createServiceClient, requireUser } from "../_shared/auth.ts";
-import { appBaseUrl, errorResponse, jsonResponse, preflight, PublicError } from "../_shared/http.ts";
+import { appBaseUrl, errorResponse, jsonResponse, preflight, PublicError, readJsonBody } from "../_shared/http.ts";
 import { CHECKOUT_PRICE_TO_PLAN, createStripe, getOrCreateCustomerId, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
 Deno.serve(async (req) => {
@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     const user = await requireUser(supabase, req);
     if (!user.email) throw new PublicError("Un email vérifié est requis pour s'abonner", 400);
 
-    const { priceId } = await req.json().catch(() => ({}));
+    const { priceId } = (await readJsonBody(req, 4 * 1024)) as { priceId?: unknown };
     if (typeof priceId !== "string" || !CHECKOUT_PRICE_TO_PLAN[priceId]) {
       throw new PublicError("Offre inconnue", 400);
     }

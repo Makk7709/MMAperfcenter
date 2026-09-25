@@ -1,10 +1,12 @@
 import { streamChatCompletion } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser } from "../_shared/auth.ts";
-import { errorResponse, preflight, PublicError, streamResponse } from "../_shared/http.ts";
+import { errorResponse, preflight, PublicError, readJsonBody, streamResponse } from "../_shared/http.ts";
 import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
 const MAX_HISTORY = 30;
 const MAX_MESSAGE_CHARS = 4000;
+// Worst case: MAX_HISTORY messages of MAX_MESSAGE_CHARS 4-byte characters.
+const MAX_BODY_BYTES = 512 * 1024;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createServiceClient();
     const user = await requireUser(supabase, req);
-    const body = await req.json().catch(() => ({}));
+    const body = await readJsonBody(req, MAX_BODY_BYTES) as { messages?: unknown };
     const messages = parseMessages(body?.messages);
 
     const ticket = await consumeQuota(supabase, user.id, "ai_coach");

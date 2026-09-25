@@ -1,7 +1,7 @@
 import { AI_GATEWAY_URL, assertGatewayOk, getAiGatewayKey } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
-import { errorResponse, jsonResponse, preflight, PublicError } from "../_shared/http.ts";
+import { errorResponse, jsonResponse, preflight, PublicError, readJsonBody } from "../_shared/http.ts";
 import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
 // ============================================
@@ -19,18 +19,24 @@ const AI_CONFIG = {
   apiUrl: AI_GATEWAY_URL,
 };
 
+// Supabase kills a function after 150 s (free) / 400 s (paid) of wall-clock
+// time, without running catch blocks: the quota refund would be skipped.
+// Every AI attempt must therefore finish inside a global budget.
 const RETRY_CONFIG = {
-  maxRetries: 3,
-  initialDelayMs: 2000,
-  backoffMultiplier: 2,
-  maxDelayMs: 15000,
+  totalBudgetMs: 140_000,
+  maxAttempts: 2,
+  // A retry is only worth it if a full Gemini Pro call can still complete.
+  minRetryBudgetMs: 60_000,
+  retryDelayMs: 2000,
   retryableStatuses: [429, 500, 502, 503, 504],
-  attemptTimeoutMs: 120_000,
 };
 
+// Sized for what the client sends (≤ 60 JPEG frames, 1280 px, q=0.7,
+// typically 150–400 k base64 chars each), with headroom.
 const INPUT_LIMITS = {
-  maxFrames: 120,
-  maxFrameBase64Chars: 2_000_000,
+  maxFrames: 60,
+  maxFrameBase64Chars: 600_000,
+  maxBodyBytes: 40 * 1024 * 1024,
   maxDurationSeconds: 3600,
   maxTextChars: 200,
 };
@@ -43,15 +49,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithRetry(url: string, init: RequestInit, deadline: number): Promise<Response> {
   let lastError: Error | null = null;
-  let delay = RETRY_CONFIG.initialDelayMs;
 
-  for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
+    const remaining = deadline - Date.now();
+    if (attempt > 1 && remaining < RETRY_CONFIG.minRetryBudgetMs) break;
     try {
-      console.log(`🔄 AI call attempt ${attempt}/${RETRY_CONFIG.maxRetries}`);
+      console.log(`🔄 AI call attempt ${attempt}/${RETRY_CONFIG.maxAttempts} (budget ${Math.round(remaining / 1000)}s)`);
       const start = Date.now();
-      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(RETRY_CONFIG.attemptTimeoutMs) });
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(remaining) });
       console.log(`   Response: ${response.status} in ${Date.now() - start}ms`);
 
       if (response.ok || !RETRY_CONFIG.retryableStatuses.includes(response.status)) {
@@ -60,22 +67,15 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
 
       const errorText = await response.text();
       lastError = new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
-      const retryAfter = response.headers.get('Retry-After');
-      if (retryAfter) {
-        delay = Math.min(Number.parseInt(retryAfter, 10) * 1000 || delay, RETRY_CONFIG.maxDelayMs);
-      }
-      console.log(`   ⚠️ Retry in ${delay}ms...`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(errorMessage(error));
       console.log(`   ❌ Network error: ${lastError.message}`);
     }
 
-    if (attempt < RETRY_CONFIG.maxRetries) {
-      await sleep(delay);
-      delay = Math.min(delay * RETRY_CONFIG.backoffMultiplier, RETRY_CONFIG.maxDelayMs);
-    }
+    if (attempt < RETRY_CONFIG.maxAttempts) await sleep(RETRY_CONFIG.retryDelayMs);
   }
-  throw lastError || new Error('All retry attempts failed');
+  console.error('AI gateway failed:', lastError?.message);
+  throw new PublicError("Le service d'analyse est indisponible, réessaie dans quelques minutes.", 503);
 }
 
 // ============================================
@@ -611,7 +611,7 @@ async function updateAnalysis(
   if (error) console.error('sparring_analyses update failed:', error.message);
 }
 
-async function runAnalysis(input: SparringRequest) {
+async function runAnalysis(input: SparringRequest, deadline: number) {
   const profile = getDisciplineProfile(input.discipline);
   const model = input.qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
   const selectedFrames = selectFrames(input.frames);
@@ -645,7 +645,7 @@ async function runAnalysis(input: SparringRequest) {
       max_tokens: AI_CONFIG.maxTokens,
       temperature: AI_CONFIG.temperature,
     }),
-  });
+  }, deadline);
 
   await assertGatewayOk(response);
   const analysis = validateAnalysis(parseToolCall(await response.json()), input.totalDuration, profile);
@@ -657,16 +657,17 @@ Deno.serve(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
+  const deadline = Date.now() + RETRY_CONFIG.totalBudgetMs;
   try {
     const supabase = createServiceClient();
     const user = await requireUser(supabase, req);
-    const input = parseRequest(await req.json().catch(() => null));
+    const input = parseRequest(await readJsonBody(req, INPUT_LIMITS.maxBodyBytes));
     if (input.analysisId) await assertOwnsAnalysis(supabase, input.analysisId, user.id);
 
     const ticket = await consumeQuota(supabase, user.id, 'sparring_analysis');
     try {
       await updateAnalysis(supabase, input.analysisId, user.id, { status: 'processing' });
-      const analysis = await runAnalysis(input);
+      const analysis = await runAnalysis(input, deadline);
       await updateAnalysis(supabase, input.analysisId, user.id, { analysis, status: 'completed' });
       return jsonResponse(req, { success: true, analysis });
     } catch (e) {

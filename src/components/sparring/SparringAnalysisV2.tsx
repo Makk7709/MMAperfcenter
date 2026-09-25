@@ -48,7 +48,6 @@ import { SparringPDFExport } from "./SparringPDFExport";
 import { SparringShareDialog } from "./SparringShareDialog";
 import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
-import { retryWithBackoff, RetryableError } from "@/utils/retryWithBackoff";
 import { convertToSignedUrl } from "@/utils/storageUtils";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { readFunctionError } from "@/lib/functionError";
@@ -172,12 +171,6 @@ const validateVideoFile = (file: File): string | null => {
 };
 
 // Indique si un message d'erreur passerelle justifie une nouvelle tentative.
-// Only transient failures are retried. Quota (402), validation (400/413),
-// ownership (403/404) and internal errors (500) are final. `undefined`
-// means the request never got an HTTP response (network failure).
-const isRetryableStatus = (status: number | undefined): boolean =>
-  status === undefined || [429, 502, 503, 504].includes(status);
-
 // Server messages are already user-facing; only prefix them.
 const friendlyAnalysisError = (errorMessage: string): string => `❌ ${errorMessage}`;
 
@@ -525,54 +518,33 @@ export const SparringAnalysisV2 = () => {
     setPreviousAnalyses((data || []) as unknown as AnalysisRecord[]);
   };
 
-  // Envoie les frames à l'IA avec logique de retry/backoff.
-  const runSparringAnalysis = (
+  // Envoie les frames à l'IA. Pas de nouvelle tentative côté client : le
+  // serveur réessaie déjà dans son budget de temps, et relancer une analyse
+  // encore en cours côté serveur doublerait le coût IA.
+  const runSparringAnalysis = async (
     frames: unknown,
     totalDuration: number,
     recordId: string | undefined,
     videoName: string,
-  ) =>
-    retryWithBackoff(
-      async () => {
-        const { data, error } = await supabase.functions.invoke('analyze-sparring', {
-          body: {
-            frames,
-            totalDuration,
-            analysisId: recordId,
-            videoName,
-            qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
-            discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
-          }
-        });
-
-        if (error) {
-          const { message, status } = await readFunctionError(error, "Erreur d'analyse");
-          if (isRetryableStatus(status)) throw new RetryableError(message);
-          throw new Error(message);
-        }
-
-        if (!data?.success) throw new Error(data?.error || "Erreur d'analyse");
-
-        return data;
-      },
-      {
-        maxRetries: 3,
-        shouldRetry: (err) => err instanceof RetryableError,
-        initialDelayMs: 3000,
-        backoffMultiplier: 2,
-        maxDelayMs: 15000,
-        onRetry: (attempt, error, nextDelayMs) => {
-          console.log(`[Sparring] Retry ${attempt}, error: ${error.message}, next delay: ${nextDelayMs}ms`);
-          toast.warning(`⏳ Tentative ${attempt}/3 échouée. Nouvelle tentative dans ${Math.round(nextDelayMs/1000)}s...`);
-        },
-        onSuccess: (_data, attempts) => {
-          if (attempts > 1) console.log(`[Sparring] Success after ${attempts} attempts`);
-        },
-        onFailure: (errors, attempts) => {
-          console.error(`[Sparring] Failed after ${attempts} attempts:`, errors);
-        }
+  ) => {
+    const { data, error } = await supabase.functions.invoke('analyze-sparring', {
+      body: {
+        frames,
+        totalDuration,
+        analysisId: recordId,
+        videoName,
+        qualityMode: 'pro', // 'pro' (gemini-2.5-pro) | 'fast' (flash)
+        discipline: discipline === 'auto' ? (profile?.martial_arts_discipline ?? null) : discipline,
       }
-    );
+    });
+
+    if (error) {
+      const { message } = await readFunctionError(error, "Erreur d'analyse");
+      throw new Error(message);
+    }
+    if (!data?.success) throw new Error(data?.error || "Erreur d'analyse");
+    return data;
+  };
 
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -646,17 +618,13 @@ export const SparringAnalysisV2 = () => {
 
       const result = await runSparringAnalysis(frames, totalDuration, recordId, file.name);
 
-      if (result.success && result.data) {
-        setCurrentAnalysis(result.data.analysis);
-        setCurrentAnalysisId(recordId || null);
-        setCurrentVideoName(file.name);
-        setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
-        setAnalysisProgress(100);
-        toast.success('✅ Analyse terminée ! Découvrez vos statistiques de combat.');
-        await refreshPreviousAnalyses();
-      } else {
-        throw result.finalError || new Error("Erreur d'analyse après plusieurs tentatives");
-      }
+      setCurrentAnalysis(result.analysis);
+      setCurrentAnalysisId(recordId || null);
+      setCurrentVideoName(file.name);
+      setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
+      setAnalysisProgress(100);
+      toast.success('✅ Analyse terminée ! Découvrez vos statistiques de combat.');
+      await refreshPreviousAnalyses();
 
     } catch (error) {
       console.error('Error:', error);
