@@ -60,7 +60,7 @@ export const useProfile = () => {
       setProfile(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchProfile = async () => {
     try {

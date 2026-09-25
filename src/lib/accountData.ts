@@ -14,6 +14,8 @@ const USER_TABLES = [
   'notifications',
   'community_activities',
   'meute_members',
+  'meute_activities',
+  'training_videos',
 ] as const;
 
 const PAGE_SIZE = 1000;
@@ -50,6 +52,9 @@ export async function exportAccountData(userId: string): Promise<Record<string, 
   if (error) throw new Error(error.message);
   data.profile = profile;
 
+  data.meutes_owned = await fetchAll((from, to) =>
+    supabase.from('meutes').select('*').eq('owner_id', userId).range(from, to));
+
   for (const table of USER_TABLES) {
     data[table] = await fetchAll((from, to) =>
       supabase.from(table).select('*').eq('user_id', userId).range(from, to) as unknown as ReturnType<PageQuery>);
@@ -74,8 +79,11 @@ export function downloadJson(filename: string, payload: unknown): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Safari starts the download asynchronously.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export const DELETE_CONFIRMATION_WORD = 'SUPPRIMER';

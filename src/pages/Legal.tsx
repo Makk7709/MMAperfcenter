@@ -58,8 +58,8 @@ const Legal = () => {
             <p><strong className="text-foreground">Email :</strong> contact@korev-ai.com</p>
             {/* Note interne : nommer le représentant légal effectif lors de la mise à jour des CGU. */}
             <p><strong className="text-foreground">Directeur de la publication :</strong> Représentant légal de KOREV AI — SASU</p>
-            {/* Note interne : préciser l'hébergeur exact + RCS + adresse postale dans la politique de confidentialité définitive. */}
-            <p><strong className="text-foreground">Hébergement :</strong> Supabase Inc. (infrastructure cloud associée). Coordonnées détaillées disponibles dans la politique de confidentialité.</p>
+            <p><strong className="text-foreground">Hébergement du site :</strong> Hostinger International Ltd, 61 Lordou Vironos Street, 6023 Larnaca, Chypre.</p>
+            <p><strong className="text-foreground">Hébergement des données :</strong> Supabase Inc. (base de données, authentification, stockage).</p>
           </div>
         </section>
 
@@ -276,7 +276,11 @@ const Legal = () => {
                 analyses statistiques et analyses vidéo : les messages, le profil sportif et les images 
                 extraites des vidéos de sparring sont transmis au moment de l'analyse ;
               </li>
-              <li>Sentry — suivi des erreurs techniques de l'application ;</li>
+              <li>
+                Sentry — suivi des erreurs techniques de l'application ; lorsqu'une erreur survient, 
+                un enregistrement de la session est conservé avec les textes masqués et les médias bloqués ;
+              </li>
+              <li>Hostinger — hébergement du site web ;</li>
               <li>Open Food Facts — recherche des produits scannés (seul le code-barres est transmis).</li>
             </ul>
             <p>
