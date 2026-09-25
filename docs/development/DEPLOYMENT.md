@@ -56,6 +56,29 @@ supabase db push
 
 Vérifier l'application des 28 migrations dans l'ordre chronologique (`supabase/migrations/`).
 
+**Ordre de mise en production du durcissement `20260925220000_security_hardening.sql`** : migration → Edge Functions → frontend, dans la même fenêtre. Les nouvelles fonctions appellent `consume_feature_quota` (créée par la migration), et l'ancien frontend incrémente encore `ai_coach` côté client, ce que la migration refuse désormais.
+
+Contrôles après `db push` (SQL editor) :
+
+```sql
+-- Doit renvoyer 0 ligne : aucune fonction serveur exécutable par anon/authenticated
+SELECT p.oid::regprocedure FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname IN ('sync_stripe_subscription','mark_webhook_processed','is_webhook_processed',
+                    'get_user_id_by_stripe_customer','check_subscription_access','create_notification',
+                    'consume_feature_quota','refund_feature_quota')
+  AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+
+-- Doit renvoyer false
+SELECT public FROM storage.buckets WHERE id = 'sparring-videos';
+
+-- Politiques UPDATE sans WITH CHECK restantes (à examiner)
+SELECT tablename, policyname FROM pg_policies
+WHERE schemaname = 'public' AND cmd = 'UPDATE' AND with_check IS NULL;
+```
+
+Les `WARNING` émis pendant la migration signalent une politique attendue mais absente : la corriger à la main.
+
 ### 3.2 Post-déploiement
 
 1. **Régénérer les types** si le schéma distant diffère :
@@ -121,6 +144,8 @@ supabase secrets set STRIPE_SECRET_KEY=sk_live_...
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
 supabase secrets set AI_GATEWAY_API_KEY=<key>
 supabase secrets set AI_GATEWAY_URL=<url>   # si override nécessaire
+supabase secrets set SITE_URL=https://<domaine-app>
+supabase secrets set ALLOWED_ORIGINS=https://<domaine-app>
 ```
 
 | Secret | Obligatoire | Fonctions |
@@ -130,6 +155,8 @@ supabase secrets set AI_GATEWAY_URL=<url>   # si override nécessaire
 | `STRIPE_WEBHOOK_SECRET` | Oui | stripe-webhook |
 | `AI_GATEWAY_API_KEY` | Oui | 3 fonctions IA |
 | `AI_GATEWAY_URL` | Non | Override URL passerelle |
+| `SITE_URL` | Oui en production | URLs de retour Stripe (checkout, portail) |
+| `ALLOWED_ORIGINS` | Oui en production | Origines CORS autorisées (liste séparée par des virgules). Sans valeur, toutes les origines sont acceptées (développement). |
 
 ### 4.3 Vérification post-déploiement
 
@@ -157,7 +184,9 @@ Quatre plans applicatifs mappés à des produits Stripe :
 | Elite | 29,90 € | `price_1SQSLMDLrTr0qdOpffTBpoJL` |
 | Senseï | 69 € | `price_1SQSM0DLrTr0qdOpYtZFR50d` |
 
-> Les price IDs sont **codés en dur** dans `src/pages/Pricing.tsx`. Pour un environnement distinct (staging), créer des produits/prix Stripe dédiés et mettre à jour le code ou externaliser la configuration.
+> Les price IDs sont codés en dur dans `src/pages/Pricing.tsx` **et** dans la liste blanche `CHECKOUT_PRICE_TO_PLAN` de `supabase/functions/_shared/stripe.ts` : `create-checkout` refuse tout autre prix. Les deux doivent être mis à jour avec les IDs live.
+>
+> Aucun prix annuel n'existe : le choix Mensuel/Annuel est masqué (`YEARLY_BILLING_ENABLED` dans `Pricing.tsx`).
 
 ### 5.2 Webhook
 
@@ -176,12 +205,7 @@ Activer le portail client Stripe (Dashboard → Settings → Billing → Custome
 
 ### 5.4 Mapping product → plan
 
-Le mapping `product_id → plan` est dupliqué dans :
-
-- `supabase/functions/check-subscription/index.ts`
-- `supabase/functions/stripe-webhook/index.ts`
-
-Vérifier la cohérence avec les product IDs Stripe live après création des produits.
+Le mapping `product_id → plan` est centralisé dans `PRODUCT_TO_PLAN` (`supabase/functions/_shared/stripe.ts`), utilisé par `check-subscription` et `stripe-webhook`. Le mettre à jour avec les product IDs live.
 
 ---
 
@@ -208,9 +232,11 @@ Injecter au moment du build (CI/CD ou plateforme hébergement) :
 | `VITE_SUPABASE_PROJECT_ID` | Référence projet |
 | `VITE_SENTRY_DSN` | DSN Sentry production |
 
-### 6.3 Hébergement (TBD)
+### 6.3 Hébergement
 
-Le dépôt ne contient pas de configuration d'hébergement (pas de Dockerfile, pas de `vercel.json` / `netlify.toml`).
+`public/.htaccess` (copié dans `dist/`) configure Apache/LiteSpeed (Hostinger) : redirection HTTPS, catch-all SPA vers `index.html`, en-têtes de sécurité (HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`) et cache long des assets hashés. Pour un autre hébergeur, reproduire ces règles.
+
+L'application refuse de démarrer si `VITE_SUPABASE_URL` ou `VITE_SUPABASE_PUBLISHABLE_KEY` manque (plus de valeur de secours codée en dur).
 
 **Recommandations minimales :**
 
