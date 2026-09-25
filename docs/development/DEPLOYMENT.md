@@ -13,13 +13,13 @@ Le déploiement couvre quatre composants :
 |---|---|---|
 | Base de données + Auth + Storage | Supabase | Migrations versionnées |
 | Edge Functions (9) | Supabase | Code versionné |
-| Frontend SPA | **À confirmer** (TBD) | Build Vite → `dist/` |
+| Frontend SPA | Hostinger (Apache/LiteSpeed) | Build Vite → `dist/` |
 | Paiements | Stripe | Webhook + Checkout |
 
 ```mermaid
 flowchart LR
     subgraph Prod["Production"]
-        FE["Frontend SPA\n(hébergement TBD)"]
+        FE["Frontend SPA\n(Hostinger)"]
         SB["Supabase\nDB · Auth · Storage · Edge"]
         ST["Stripe"]
         SN["Sentry"]
@@ -41,7 +41,7 @@ flowchart LR
 - Compte **Stripe** (mode live activé pour production)
 - Compte **Sentry** (optionnel, recommandé)
 - Accès **passerelle IA** (URL + clé API)
-- Plateforme d'**hébergement frontend** (Netlify, Vercel, Cloudflare Pages, S3+CloudFront, etc. — non décidé dans le dépôt)
+- Hébergement **Hostinger** pour le frontend
 
 ---
 
@@ -49,12 +49,19 @@ flowchart LR
 
 ### 3.1 Appliquer les migrations
 
+**Avant tout `db push` : sauvegarde.** Les migrations sont forward-only et `20260926010000` réécrit `training_videos.video_url`. Activer le PITR (plan payant) ou faire un dump :
+
+```bash
+supabase db dump --db-url "<connection-string>" -f backup-$(date +%F).sql
+supabase db dump --db-url "<connection-string>" --data-only -f backup-data-$(date +%F).sql
+```
+
 ```bash
 supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Vérifier l'application des 30 migrations dans l'ordre chronologique (`supabase/migrations/`).
+Vérifier l'application des 31 migrations dans l'ordre chronologique (`supabase/migrations/`).
 
 **Ordre de mise en production du durcissement `20260925220000_security_hardening.sql`** : migration → Edge Functions → frontend, dans la même fenêtre. Les nouvelles fonctions appellent `consume_feature_quota` (créée par la migration), et l'ancien frontend incrémente encore `ai_coach` côté client, ce que la migration refuse désormais.
 
@@ -103,6 +110,7 @@ Les `WARNING` émis pendant la migration signalent une politique attendue mais a
 - Site URL = domaine frontend production ;
 - Redirect URLs : ajouter `https://<domaine-app>/` **et** `https://<domaine-app>/reset-password` (sinon le lien « Mot de passe oublié » est refusé) ;
 - Configurer les templates email (confirmation, reset password) ;
+- Activer **Secure password change** (Auth → Providers → Email) : un changement de mot de passe hors lien de récupération exige une session récente ;
 - Politique mot de passe : **minimum 8 caractères** (Auth → Providers → Email), aligné sur `src/lib/passwordPolicy.ts`. Les comptes existants avec un mot de passe plus court peuvent toujours se connecter ;
 - Activer « Confirm email ».
 
@@ -152,22 +160,22 @@ La configuration JWT est dans `supabase/config.toml` :
 ### 4.2 Secrets (Dashboard ou CLI)
 
 ```bash
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 supabase secrets set STRIPE_SECRET_KEY=sk_live_...
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
 supabase secrets set AI_GATEWAY_API_KEY=<key>
-supabase secrets set AI_GATEWAY_URL=<url>   # si override nécessaire
+supabase secrets set AI_GATEWAY_URL=<url chat/completions>
 supabase secrets set SITE_URL=https://<domaine-app>
 supabase secrets set ALLOWED_ORIGINS=https://<domaine-app>
 ```
 
 | Secret | Obligatoire | Fonctions |
 |---|---|---|
-| `SUPABASE_SERVICE_ROLE_KEY` | Oui | Toutes sauf fetch-mma-results |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Injectés automatiquement par Supabase (préfixe réservé, ne pas les définir) | Toutes sauf fetch-mma-results |
 | `STRIPE_SECRET_KEY` | Oui | Stripe (4 fonctions) + delete-account |
 | `STRIPE_WEBHOOK_SECRET` | Oui | stripe-webhook |
 | `AI_GATEWAY_API_KEY` | Oui | 3 fonctions IA |
-| `AI_GATEWAY_URL` | Non | Override URL passerelle |
+| `AI_GATEWAY_URL` | **Oui** | URL de la passerelle IA. Sans valeur, les 3 fonctions IA échouent (aucune URL par défaut). Vérifier la valeur actuellement utilisée en production avant de redéployer. |
+| `LEGACY_AI_GATEWAY_KEY` | Non | Ancien nom de la clé, lu si `AI_GATEWAY_API_KEY` est absent |
 | `SITE_URL` | Oui en production | URLs de retour Stripe (checkout, portail) |
 | `ALLOWED_ORIGINS` | Oui en production | Origines CORS autorisées (liste séparée par des virgules). Sans valeur, toutes les origines sont acceptées (développement). |
 
@@ -324,7 +332,8 @@ Pipeline actuel (`.github/workflows/ci.yml`) :
 
 | # | Élément | Vérifié |
 |---|---|---|
-| 1 | Migrations Supabase appliquées (30 fichiers) | ☐ |
+| 0 | Sauvegarde de la base (PITR ou dump) avant `db push` | ☐ |
+| 1 | Migrations Supabase appliquées (31 fichiers) | ☐ |
 | 2 | Edge Functions déployées (9) | ☐ |
 | 3 | Secrets Supabase configurés | ☐ |
 | 4 | Stripe produits/prix live créés et IDs alignés | ☐ |
@@ -361,10 +370,11 @@ Le mapping Stripe `product_id → plan` est couplé aux IDs d'un environnement �
 
 | Composant | Stratégie |
 |---|---|
-| Frontend | Redéployer artefact `dist/` précédent (selon hébergeur) |
-| Edge Functions | `supabase functions deploy <name>@<version>` ou revert Git + redeploy |
+| Frontend | Redéployer l'artefact `dist/` précédent puis purger le cache Hostinger/LiteSpeed. **Après `20260926010000`, un frontend antérieur ne lit plus les vidéos d'entraînement** (URL publiques supprimées) |
+| Edge Functions | `git checkout <tag>` puis `supabase functions deploy <name>` |
 | Migrations DB | **Pas de rollback automatique** — migrations idempotentes ; corrections via nouvelle migration forward-only |
 | Stripe | Désactiver webhook temporairement si incident |
+| Données | Restauration PITR ou du dump pris avant `db push` |
 
 ---
 

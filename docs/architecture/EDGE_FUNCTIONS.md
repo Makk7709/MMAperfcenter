@@ -293,7 +293,7 @@ Tableau d'articles normalisés (titre, lien, source, date).
 
 | Variable | Description | Fonctions |
 |---|---|---|
-| `AI_GATEWAY_URL` | URL endpoint (défaut dans `_shared/ai-gateway.ts`) | ai-coach, ai-stats-analysis, analyze-sparring |
+| `AI_GATEWAY_URL` | URL endpoint (obligatoire, pas de valeur par défaut) | ai-coach, ai-stats-analysis, analyze-sparring |
 | `AI_GATEWAY_API_KEY` | Bearer token | Idem |
 | `LEGACY_AI_GATEWAY_KEY` | Fallback rétrocompatible | Idem |
 

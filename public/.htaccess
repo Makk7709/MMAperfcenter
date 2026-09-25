@@ -9,6 +9,10 @@ Options -Indexes
   RewriteCond %{HTTP:X-Forwarded-Proto} !=https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # A missing bundle must be a real 404, not index.html served as JavaScript.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^assets/ - [R=404,L]
+
   # Client-side routing: serve index.html for anything that is not a file.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -20,6 +24,9 @@ Options -Indexes
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+  # Full policy in observation mode: violations only appear in the browser
+  # console. Switch to enforcement once a production session shows none.
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://vpvfkazmfvxbpffymodg.supabase.co https://i.ytimg.com https://images.openfoodfacts.org; media-src 'self' blob: https://vpvfkazmfvxbpffymodg.supabase.co; connect-src 'self' https://vpvfkazmfvxbpffymodg.supabase.co wss://vpvfkazmfvxbpffymodg.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://world.openfoodfacts.org; frame-src https://www.youtube.com https://www.youtube-nocookie.com; worker-src 'self' blob:; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   # camera: barcode scanner. Everything else the app does not use.
   Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=()"
@@ -30,10 +37,15 @@ Options -Indexes
   </FilesMatch>
 </IfModule>
 
+# Hashed bundles get a one-year immutable cache in assets/.htaccess; files
+# kept under a fixed name (favicon, images in public/) must stay revalidable.
 <IfModule mod_expires.c>
   ExpiresActive On
-  <FilesMatch "\.(js|css|woff2?|png|jpe?g|svg|webp|ico)$">
-    ExpiresDefault "access plus 1 year"
-    Header set Cache-Control "public, max-age=31536000, immutable"
+  <FilesMatch "\.(png|jpe?g|svg|webp|ico)$">
+    ExpiresDefault "access plus 1 week"
   </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript application/json image/svg+xml
 </IfModule>
