@@ -12,7 +12,7 @@ Le déploiement couvre quatre composants :
 | Composant | Plateforme | Statut dans le dépôt |
 |---|---|---|
 | Base de données + Auth + Storage | Supabase | Migrations versionnées |
-| Edge Functions (8) | Supabase | Code versionné |
+| Edge Functions (9) | Supabase | Code versionné |
 | Frontend SPA | **À confirmer** (TBD) | Build Vite → `dist/` |
 | Paiements | Stripe | Webhook + Checkout |
 
@@ -54,9 +54,11 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Vérifier l'application des 28 migrations dans l'ordre chronologique (`supabase/migrations/`).
+Vérifier l'application des 30 migrations dans l'ordre chronologique (`supabase/migrations/`).
 
 **Ordre de mise en production du durcissement `20260925220000_security_hardening.sql`** : migration → Edge Functions → frontend, dans la même fenêtre. Les nouvelles fonctions appellent `consume_feature_quota` (créée par la migration), et l'ancien frontend incrémente encore `ai_coach` côté client, ce que la migration refuse désormais.
+
+**`20260926010000_private_training_videos_and_feed_privacy.sql`** rend le bucket `training-videos` privé et convertit `training_videos.video_url` (URL publique → chemin d'objet). Le nouveau frontend lit des URLs signées ; l'ancien frontend ne peut plus lire les vidéos uploadées une fois la migration appliquée : déployer le frontend dans la même fenêtre.
 
 Contrôles après `db push` (SQL editor) :
 
@@ -69,8 +71,12 @@ WHERE n.nspname = 'public'
                     'consume_feature_quota','refund_feature_quota')
   AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
 
--- Doit renvoyer false
-SELECT public FROM storage.buckets WHERE id = 'sparring-videos';
+-- Doit renvoyer deux lignes à false
+SELECT id, public FROM storage.buckets WHERE id IN ('sparring-videos', 'training-videos');
+
+-- Doit renvoyer 0 : plus aucune URL publique ni email dans le fil communautaire
+SELECT count(*) FROM public.training_videos WHERE video_type = 'upload' AND video_url LIKE 'http%';
+SELECT count(*) FROM public.community_activities WHERE description ~ '^\S+@\S+ a terminé: ';
 
 -- Politiques UPDATE sans WITH CHECK restantes (à examiner)
 SELECT tablename, policyname FROM pg_policies
@@ -94,9 +100,11 @@ Les `WARNING` émis pendant la migration signalent une politique attendue mais a
 
 ### 3.3 Auth
 
-- Vérifier les URLs de redirection autorisées (domaine frontend production) ;
+- Site URL = domaine frontend production ;
+- Redirect URLs : ajouter `https://<domaine-app>/` **et** `https://<domaine-app>/reset-password` (sinon le lien « Mot de passe oublié » est refusé) ;
 - Configurer les templates email (confirmation, reset password) ;
-- Politique mot de passe : minimum 6 caractères (aligné sur validation client).
+- Politique mot de passe : **minimum 8 caractères** (Auth → Providers → Email), aligné sur `src/lib/passwordPolicy.ts`. Les comptes existants avec un mot de passe plus court peuvent toujours se connecter ;
+- Activer « Confirm email ».
 
 ### 3.4 Storage
 
@@ -105,7 +113,7 @@ Buckets requis :
 | Bucket | Type | Politique |
 |---|---|---|
 | `sparring-videos` | Privé | RLS par dossier `auth.uid()` |
-| `training-videos` | Public/privé mixte | Policies visibilité + plan |
+| `training-videos` | Privé | Lecture si la ligne `training_videos` est visible (même règles que la table) ; écriture admin/coach dans son dossier |
 
 Les policies sont définies dans les migrations ; vérifier leur présence post-`db push`.
 
@@ -130,7 +138,12 @@ supabase functions deploy check-subscription
 supabase functions deploy customer-portal
 supabase functions deploy stripe-webhook
 supabase functions deploy fetch-mma-results
+supabase functions deploy delete-account
 ```
+
+`analyze-sparring` borne son exécution à 140 s (limite murale Supabase : 150 s sur le plan gratuit). Au-delà, la fonction est tuée sans rembourser le quota : ne pas augmenter ce budget sans passer sur un plan payant (400 s).
+
+`delete-account` (droit à l'effacement) résilie d'abord les abonnements Stripe, puis efface fichiers et compte. Il requiert `STRIPE_SECRET_KEY`.
 
 La configuration JWT est dans `supabase/config.toml` :
 
@@ -151,7 +164,7 @@ supabase secrets set ALLOWED_ORIGINS=https://<domaine-app>
 | Secret | Obligatoire | Fonctions |
 |---|---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | Oui | Toutes sauf fetch-mma-results |
-| `STRIPE_SECRET_KEY` | Oui | Stripe (4 fonctions) |
+| `STRIPE_SECRET_KEY` | Oui | Stripe (4 fonctions) + delete-account |
 | `STRIPE_WEBHOOK_SECRET` | Oui | stripe-webhook |
 | `AI_GATEWAY_API_KEY` | Oui | 3 fonctions IA |
 | `AI_GATEWAY_URL` | Non | Override URL passerelle |
@@ -311,8 +324,8 @@ Pipeline actuel (`.github/workflows/ci.yml`) :
 
 | # | Élément | Vérifié |
 |---|---|---|
-| 1 | Migrations Supabase appliquées (28 fichiers) | ☐ |
-| 2 | Edge Functions déployées (8) | ☐ |
+| 1 | Migrations Supabase appliquées (30 fichiers) | ☐ |
+| 2 | Edge Functions déployées (9) | ☐ |
 | 3 | Secrets Supabase configurés | ☐ |
 | 4 | Stripe produits/prix live créés et IDs alignés | ☐ |
 | 5 | Webhook Stripe configuré + secret injecté | ☐ |
@@ -320,11 +333,13 @@ Pipeline actuel (`.github/workflows/ci.yml`) :
 | 7 | Admin provisionné (seed) | ☐ |
 | 8 | Variables VITE_* injectées au build frontend | ☐ |
 | 9 | Frontend déployé + HTTPS + SPA routing | ☐ |
-| 10 | Redirect URLs Supabase Auth = domaine prod | ☐ |
+| 10 | Redirect URLs Supabase Auth = domaine prod + `/reset-password`, mot de passe min. 8 | ☐ |
 | 11 | Sentry DSN production configuré | ☐ |
 | 12 | Passerelle IA opérationnelle | ☐ |
-| 13 | Mentions légales finalisées (SIRET, politique confidentialité) | ☐ |
+| 13 | Mentions légales finalisées (SIRET, politique confidentialité validée par un juriste) | ☐ |
 | 14 | Test parcours : inscription → onboarding → checkout → webhook | ☐ |
+| 15 | Test RGPD : export des données puis suppression d'un compte abonné (abonnement annulé dans Stripe) | ☐ |
+| 16 | Test mot de passe oublié de bout en bout | ☐ |
 
 Checklist détaillée : [`LAUNCH_READINESS.md`](../audit/LAUNCH_READINESS.md).
 
