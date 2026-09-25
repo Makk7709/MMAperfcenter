@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, User, Save, Heart, Moon, Target, Dumbbell } from "lucide-react";
+import { PersonalDataCard } from "@/components/profile/PersonalDataCard";
 
 const GOALS = [
   { value: "perte-poids", label: "Perdre du poids", icon: "⚖️" },
@@ -439,6 +440,10 @@ const Profile = () => {
             </Button>
           </div>
         </form>
+
+        <div className="mt-6">
+          <PersonalDataCard />
+        </div>
       </div>
     </div>
   );

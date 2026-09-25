@@ -146,6 +146,15 @@ async function syncSubscription(
     throw new Error(`Could not resolve user for subscription ${sub.id}`);
   }
 
+  // A deleted account (delete-account cancels its subscription) has nothing
+  // left to sync: acknowledge instead of letting Stripe retry for days.
+  const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
+  if (authError?.status === 404 || (!authError && !authUser?.user)) {
+    log("Subscription of a deleted user ignored", { userId, subscriptionId: sub.id });
+    return;
+  }
+  if (authError) throw new Error(`getUserById failed: ${authError.message}`);
+
   const { skipped } = await syncSubscriptionRow(supabase, userId, sub);
   log(skipped ? "Stale subscription ignored" : "Subscription synced", { userId, subscriptionId: sub.id, status: sub.status });
 }

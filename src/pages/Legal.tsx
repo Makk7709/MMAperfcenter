@@ -258,21 +258,46 @@ const Legal = () => {
               progression, facturation des abonnements.
             </p>
             <p>
-              Les données ne sont pas transmises à des tiers sans le consentement de l'utilisateur, 
-              sauf obligation légale ou sous-traitants techniques nécessaires (hébergement, paiement, 
-              passerelle d'analyse IA).
+              <strong className="text-foreground">Visibilité :</strong> les données sont privées par 
+              défaut. Seuls sont partagés avec les autres membres le nom affiché et les séances 
+              terminées (fil communautaire), ainsi que les informations échangées au sein des 
+              meutes que l'utilisateur rejoint.
             </p>
-            {/* Note interne : publier la politique de confidentialité définitive et insérer son URL ci-dessous. */}
             <p>
-              Pour plus d'informations sur le traitement des données personnelles, veuillez
-              consulter notre{" "}
-              <strong className="text-foreground">Politique de confidentialité</strong>{" "}
-              (en cours de finalisation — disponible sur demande à contact@korev-ai.com).
+              <strong className="text-foreground">Sous-traitants :</strong> les données ne sont pas 
+              vendues. Elles sont transmises uniquement aux prestataires techniques nécessaires au 
+              service :
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Supabase — base de données, authentification et stockage des fichiers ;</li>
+              <li>Stripe — paiement et facturation des abonnements (aucune donnée bancaire n'est stockée par KOREV AI) ;</li>
+              <li>
+                Google (modèles Gemini, via une passerelle d'IA) — génération des conseils du coach, 
+                analyses statistiques et analyses vidéo : les messages, le profil sportif et les images 
+                extraites des vidéos de sparring sont transmis au moment de l'analyse ;
+              </li>
+              <li>Sentry — suivi des erreurs techniques de l'application ;</li>
+              <li>Open Food Facts — recherche des produits scannés (seul le code-barres est transmis).</li>
+            </ul>
+            <p>
+              Certains de ces prestataires peuvent traiter des données hors de l'Union européenne ; 
+              ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne 
+              ou par un mécanisme d'adéquation.
+            </p>
+            <p>
+              <strong className="text-foreground">Durée de conservation :</strong> les données sont 
+              conservées tant que le compte est actif. La suppression du compte efface immédiatement le 
+              profil, les séances, le journal, les données nutritionnelles, les analyses et les vidéos de 
+              sparring. Les factures sont conservées par Stripe pendant la durée légale imposée par les 
+              obligations comptables.
             </p>
             <p>
               <strong className="text-foreground">Droits de l'utilisateur :</strong> accès, 
               rectification, effacement, portabilité, opposition, limitation du traitement. 
-              Ces droits peuvent être exercés en contactant : contact@korev-ai.com.
+              Depuis la page Profil, l'utilisateur peut télécharger une copie de ses données 
+              (portabilité) et supprimer définitivement son compte (effacement). Les autres demandes 
+              peuvent être adressées à contact@korev-ai.com. L'utilisateur peut également introduire 
+              une réclamation auprès de la CNIL (www.cnil.fr).
             </p>
             <p>
               <strong className="text-foreground">Rappel — application non médicale :</strong> les 
@@ -373,7 +398,7 @@ const Legal = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground pt-4 pb-8">
-          <p>Dernière mise à jour : Décembre 2024</p>
+          <p>Dernière mise à jour : Septembre 2026</p>
           <p className="mt-2">© 2024 KOREV AI — SASU. Tous droits réservés.</p>
         </div>
       </main>
