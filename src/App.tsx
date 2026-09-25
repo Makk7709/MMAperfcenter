@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth, PASSWORD_RESET_PATH } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { VideoBackground } from "@/components/VideoBackground";
 import Index from "./pages/Index";
@@ -23,6 +23,7 @@ import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminSettings from "./pages/admin/AdminSettings";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -177,6 +178,7 @@ function AppContent() {
           }
         />
         <Route path="/legal" element={<Legal />} />
+        <Route path={PASSWORD_RESET_PATH} element={<ResetPassword />} />
         <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
         {/* Admin Routes */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />

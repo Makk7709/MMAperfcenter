@@ -9,22 +9,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { newPasswordSchema } from '@/lib/passwordPolicy';
 
-const authSchema = z.object({
-  email: z.string().email({ message: "Email invalide" }),
-  password: z.string().min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+const emailSchema = z.string().email({ message: "Email invalide" });
+
+// Existing accounts may have shorter passwords: sign-in only checks presence.
+const signInSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, { message: "Mot de passe requis" }),
+});
+
+const signUpSchema = z.object({
+  email: emailSchema,
+  password: newPasswordSchema,
   fullName: z.string().optional(),
 });
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
   });
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, requestPasswordReset } = useAuth();
   const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,7 +49,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const validation = authSchema.omit({ fullName: true }).parse(formData);
+      const validation = signInSchema.parse(formData);
       
       const { error } = await signIn(validation.email, validation.password);
       
@@ -74,7 +84,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const validation = authSchema.parse(formData);
+      const validation = signUpSchema.parse(formData);
       
       const { error } = await signUp(validation.email, validation.password, validation.fullName);
       
@@ -97,6 +107,22 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = emailSchema.safeParse(formData.email);
+    if (!email.success) {
+      toast.error(email.error.errors[0].message);
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await requestPasswordReset(email.data);
+    setIsLoading(false);
+    if (error) console.error('Password reset request failed:', error.message);
+    // Same message whether or not the account exists (no e-mail enumeration).
+    toast.success('Si un compte existe pour cet e-mail, un lien de réinitialisation vient d\'être envoyé.');
+    setResetMode(false);
   };
 
   return (
@@ -122,6 +148,28 @@ export default function Auth() {
               </TabsList>
               
               <TabsContent value="signin">
+                {resetMode ? (
+                <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      name="email"
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Envoi...' : 'Recevoir un lien de réinitialisation'}
+                  </Button>
+                  <Button type="button" variant="link" className="w-full" onClick={() => setResetMode(false)}>
+                    Retour à la connexion
+                  </Button>
+                </form>
+                ) : (
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
@@ -150,7 +198,11 @@ export default function Auth() {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? 'Connexion...' : 'Se connecter'}
                   </Button>
+                  <Button type="button" variant="link" className="w-full" onClick={() => setResetMode(true)}>
+                    Mot de passe oublié ?
+                  </Button>
                 </form>
+                )}
               </TabsContent>
               
               <TabsContent value="signup">
