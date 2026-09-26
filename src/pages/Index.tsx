@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { QuickStatsCards } from "@/components/QuickStatsCards";
 import { QuickActions } from "@/components/QuickActions";
@@ -32,14 +32,15 @@ const Index = () => {
   const { isPaid: isPremium } = useSubscription();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nutrition");
-  const [scanRequest, setScanRequest] = useState(0);
+  const [scanRequested, setScanRequested] = useState(false);
+  const handleScanHandled = useCallback(() => setScanRequested(false), []);
   const aiCoachRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const { data: trainingProgress, isError: trainingProgressError } = useTrainingProgress();
 
   const openScanner = () => {
     setActiveTab("nutrition");
-    setScanRequest((n) => n + 1);
+    setScanRequested(true);
     tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -177,7 +178,7 @@ const Index = () => {
               </TabsList>
               
               <TabsContent value="nutrition" className="space-y-6">
-                <NutritionTracker scanRequest={scanRequest} />
+                <NutritionTracker scanRequested={scanRequested} onScanHandled={handleScanHandled} />
               </TabsContent>
               
               <TabsContent value="workout" className="space-y-6">

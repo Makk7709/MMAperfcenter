@@ -14,8 +14,10 @@ import { defaultMealType, MEAL_TYPES, type FoodProduct, type MealType } from "@/
 import { cn } from "@/lib/utils";
 
 interface NutritionTrackerProps {
-  /** Incremented by the dashboard to open the barcode scanner. */
-  scanRequest?: number;
+  /** Set by the dashboard to open the barcode scanner once. */
+  scanRequested?: boolean;
+  /** Called as soon as the request is honoured, so a remount does not reopen the camera. */
+  onScanHandled?: () => void;
 }
 
 const dayLabelOf = (key: string) => {
@@ -42,7 +44,7 @@ const GOAL_FIELDS: { key: keyof NutritionGoals; label: string; max: number }[] =
   { key: "daily_fat_g", label: "Lipides (g / jour)", max: 1000 },
 ];
 
-export const NutritionTracker = ({ scanRequest = 0 }: NutritionTrackerProps) => {
+export const NutritionTracker = ({ scanRequested = false, onScanHandled }: NutritionTrackerProps) => {
   const todayKey = toDateKey();
   const [dateKey, setDateKey] = useState(todayKey);
   const { logs, totals, week, goals, isLoading, isError, addLog, adding, deleteLog, deletingId, saveGoals, savingGoals } =
@@ -64,8 +66,10 @@ export const NutritionTracker = ({ scanRequest = 0 }: NutritionTrackerProps) => 
   });
 
   useEffect(() => {
-    if (scanRequest > 0) setScannerOpen(true);
-  }, [scanRequest]);
+    if (!scanRequested) return;
+    setScannerOpen(true);
+    onScanHandled?.();
+  }, [scanRequested, onScanHandled]);
 
   const isTodaySelected = dateKey === todayKey;
   const dayLabel = dayLabelOf(dateKey);

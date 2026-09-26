@@ -21,6 +21,19 @@ interface Message {
 let messageCounter = 0;
 const nextMessageId = () => `msg-${++messageCounter}`;
 
+// Mirrors the ai-coach limits: past answers are shortened, empty ones dropped.
+const HISTORY_LIMIT = 30;
+const ASSISTANT_CHARS_LIMIT = 6000;
+
+const toPayload = (conversation: Message[]) =>
+  conversation
+    .filter((m) => m.content.trim())
+    .slice(-HISTORY_LIMIT)
+    .map(({ role, content }) => ({
+      role,
+      content: role === "assistant" ? content.slice(0, ASSISTANT_CHARS_LIMIT) : content,
+    }));
+
 // Ouvre le flux SSE du Coach IA. On utilise un fetch brut (et non
 // supabase.functions.invoke) car la fonction streame des Server-Sent Events.
 const openCoachStream = async (
@@ -54,6 +67,7 @@ export const AICoachChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
   const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('ai_coach');
 
   useEffect(() => {
@@ -62,54 +76,65 @@ export const AICoachChat = () => {
     }
   }, [messages]);
 
-  const updateLastAssistantContent = (content: string) => {
-    setMessages(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.role !== "assistant") return prev;
-      const newMessages = [...prev];
-      newMessages[newMessages.length - 1] = { ...last, content };
-      return newMessages;
-    });
+  const setMessageContent = (id: string, content: string) => {
+    setMessages(prev => prev.map(m => (m.id === id ? { ...m, content } : m)));
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    // Vérifie l'accès et incrémente le compteur (free = 3/mois)
-    const allowed = await gate();
-    if (!allowed) return;
-
-    const userMessage: Message = { id: nextMessageId(), role: "user", content: input.trim() };
-    const conversation = [...messages, userMessage];
-    setMessages(conversation);
-    setInput("");
+    const text = input.trim();
+    if (!text || sendingRef.current) return;
+    // Pris avant le contrôle d'accès : un double clic ne consomme pas deux crédits.
+    sendingRef.current = true;
     setIsLoading(true);
 
+    const userMessage: Message = { id: nextMessageId(), role: "user", content: text };
+    const assistantId = nextMessageId();
+    let assistantContent = "";
+
+    // Retire la question sans réponse et la remet dans le champ de saisie.
+    const restoreQuestion = () => {
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== assistantId));
+      setInput(current => current.trim() ? current : text);
+    };
+
     try {
+      // Vérifie l'accès (free = 3/mois, décompté côté serveur)
+      const allowed = await gate();
+      if (!allowed) return;
+
+      const conversation = [...messages, userMessage];
+      setMessages(conversation);
+      setInput("");
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session?.access_token) {
         toast.error(sessionError ? "Erreur de session" : "Veuillez vous reconnecter");
+        restoreQuestion();
         return;
       }
 
-      const reader = await openCoachStream(
-        session.access_token,
-        conversation.map(({ role, content }) => ({ role, content })),
-      );
+      const reader = await openCoachStream(session.access_token, toPayload(conversation));
+      setMessages(prev => [...prev, { id: assistantId, role: "assistant", content: "" }]);
 
-      setMessages(prev => [...prev, { id: nextMessageId(), role: "assistant", content: "" }]);
-
-      let assistantContent = "";
       await consumeSSEStream(reader, (delta) => {
         assistantContent += delta;
-        updateLastAssistantContent(assistantContent);
+        setMessageContent(assistantId, assistantContent);
       });
+
+      if (!assistantContent.trim()) {
+        toast.error("Le Coach IA n'a pas pu répondre à cette question. Reformulez-la puis réessayez.");
+        restoreQuestion();
+      }
     } catch (error) {
       console.error("Error:", error);
-      toast.error(error instanceof Error ? error.message : "Erreur de communication");
-      // Retire le message assistant vide en cas d'erreur
-      setMessages(prev => prev.filter((_, i) => i !== prev.length - 1));
+      if (assistantContent.trim()) {
+        toast.error("La réponse du Coach IA a été interrompue.");
+      } else {
+        toast.error(error instanceof Error ? error.message : "Erreur de communication");
+        restoreQuestion();
+      }
     } finally {
+      sendingRef.current = false;
       setIsLoading(false);
     }
   };

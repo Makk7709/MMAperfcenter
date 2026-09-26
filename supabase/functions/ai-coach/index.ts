@@ -1,34 +1,9 @@
 import { streamChatCompletion } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser } from "../_shared/auth.ts";
 import { formatCoachContext, loadCoachData, safeTimeZone } from "../_shared/coach-context.ts";
-import { errorResponse, preflight, PublicError, readJsonBody, streamResponse } from "../_shared/http.ts";
+import { MAX_BODY_BYTES, parseMessages } from "../_shared/coach-messages.ts";
+import { errorResponse, preflight, readJsonBody, streamResponse } from "../_shared/http.ts";
 import { consumeQuota, refundQuota } from "../_shared/quota.ts";
-
-const MAX_HISTORY = 30;
-const MAX_MESSAGE_CHARS = 4000;
-// Worst case: MAX_HISTORY messages of MAX_MESSAGE_CHARS 4-byte characters.
-const MAX_BODY_BYTES = 512 * 1024;
-
-type ChatMessage = { role: "user" | "assistant"; content: string };
-
-// Only user/assistant turns are forwarded: the system prompt is ours alone.
-// Older turns beyond MAX_HISTORY are dropped to bound the token cost.
-function parseMessages(raw: unknown): ChatMessage[] {
-  if (!Array.isArray(raw) || raw.length === 0) throw new PublicError("Conversation vide");
-  const messages = raw.slice(-MAX_HISTORY).map((m) => {
-    const role = (m as { role?: unknown })?.role;
-    const content = (m as { content?: unknown })?.content;
-    if ((role !== "user" && role !== "assistant") || typeof content !== "string" || !content.trim()) {
-      throw new PublicError("Format de message invalide");
-    }
-    if (content.length > MAX_MESSAGE_CHARS) {
-      throw new PublicError(`Message trop long (${MAX_MESSAGE_CHARS} caractères maximum)`);
-    }
-    return { role, content } as ChatMessage;
-  });
-  if (messages[messages.length - 1].role !== "user") throw new PublicError("Le dernier message doit venir de l'utilisateur");
-  return messages;
-}
 
 function buildSystemPrompt(profile: Record<string, unknown> | null, context: string): string {
   let systemPrompt = `Tu es Coach IA KOREV, un expert en arts martiaux et préparation physique pour combattants. Tu es spécialisé dans la création de programmes d'entraînement personnalisés.

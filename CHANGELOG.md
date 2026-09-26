@@ -8,6 +8,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 - Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, et sur les pages ouvertes depuis un e-mail ou un paiement.
 
+### Corrigé
+
+- Coach IA : la conversation ne se bloque plus après une longue réponse (programme, plan de repas). Les anciennes réponses sont raccourcies au lieu d'être refusées par le serveur. **Nécessite de redéployer la fonction `ai-coach`.**
+- Coach IA : une réponse vide (blocage de sécurité, erreur de la passerelle) ne casse plus la suite de la conversation ; la question est remise dans le champ de saisie.
+- Coach IA : un double clic sur Envoyer n'envoie plus deux requêtes et ne consomme plus deux crédits.
+- Coach IA : une requête échouée ne fait plus disparaître la question ; une réponse interrompue est conservée.
+- Flux IA : une ligne malformée n'interrompt plus silencieusement la réponse, et une erreur envoyée en cours de flux est affichée.
+- Nutrition : le scanner de code-barres (et la caméra) ne se rouvre plus à chaque retour sur l'onglet Nutrition.
+
 ## [0.11.0] - 2026-09-26
 
 **Nécessite la migration `20260926050000_session_effort.sql` (en plus de celles de 0.10.x) et le redéploiement de la fonction `ai-coach`.**
