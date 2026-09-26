@@ -64,6 +64,11 @@ describe("parseOffProduct", () => {
   it("derives kcal from kJ when needed", () => {
     expect(parseOffProduct({ product_name: "X", nutriments: { energy_100g: 418.4 } })?.per100.calories).toBe(100);
   });
+  it("caps impossible values (kJ entered as kcal, typos)", () => {
+    expect(
+      parseOffProduct({ product_name: "Erreur", nutriments: { "energy-kcal_100g": 2100, proteins_100g: 250, fat_100g: 30 } })?.per100,
+    ).toEqual({ calories: 900, protein: 100, carbs: 0, fat: 30 });
+  });
   it("rejects products without nutrition data", () => {
     expect(parseOffProduct({ product_name: "Eau", nutriments: {} })).toBeNull();
     expect(parseOffProduct(null)).toBeNull();

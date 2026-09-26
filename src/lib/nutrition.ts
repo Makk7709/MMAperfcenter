@@ -34,6 +34,16 @@ export const EMPTY_MACROS: Macros = { calories: 0, protein: 0, carbs: 0, fat: 0 
 
 const oneDecimal = (n: number) => Math.round(n * 10) / 10;
 
+/** Physical ceilings per 100 g: pure fat is 900 kcal, no nutrient exceeds 100 g. */
+export const PER100_MAX: Macros = { calories: 900, protein: 100, carbs: 100, fat: 100 };
+
+export const clampPer100 = (m: Macros): Macros => ({
+  calories: Math.min(PER100_MAX.calories, Math.max(0, m.calories)),
+  protein: Math.min(PER100_MAX.protein, Math.max(0, m.protein)),
+  carbs: Math.min(PER100_MAX.carbs, Math.max(0, m.carbs)),
+  fat: Math.min(PER100_MAX.fat, Math.max(0, m.fat)),
+});
+
 /** Macros for `grams` of a food described per 100 g. Calories are whole numbers, the rest keep one decimal. */
 export const scaleMacros = (per100: Macros, grams: number): Macros => {
   const ratio = Math.max(0, grams) / 100;
@@ -83,16 +93,16 @@ export const parseOffProduct = (product: unknown): FoodProduct | null => {
   const n = (p.nutriments ?? {}) as Record<string, unknown>;
 
   const kcal = num(n["energy-kcal_100g"]) || Math.round(num(n["energy_100g"]) / 4.184);
-  const per100: Macros = {
+  const per100 = clampPer100({
     calories: Math.round(kcal),
     protein: oneDecimal(num(n.proteins_100g)),
     carbs: oneDecimal(num(n.carbohydrates_100g)),
     fat: oneDecimal(num(n.fat_100g)),
-  };
+  });
   if (!per100.calories && !per100.protein && !per100.carbs && !per100.fat) return null;
 
-  const name = String(p.product_name_fr || p.product_name || "").trim() || "Produit scanné";
-  const brand = String(p.brands ?? "").split(",")[0].trim() || undefined;
+  const name = String(p.product_name_fr || p.product_name || "").trim().slice(0, 120) || "Produit scanné";
+  const brand = String(p.brands ?? "").split(",")[0].trim().slice(0, 40) || undefined;
   const serving = num(p.serving_quantity);
 
   return { name, brand, per100, servingGrams: serving >= 1 && serving <= 2000 ? Math.round(serving) : undefined };

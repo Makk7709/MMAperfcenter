@@ -10,6 +10,8 @@ import {
   EMPTY_MACROS,
   MAX_PORTION_GRAMS,
   MEAL_TYPES,
+  PER100_MAX,
+  clampPer100,
   scaleMacros,
   type FoodProduct,
   type Macros,
@@ -75,7 +77,7 @@ export function AddFoodDialog({
   const ready = !!source && name.trim().length > 0 && grams > 0 && total.calories > 0;
 
   const pickProduct = (food: FoodProduct) => {
-    setPer100(food.per100);
+    setPer100(clampPer100(food.per100));
     setSource("off");
     setServing(food.servingGrams);
     setGrams(food.servingGrams ?? 100);
@@ -156,9 +158,10 @@ export function AddFoodDialog({
                       type="number"
                       inputMode="decimal"
                       min={0}
+                      max={PER100_MAX[f.key]}
                       step={f.step}
                       value={per100[f.key] || ""}
-                      onChange={(e) => setPer100({ ...per100, [f.key]: Math.max(0, Number(e.target.value) || 0) })}
+                      onChange={(e) => setPer100(clampPer100({ ...per100, [f.key]: Number(e.target.value) || 0 }))}
                       className="h-9 text-sm"
                     />
                   </div>
