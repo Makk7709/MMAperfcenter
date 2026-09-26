@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Video, Sparkles } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { SparringAnalysisV2 } from "@/components/sparring";
+import { SparringDialog } from "@/components/sparring";
 
 export const SparringAnalysisFAB = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,12 +52,7 @@ export const SparringAnalysisFAB = () => {
         </div>
       </div>
 
-      {/* Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <SparringAnalysisV2 />
-        </DialogContent>
-      </Dialog>
+      <SparringDialog open={isOpen} onOpenChange={setIsOpen} />
     </>
   );
 };

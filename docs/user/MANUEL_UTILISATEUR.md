@@ -209,14 +209,13 @@ Lorsque le quota est atteint, un **paywall** s'affiche avec proposition de mise 
 
 ### 9.2 Processus
 
-1. **Upload** d'une vidéo de sparring (bucket privé `sparring-videos`).
-2. **Extraction de frames** côté navigateur (jusqu'à 60 images, validation luminance/contraste).
-3. Sélection de la **discipline** (boxe, kickboxing, muay thai, MMA, BJJ, karaté/taekwondo) — les métriques non pertinentes sont invalidées selon le profil discipline.
-4. Choix du **mode qualité** :
-   - Standard : Gemini 2.5 Pro ;
-   - Rapide (`qualityMode='fast'`) : Gemini 2.5 Flash.
-5. Envoi à l'Edge Function `analyze-sparring` ; résultat structuré JSON validé et normalisé.
-6. Persistance dans l'historique (`sparring_analyses`).
+1. Sélection de la **discipline** (boxe, kickboxing, muay thai, MMA, BJJ, karaté/taekwondo) — les métriques non pertinentes sont invalidées selon le profil discipline.
+2. Description facultative de **votre tenue** (« short noir, gants rouges ») : l'IA vous place en coin rouge et vous adresse directement ses conseils.
+3. **Dépôt** de la vidéo (glisser-déposer ou sélection). La vidéo reste sur l'appareil.
+4. **Extraction de planches de mouvement** côté navigateur : jusqu'à 48 planches de 4 images consécutives (0,25 s d'écart), avec timecode incrusté et validation luminance/contraste.
+5. Envoi à l'Edge Function `analyze-sparring` (Gemini 2.5 Pro ; Gemini 2.5 Flash quand l'analyse consomme le quota gratuit) ; résultat structuré JSON validé et normalisé.
+6. **Rapport** façon fiche de combat : scores par coin, moments clés datés (cliquables pour revoir l'instant tant que la vidéo est chargée), statistiques, techniques, conseils, et un encadré de fiabilité indiquant la part de la vidéo réellement observée.
+7. Persistance dans l'historique (`sparring_analyses`).
 
 ### 9.3 Fonctions complémentaires
 

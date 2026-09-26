@@ -3,63 +3,7 @@ import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
-
-interface FighterStats {
-  punches_thrown: number;
-  punches_landed: number;
-  kicks_thrown: number;
-  kicks_landed: number;
-  takedowns_attempted: number;
-  takedowns_successful: number;
-  submissions_attempted: number;
-  clinch_time_percent: number;
-  ground_time_percent: number;
-  significant_strikes: number;
-  head_strikes: number;
-  body_strikes: number;
-  leg_strikes: number;
-  defense_rate: number;
-}
-
-interface Fighter {
-  identifier: string;
-  style: string;
-  strengths: string[];
-  weaknesses: string[];
-}
-
-interface PerformanceScores {
-  overall: number;
-  striking: number;
-  grappling: number;
-  defense: number;
-  cardio: number;
-}
-
-export interface SparringAnalysisData {
-  summary: string;
-  duration_estimate: string;
-  fighters: Fighter[];
-  statistics: {
-    fighter_1: FighterStats;
-    fighter_2: FighterStats;
-  };
-  techniques_observed: {
-    technique: string;
-    fighter: string;
-    execution: string;
-    timestamp_approx: string;
-  }[];
-  recommendations: {
-    fighter_1: string[];
-    fighter_2: string[];
-  };
-  overall_analysis: string;
-  performance_scores: {
-    fighter_1: PerformanceScores;
-    fighter_2: PerformanceScores;
-  };
-}
+import type { SparringAnalysisData } from "./types";
 
 interface SparringPDFExportProps {
   analysis: SparringAnalysisData;
@@ -392,8 +336,6 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
           ['Frappes tête', `${stats1.head_strikes}`, `${stats2.head_strikes}`],
           ['Frappes corps', `${stats1.body_strikes}`, `${stats2.body_strikes}`],
           ['Frappes jambes', `${stats1.leg_strikes}`, `${stats2.leg_strikes}`],
-          ['Temps clinch', `${stats1.clinch_time_percent}%`, `${stats2.clinch_time_percent}%`],
-          ['Temps au sol', `${stats1.ground_time_percent}%`, `${stats2.ground_time_percent}%`],
           ['Taux de défense', `${stats1.defense_rate}%`, `${stats2.defense_rate}%`],
         ];
 

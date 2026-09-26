@@ -12,11 +12,7 @@ import {
   ChevronRight,
   Users
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { SparringAnalysisV2 } from "@/components/sparring";
+import { SparringDialog } from "@/components/sparring";
 
 // Animated stats for demo
 const demoStats = {
@@ -234,12 +230,7 @@ export const SparringShowcase = () => {
         </div>
       </section>
 
-      {/* Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <SparringAnalysisV2 />
-        </DialogContent>
-      </Dialog>
+      <SparringDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
     </>
   );
 };
