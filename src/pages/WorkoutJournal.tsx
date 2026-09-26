@@ -172,7 +172,7 @@ const WorkoutJournal = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader userName={userName} isPremium={true} onSignOut={() => signOut()} />
+      <DashboardHeader userName={userName} onSignOut={() => signOut()} />
 
       <div className="container px-4 py-8">
         <div className="max-w-5xl mx-auto space-y-6">

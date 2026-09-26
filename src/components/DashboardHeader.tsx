@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home, Shield } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import {
   DropdownMenu,
@@ -15,15 +16,15 @@ import {
 
 interface DashboardHeaderProps {
   userName?: string;
-  isPremium?: boolean;
   onSignOut?: () => void;
 }
 
-export const DashboardHeader = ({ userName = "Coach", isPremium = false, onSignOut }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { hasAdminAccess } = useUserRole();
+  const { isPaid: isPremium } = useSubscription();
 
   return (
     <header className="sticky top-0 z-50 w-full liquid-glass-solid backdrop-blur-md border-b border-border/50 shadow-card">

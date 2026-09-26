@@ -15,6 +15,8 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useNavigate } from "react-router-dom";
 import { 
   Brain, 
   Crown, 
@@ -25,7 +27,8 @@ import {
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const isPremium = true;
+  const { isPaid: isPremium } = useSubscription();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nutrition");
   const aiCoachRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +45,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <DashboardHeader userName={userName} isPremium={isPremium} onSignOut={handleSignOut} />
+      <DashboardHeader userName={userName} onSignOut={handleSignOut} />
       
       
       
@@ -97,6 +100,7 @@ const Index = () => {
                 <Button 
                   size="lg"
                   className="bg-gradient-primary hover:opacity-90 shadow-glow"
+                  onClick={() => navigate("/pricing")}
                 >
                   <Star className="h-5 w-5 mr-2" />
                   Champion Access

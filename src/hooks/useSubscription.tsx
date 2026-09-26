@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -51,42 +52,47 @@ export const PLAN_PRICES = {
   sensei: { monthly: 69, yearly: 699 },
 };
 
+const PAID_STATUSES = new Set(['active', 'trialing']);
+
+export const isPaidSubscription = (subscription: Subscription | null | undefined): boolean =>
+  !!subscription && subscription.plan !== 'free' && PAID_STATUSES.has(subscription.status);
+
+// Shared through react-query: every header and page reads the same cached row.
 export const useSubscription = () => {
   const { user } = useAuth();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchSubscription();
-    }
-  }, [user]);
-
-  const fetchSubscription = async () => {
-    try {
-      setLoading(true);
+  const query = useQuery({
+    queryKey: ['subscription', user?.id],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async (): Promise<Subscription | null> => {
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user!.id)
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
+      if (error) {
+        console.error('Error fetching subscription:', error);
+        toast.error('Erreur lors du chargement de l\'abonnement');
+        return null;
+      }
+
       // La ligne est créée par le trigger d'inscription ; les écritures client
       // sur subscriptions sont interdites. En son absence, on affiche le plan free.
-      setSubscription(data ?? { id: '', user_id: user?.id ?? '', plan: 'free', status: 'active' });
-    } catch (error) {
-      console.error('Error fetching subscription:', error);
-      toast.error('Erreur lors du chargement de l\'abonnement');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data as Subscription | null) ?? { id: '', user_id: user!.id, plan: 'free', status: 'active' };
+    },
+  });
+
+  const { refetch } = query;
+  const refreshSubscription = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   return {
-    subscription,
-    loading,
-    refreshSubscription: fetchSubscription,
+    subscription: query.data ?? null,
+    loading: query.isLoading,
+    isPaid: isPaidSubscription(query.data),
+    refreshSubscription,
   };
 };

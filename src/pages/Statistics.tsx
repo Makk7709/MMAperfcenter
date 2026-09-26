@@ -121,7 +121,7 @@ export default function Statistics() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+        <DashboardHeader userName={userName} onSignOut={handleSignOut} />
         <div className="max-w-4xl mx-auto p-4">
           <p className="text-center text-muted-foreground">Chargement...</p>
         </div>
@@ -144,7 +144,7 @@ export default function Statistics() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader userName={userName} isPremium={true} onSignOut={handleSignOut} />
+      <DashboardHeader userName={userName} onSignOut={handleSignOut} />
       
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* Title */}
