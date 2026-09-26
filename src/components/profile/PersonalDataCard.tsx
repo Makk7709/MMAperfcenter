@@ -1,3 +1,4 @@
+import { toDateKey } from "@/lib/dateKey";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,7 +29,7 @@ export function PersonalDataCard() {
     setExporting(true);
     try {
       const data = await exportAccountData(user.id);
-      downloadJson(`korev-donnees-${new Date().toISOString().slice(0, 10)}.json`, data);
+      downloadJson(`korev-donnees-${toDateKey()}.json`, data);
     } catch (error) {
       console.error("Account export failed:", error);
       toast.error("L'export de vos données a échoué");

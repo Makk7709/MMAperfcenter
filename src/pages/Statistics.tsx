@@ -1,3 +1,4 @@
+import { fromDateKey, lastDateKeys, startOfDayDaysAgo, timestampToDateKey } from "@/lib/dateKey";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { AIStatsAnalysis } from "@/components/AIStatsAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrendingUp, Flame } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   LineChart,
@@ -62,10 +63,7 @@ export default function Statistics() {
   const loadStatistics = async () => {
     if (!user) return;
 
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = subDays(new Date(), 6 - i);
-      return date.toISOString().split('T')[0];
-    });
+    const last7Days = lastDateKeys(7);
 
     // Load workout stats
     const { data: workouts } = await supabase
@@ -73,17 +71,17 @@ export default function Statistics() {
       .select('completed_at, duration_minutes, total_volume_kg, calories_burned')
       .eq('user_id', user.id)
       .eq('status', 'completed')
-      .gte('completed_at', subDays(new Date(), 6).toISOString())
+      .gte('completed_at', startOfDayDaysAgo(6))
       .order('completed_at', { ascending: true });
 
     // Group by day
     const workoutByDay = last7Days.map(date => {
-      const dayWorkouts = workouts?.filter(w => 
-        w.completed_at?.startsWith(date)
+      const dayWorkouts = workouts?.filter(w =>
+        w.completed_at && timestampToDateKey(w.completed_at) === date
       ) || [];
       
       return {
-        date: format(new Date(date), 'EEE', { locale: fr }),
+        date: format(fromDateKey(date), 'EEE', { locale: fr }),
         duration: dayWorkouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0),
         volume: dayWorkouts.reduce((sum, w) => sum + (w.total_volume_kg || 0), 0),
         calories: dayWorkouts.reduce((sum, w) => sum + (w.calories_burned || 0), 0),
@@ -98,7 +96,7 @@ export default function Statistics() {
       .from('nutrition_logs')
       .select('date, calories, protein_g, carbs_g, fat_g')
       .eq('user_id', user.id)
-      .gte('date', subDays(new Date(), 6).toISOString().split('T')[0])
+      .gte('date', last7Days[0])
       .order('date', { ascending: true });
 
     // Group by day
@@ -106,7 +104,7 @@ export default function Statistics() {
       const dayNutrition = nutrition?.filter(n => n.date === date) || [];
       
       return {
-        date: format(new Date(date), 'EEE', { locale: fr }),
+        date: format(fromDateKey(date), 'EEE', { locale: fr }),
         calories: dayNutrition.reduce((sum, n) => sum + (n.calories || 0), 0),
         protein: dayNutrition.reduce((sum, n) => sum + Number(n.protein_g || 0), 0),
         carbs: dayNutrition.reduce((sum, n) => sum + Number(n.carbs_g || 0), 0),

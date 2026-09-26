@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FileDown, Loader2, Crown } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
+import { toDateKey } from "@/lib/dateKey";
 
 interface PDFExportButtonProps {
   content: string;
@@ -204,7 +205,7 @@ export const PDFExportButton = ({ content, title = "Programme d'entraînement" }
       doc.text("PREMIUM", pageWidth - 27.5, lastPageHeight - 9, { align: "center" });
 
       // Save the PDF
-      const fileName = `KOREV_AI_${programTitle.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
+      const fileName = `KOREV_AI_${programTitle.replace(/\s+/g, "_")}_${toDateKey()}.pdf`;
       doc.save(fileName);
       
       toast.success("PDF exporté avec succès !");

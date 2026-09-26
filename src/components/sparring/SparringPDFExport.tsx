@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import type { SparringAnalysisData } from "./types";
+import { toDateKey } from "@/lib/dateKey";
 
 interface SparringPDFExportProps {
   analysis: SparringAnalysisData;
@@ -428,7 +429,7 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
       }
 
       // Save
-      const fileName = `korev-analyse-sparring-${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `korev-analyse-sparring-${toDateKey()}.pdf`;
       doc.save(fileName);
 
       toast.success('PDF exporté avec succès !');

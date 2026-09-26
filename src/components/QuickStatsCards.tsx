@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { subDays } from "date-fns";
+import { startOfDayDaysAgo, toDateKey } from "@/lib/dateKey";
 
 export const QuickStatsCards = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export const QuickStatsCards = () => {
     if (!user) return;
 
     const loadStats = async () => {
-      const weekAgo = subDays(new Date(), 7).toISOString();
+      const weekAgo = startOfDayDaysAgo(6);
 
       // Load workout stats
       const { data: workouts } = await supabase
@@ -37,7 +38,7 @@ export const QuickStatsCards = () => {
         .from('nutrition_logs')
         .select('calories')
         .eq('user_id', user.id)
-        .gte('date', subDays(new Date(), 7).toISOString().split('T')[0]);
+        .gte('date', toDateKey(subDays(new Date(), 6)));
 
       const workoutCount = workouts?.length || 0;
       const totalVolume = workouts?.reduce((sum, w) => sum + (w.total_volume_kg || 0), 0) || 0;
