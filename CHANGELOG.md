@@ -2,6 +2,38 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/). La version 1.0.0 correspondra à la première mise en production.
 
+## [0.10.0] - 2026-09-26
+
+Entraînement, carnet et nutrition refondus. **Nécessite la migration `20260926030000_training_sessions.sql`**, à appliquer avant ou avec ce frontend.
+
+### Séances d'entraînement
+
+- Une seule séance, enregistrée en base, sur un écran dédié (`/seance`) : minuteur de rounds avec sonnerie, exercices et séries (charge, répétitions, validation), minuteur de repos lancé à chaque série validée.
+- Les minuteurs se basent sur l'heure réelle : justes en veille ou après rechargement ; la séance se reprend depuis le tableau de bord.
+- Bilan réel en fin de séance (durée, séries, volume, rounds, calories estimées selon le poids du profil) et note rattachée au carnet.
+- 24 exercices orientés combat ajoutés au catalogue (force, puissance, conditionnement, gainage).
+- Ancien système supprimé (enregistreur, dialogues et gestionnaire de séance en double, XP en `localStorage`).
+
+### Rang Wolf Pack
+
+- XP et rang calculés à partir des séances réellement enregistrées et des analyses sparring terminées, identiques sur tous les appareils (l'affichage était figé à 1 250 XP).
+
+### Carnet d'entraînement
+
+- Refonte KOREV : ressenti en 5 niveaux sans emojis, actions visibles sur mobile, suppression confirmée, séance liée affichée ; accessible depuis le menu.
+
+### Nutrition
+
+- Navigation par jour et bande des 7 derniers jours ; aliments groupés par repas, repas présélectionné selon l'heure.
+- Le scanner ouvre la saisie préremplie pour 100 g avec choix de la quantité (portion du produit si déclarée) ; un produit introuvable ne consomme plus de scan ; caméra arrière.
+- Décimales conservées ; objectifs préremplis avec les valeurs actuelles.
+
+### Corrections
+
+- Dates calculées dans le fuseau de l'utilisateur (nutrition, carnet, statistiques, exports) : un repas noté après minuit n'est plus rangé la veille.
+- Recherche d'aliments : la liste ne se rouvre plus après une sélection ; valeurs pour 100 g uniquement.
+- Bouton « Démarrer une séance combat » fonctionnel.
+
 ## [0.9.0] - 2026-09-26
 
 Version de pré-lancement : fonctionnellement complète, auditée, non encore déployée.
@@ -34,4 +66,5 @@ Version de pré-lancement : fonctionnellement complète, auditée, non encore d�
 
 - `.htaccess` SPA, en-têtes de sécurité, CSP en mode rapport, compression, procédures de sauvegarde et de retour arrière.
 
+[0.10.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.9.0

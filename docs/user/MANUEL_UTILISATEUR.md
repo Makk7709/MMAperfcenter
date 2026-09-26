@@ -77,7 +77,7 @@ Le tableau de bord (`/`) est organisé en plusieurs zones :
 ### 4.1 En-tête
 
 - Nom d'utilisateur ;
-- Accès rapide au profil, à l'historique, aux statistiques, aux tarifs ;
+- Accès rapide au profil, à l'historique, au carnet, aux statistiques, aux tarifs ;
 - Notifications in-app ;
 - Déconnexion.
 
@@ -90,8 +90,8 @@ Le tableau de bord (`/`) est organisé en plusieurs zones :
 ### 4.3 Colonne gauche
 
 - **Coach IA** : chat conversationnel (voir § 8).
-- **Rang Wolf Pack** : affichage du rang et de l'XP (voir § 10).
-- **Actions rapides** : raccourcis vers nutrition, entraînement, timer.
+- **Rang Wolf Pack** : rang et XP calculés à partir de vos séances enregistrées (voir § 10).
+- **Actions rapides** : démarrer ou reprendre une séance, scanner un produit, vidéos, technique, carnet, historique.
 - **Meute** : carte du groupe actif (voir § 12).
 
 ### 4.4 Onglets centraux
@@ -100,9 +100,9 @@ Trois onglets principaux :
 
 | Onglet | Contenu |
 |---|---|
-| **Nutrition Combat** | Journal nutritionnel, objectifs, recherche alimentaire |
-| **Préparation Physique** | Démarrage et suivi de séances d'entraînement |
-| **Technique** | Timer de rounds, journal d'entraînement libre |
+| **Nutrition Combat** | Journal nutritionnel du jour, navigation entre les jours, objectifs, scanner |
+| **Préparation Physique** | Séance en cours ou nouvelle séance, statistiques de la semaine, rang, dernières séances |
+| **Technique** | Minuteur de rounds libre (non enregistré) et démarrage d'une séance combat enregistrée |
 
 Un bouton flottant (FAB) permet d'accéder directement à l'**analyse sparring** depuis n'importe quelle page du tableau de bord.
 
@@ -112,21 +112,22 @@ Un bouton flottant (FAB) permet d'accéder directement à l'**analyse sparring**
 
 ### 5.1 Démarrer une séance
 
-1. Onglet **Préparation Physique**.
-2. Cliquez sur **Démarrer une séance** (dialogue de démarrage v2).
-3. Choisissez le type de séance et les exercices.
-4. La séance passe en statut **active** avec phases warmup / active / cooldown.
+1. Onglet **Préparation Physique** (ou tuile **Workout** des actions rapides) : **Nouvelle séance**.
+2. Choisissez un modèle (boxe, MMA, force, HIIT…) ou composez la séance : type, intensité, mode rounds (nombre, durée du round, repos).
+3. La séance s'ouvre en plein écran sur `/seance`. Une seule séance peut être en cours ; si vous quittez l'écran, elle reste ouverte et le tableau de bord propose **Reprendre la séance**.
 
 ### 5.2 Pendant la séance
 
-- Enregistrement des séries (poids, répétitions) ;
-- Timer intégré ;
-- Calcul du volume total et estimation calorique ;
-- Attribution d'XP Wolf Pack à la fin de séance.
+- **Minuteur de rounds** (si la séance comporte des rounds) : sonnerie à chaque changement de phase, bips sur les 3 dernières secondes, phase de repos affichée en bleu. Le chronomètre se base sur l'heure réelle : il reste juste si le téléphone se met en veille ou si la page est rechargée. Chaque round terminé est enregistré.
+- **Exercices et séries** : **Ajouter un exercice** ouvre le catalogue (recherche, catégories Force, Puissance, Conditionnement, Gainage…). Pour chaque série, saisissez la charge et les répétitions puis validez-la.
+- **Minuteur de repos** : il démarre automatiquement quand une série est validée et enregistrée (+15 s ou **Passer**).
+- **Abandonner la séance** la supprime après confirmation ; elle n'apparaît alors ni dans l'historique ni dans les statistiques.
 
 ### 5.3 Fin de séance
 
-La séance est marquée **completed**. Un résumé gamifié peut s'afficher (XP gagné, badges potentiels).
+**Terminer** affiche le bilan réel : durée, séries validées, volume soulevé (kg), rounds. Vous pouvez indiquer votre ressenti, votre énergie et une note : ils sont ajoutés au carnet et rattachés à la séance. Après enregistrement : XP gagnée, calories estimées (selon le type, l'intensité, la durée et votre poids de profil, 75 kg par défaut) et rang mis à jour.
+
+Une séance de moins de 5 minutes sans série ni round ne rapporte pas d'XP. La durée comptée est plafonnée à 4 heures (séance oubliée ouverte).
 
 ### 5.4 Historique
 
@@ -134,11 +135,11 @@ Page **Historique** (`/history`) : liste des séances passées avec filtres.
 
 ### 5.5 Journal d'entraînement
 
-Page **Journal** (`/journal`) : saisie libre de notes et observations (`/journal`).
+Page **Carnet** (`/journal`, aussi dans le menu) : une entrée par jour ou par séance avec titre, ressenti (5 niveaux), énergie sur 10, pesée facultative et notes. Les entrées créées en fin de séance affichent la séance liée (type, durée, rounds, volume). Modification et suppression sont accessibles sur chaque entrée, y compris sur mobile ; la suppression demande confirmation et ne supprime pas la séance.
 
 ### 5.6 Timer de rounds
 
-Onglet **Technique** : configuration du nombre de rounds, durée des rounds et temps de repos. Signal sonore en fin de round (sons Wolf Pack ou classiques selon préférence).
+Onglet **Technique** : minuteur libre (nombre de rounds, durée, repos), sans enregistrement. Pour que les rounds comptent dans l'historique et l'XP, utilisez **Démarrer une séance combat** ou le mode rounds d'une séance.
 
 ---
 
@@ -148,21 +149,21 @@ Onglet **Technique** : configuration du nombre de rounds, durée des rounds et t
 
 Dans l'onglet **Nutrition Combat** :
 
-- Ajout de repas par type (petit-déjeuner, déjeuner, dîner, collation) ;
-- Saisie manuelle ou recherche par nom ;
-- Totaux quotidiens (calories, macros selon plan).
+- Le jour affiché est **Aujourd'hui** par défaut ; les flèches et la bande des **7 derniers jours** (calories par jour, ligne pointillée = objectif) permettent de consulter ou compléter un autre jour. Les jours suivent votre fuseau horaire.
+- Calories consommées, restantes et progression des protéines, glucides et lipides.
+- Les aliments sont regroupés par repas (petit-déjeuner, déjeuner, collation, dîner) avec le sous-total du repas ; **+** ajoute directement à ce repas, **×** retire un aliment.
 
-### 6.2 Recherche alimentaire
+### 6.2 Ajouter un aliment
 
-La recherche utilise l'API publique **Open Food Facts** (`world.openfoodfacts.org`), appelée depuis votre navigateur.
+**Ajouter** ouvre la saisie : le repas est présélectionné selon l'heure. Recherchez l'aliment (API publique **Open Food Facts**, appelée depuis votre navigateur) ou saisissez vous-même les valeurs pour 100 g. Indiquez ensuite la quantité consommée en grammes (raccourcis 30 à 250 g, ou la portion déclarée par le produit) : le total est recalculé en direct, décimales comprises.
 
 ### 6.3 Scan code-barres
 
-Fonctionnalité accessible via le dialogue de scan (caméra). Soumise au **quota mensuel** du plan Free (3 scans/mois) ; illimité à partir du plan Pro.
+**Scanner** (onglet nutrition ou actions rapides) ouvre la caméra arrière. Le produit reconnu ouvre la même saisie, préremplie pour 100 g : il reste à choisir la quantité et le repas. Un code-barres introuvable ou sans valeurs nutritionnelles ne consomme pas de scan. Quota : 3 scans par mois en plan Free, illimité à partir du plan Pro.
 
 ### 6.4 Objectifs nutritionnels
 
-Paramétrables depuis le module nutrition (objectifs caloriques et macros stockés en base).
+L'icône de réglages ouvre vos objectifs quotidiens (calories, protéines, glucides, lipides), préremplis avec les valeurs actuelles et enregistrés en base.
 
 ---
 
@@ -248,11 +249,11 @@ Système thématique « meute de loups » intégré aux séances et à l'analyse
 | 6 | Alpha | 15 000 |
 | 7 | Loup Garou | 30 000 |
 
-L'XP est attribuée lors des actions : séance terminée, série complétée, record personnel, analyse sparring, maintien de streak.
+L'XP est calculée à partir de vos séances terminées : 50 XP de base, plus 1 XP par minute (120 max), 10 XP par round et 5 XP par série validée, multipliés selon l'intensité (légère × 0,8, modérée × 1, intense × 1,3), avec un plafond de 400 XP par séance. Chaque analyse sparring terminée ajoute 30 XP.
 
-### 10.2 Badges (9)
+### 10.2 Badges (à venir)
 
-Exemples : Première Lune (1er entraînement), Feu de Meute (7 jours consécutifs), Crocs Acérés (100 coups), Prédateur (50 entraînements), Regard du Loup (10 analyses sparring), Pleine Lune (rang Loup Garou).
+Neuf badges sont définis mais ne sont pas encore affichés dans l'application. Exemples : Première Lune (1er entraînement), Feu de Meute (7 jours consécutifs), Crocs Acérés (100 coups), Prédateur (50 entraînements), Regard du Loup (10 analyses sparring), Pleine Lune (rang Loup Garou).
 
 ### 10.3 Streaks
 
@@ -260,8 +261,8 @@ Jours consécutifs d'entraînement calculés à partir de l'historique des séan
 
 ### 10.4 Persistance
 
-- Le **nombre de séances** provient de la base de données ;
-- L'**XP total** et les **badges débloqués** sont stockés localement (`localStorage`) par navigateur/appareil — ils ne se synchronisent pas automatiquement entre appareils.
+- L'**XP**, le **rang**, la **série de jours** et le **nombre de séances** sont recalculés à partir de la base de données : ils sont identiques sur tous vos appareils et ne peuvent pas être modifiés localement.
+- Supprimer une séance (abandon) retire aussi son XP.
 
 ---
 
@@ -396,7 +397,8 @@ Page **Mentions légales** (`/legal`) : CGU, CGV, informations RGPD, avertisseme
 | `/onboarding` | Authentifié | Configuration profil initial |
 | `/profile` | Authentifié | Profil utilisateur |
 | `/history` | Authentifié | Historique séances |
-| `/journal` | Authentifié | Journal d'entraînement |
+| `/seance` | Authentifié | Séance en cours (rounds, séries, repos) |
+| `/journal` | Authentifié | Carnet d'entraînement |
 | `/statistics` | Authentifié | Statistiques et analyse IA |
 | `/training-videos` | Authentifié | Bibliothèque vidéo |
 | `/pricing` | Authentifié | Tarifs et abonnement |

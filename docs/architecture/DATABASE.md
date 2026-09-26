@@ -1,7 +1,7 @@
 # Base de données — KOREV Performance Center
 
 **Version :** 1.0  
-**Migrations :** `supabase/migrations/` (28 fichiers SQL)  
+**Migrations :** `supabase/migrations/` (32 fichiers SQL)  
 **Types générés :** `src/integrations/supabase/types.ts`  
 **Drift résiduel :** [`docs/audit/SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md)
 
@@ -27,6 +27,7 @@ erDiagram
     profiles ||--o{ workout_journal : "user_id"
 
     workouts ||--o{ workout_exercises : "workout_id"
+    workouts |o--o{ workout_journal : "workout_id"
     workout_exercises ||--o{ sets : "workout_exercise_id"
     exercises ||--o{ workout_exercises : "exercise_id"
 
@@ -105,7 +106,13 @@ Catalogue d'exercices (nom, catégorie, muscle group, etc.).
 | `status` | active / completed |
 | `phase` | warmup / active / cooldown |
 | `started_at`, `completed_at` | Horodatage |
-| `total_volume`, `estimated_calories` | Agrégats |
+| `duration_minutes`, `total_volume_kg`, `calories_burned` | Agrégats calculés à la fin de séance |
+| `session_type` | boxing / mma / strength / cardio / custom |
+| `intensity` | light / moderate / intense |
+| `planned_rounds`, `round_seconds`, `rest_seconds` | Plan du minuteur de rounds (facultatif) |
+| `rounds_completed` | Rounds réellement effectués (0–30), source de l'XP |
+
+L'XP et le rang Wolf Pack sont recalculés côté client à partir des séances `completed` et des analyses sparring terminées ; rien n'est stocké.
 
 #### `workout_exercises`
 
@@ -117,7 +124,7 @@ Séries : poids, répétitions, durée, etc.
 
 #### `workout_journal`
 
-Notes libres d'entraînement par utilisateur et date.
+Notes d'entraînement par utilisateur et date (ressenti, énergie 1–10, pesée). `workout_id` (facultatif, `ON DELETE SET NULL`) rattache la note à une séance ; une politique RLS restrictive refuse tout lien vers la séance d'un autre utilisateur.
 
 ---
 
@@ -256,7 +263,9 @@ supabase/migrations/
 ├── 20260526100900_*.sql    # helpers RLS meutes
 ├── 20260526120000_*.sql    # stripe_webhook_events + RPCs
 ├── 20260526125359_*.sql    # trigger anti-escalade meute_members
-└── 20260526133146_*.sql    # index nutrition_logs(user_id, date)
+├── 20260526133146_*.sql    # index nutrition_logs(user_id, date)
+├── …
+└── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
 ```
 
 ### 6.2 Application
