@@ -273,9 +273,11 @@ En fin de séance, les records battus sont affichés avec la marque précédente
 
 Si votre profil contient une **date d'objectif** (et éventuellement un **événement cible**), l'application affiche le compte à rebours (J-24). Les **8 semaines** précédant la date forment le camp : semaine en cours (ex. « Semaine 5 sur 8 ») et nombre de séances depuis son début. Avant le camp, sa date de début est indiquée. Une date passée n'est plus affichée.
 
-### 10.5 Série en cours
+### 10.5 Jours consécutifs
 
-Jours consécutifs d'entraînement jusqu'à aujourd'hui ; la série reste valable jusqu'à la fin de la journée suivant la dernière séance.
+Jours consécutifs d'entraînement jusqu'à aujourd'hui ; l'enchaînement reste valable jusqu'à la fin de la journée suivant la dernière séance. Le record s'affiche sous « Plus long enchaînement ».
+
+Une seule séance peut être ouverte à la fois. Si une séance est restée ouverte plus de 4 heures (oubliée la veille, par exemple), l'application demande sa durée réelle au moment de la terminer, pour que la charge d'entraînement reste juste.
 
 ### 10.6 Persistance
 

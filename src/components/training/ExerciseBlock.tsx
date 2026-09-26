@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { Check, Plus, Trash2, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { unlockAudio } from "@/lib/training/sound";
 import { cn } from "@/lib/utils";
 import type { SessionExercise, SessionSet } from "@/hooks/useTraining";
 
@@ -32,9 +44,7 @@ export function ExerciseBlock({ exercise, disabled, onAddSet, onUpdateSet, onDel
           <span className="korev-eyebrow">
             <span className="text-foreground">{done}</span>/{exercise.sets.length}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onRemove} disabled={disabled} aria-label={`Retirer ${exercise.exercise.name}`}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <RemoveExerciseButton name={exercise.exercise.name} setsDone={done} disabled={disabled} onRemove={onRemove} />
         </div>
       </header>
 
@@ -66,6 +76,48 @@ export function ExerciseBlock({ exercise, disabled, onAddSet, onUpdateSet, onDel
   );
 }
 
+// Validated sets are real training data: removing them takes a confirmation.
+function RemoveExerciseButton({ name, setsDone, disabled, onRemove }: {
+  name: string;
+  setsDone: number;
+  disabled?: boolean;
+  onRemove: () => void;
+}) {
+  const trigger = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+      onClick={setsDone === 0 ? onRemove : undefined}
+      disabled={disabled}
+      aria-label={`Retirer ${name}`}
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+  if (setsDone === 0) return trigger;
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Retirer {name} ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {setsDone === 1 ? "La série validée sera supprimée" : `Les ${setsDone} séries validées seront supprimées`} de cette séance.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Garder l'exercice</AlertDialogCancel>
+          <AlertDialogAction onClick={onRemove} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Retirer
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 const toNumber = (v: string) => {
   const n = Number(v.replace(",", "."));
   return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -91,10 +143,19 @@ function SetRow({ set, disabled, onUpdate, onDelete, onDone }: {
     if (v.weight_kg !== set.weight_kg || v.reps !== set.reps) void onUpdate(v);
   };
 
+  const [saving, setSaving] = useState(false);
+
   const toggle = async () => {
+    if (saving) return;
+    unlockAudio();
     const completing = !set.completed;
-    const saved = await onUpdate({ ...values(), completed: completing });
-    if (completing && saved) onDone();
+    setSaving(true);
+    try {
+      const saved = await onUpdate({ ...values(), completed: completing });
+      if (completing && saved) onDone();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputClass = cn(
@@ -129,6 +190,7 @@ function SetRow({ set, disabled, onUpdate, onDelete, onDone }: {
         type="button"
         onClick={toggle}
         disabled={disabled}
+        aria-busy={saving}
         aria-pressed={set.completed}
         aria-label={set.completed ? `Série ${set.set_number} validée, annuler` : `Valider la série ${set.set_number}`}
         className={cn(

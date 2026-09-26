@@ -198,7 +198,7 @@ describe("fightCamp", () => {
 
   it("counts down before the camp starts", () => {
     const c = fightCamp("2027-01-30", "  ", TODAY, [TODAY]);
-    expect(c).toMatchObject({ event: null, week: null, sessionsInCamp: 0, startKey: "2026-12-05" });
+    expect(c).toMatchObject({ event: null, week: null, sessionsInCamp: 0, startKey: "2026-12-06" });
     expect(c!.daysLeft).toBe(126);
   });
 
@@ -208,6 +208,13 @@ describe("fightCamp", () => {
     expect(c).toMatchObject({ event: "Gala Paris", daysLeft: 24, week: 5, sessionsInCamp: 2 });
     expect(fightCamp(TODAY, null, TODAY, [])!.week).toBe(8);
     expect(fightCamp(shiftDateKey(TODAY, 55), null, TODAY, [])!.week).toBe(1);
+  });
+
+  it("starts the camp on the first day of week 1", () => {
+    const firstDay = fightCamp(shiftDateKey(TODAY, 55), null, TODAY, [TODAY])!;
+    expect(firstDay).toMatchObject({ week: 1, startKey: TODAY, sessionsInCamp: 1 });
+    const dayBefore = fightCamp(shiftDateKey(TODAY, 56), null, TODAY, [TODAY])!;
+    expect(dayBefore).toMatchObject({ week: null, startKey: shiftDateKey(TODAY, 1), sessionsInCamp: 0 });
   });
 });
 

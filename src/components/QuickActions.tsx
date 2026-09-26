@@ -47,7 +47,7 @@ export const QuickActions = ({ onSwitchTab, onScan }: QuickActionsProps) => {
           {({ active, onClick, loading }) => (
             <Tile
               primary
-              title={active ? "Séance" : "Workout"}
+              title="Séance"
               description={active ? "Reprendre" : "Démarrer"}
               icon={Dumbbell}
               onClick={onClick}

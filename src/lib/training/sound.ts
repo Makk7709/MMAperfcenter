@@ -11,10 +11,13 @@ function context(): AudioContext | null {
   return ctx;
 }
 
-/** Browsers only allow sound after a user gesture: call from a click handler. */
+/**
+ * Browsers only allow sound after a user gesture: call from a click handler.
+ * iOS also suspends or "interrupts" the context when the phone locks.
+ */
 export function unlockAudio(): void {
   const c = context();
-  if (c?.state === "suspended") void c.resume();
+  if (c && c.state !== "running" && c.state !== "closed") void c.resume().catch(() => {});
 }
 
 export function beep(frequency = 880, durationMs = 180, volume = 0.25): void {

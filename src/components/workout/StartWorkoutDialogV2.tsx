@@ -110,8 +110,8 @@ const QUICK_START = [
 ];
 
 const INTENSITIES: { value: IntensityLevel; label: string }[] = [
-  { value: "light", label: "Léger" },
-  { value: "moderate", label: "Modéré" },
+  { value: "light", label: "Légère" },
+  { value: "moderate", label: "Modérée" },
   { value: "intense", label: "Intense" },
 ];
 

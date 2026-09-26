@@ -16,6 +16,16 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - Coach IA : une requête échouée ne fait plus disparaître la question ; une réponse interrompue est conservée.
 - Flux IA : une ligne malformée n'interrompt plus silencieusement la réponse, et une erreur envoyée en cours de flux est affichée.
 - Nutrition : le scanner de code-barres (et la caméra) ne se rouvre plus à chaque retour sur l'onglet Nutrition.
+- Séance : après avoir saisi une charge ou des répétitions, le tap suivant sur ✓ (ou dans le champ suivant) n'est plus perdu. L'enregistrement des séries se fait en arrière-plan sans bloquer l'écran.
+- Séance : une seule séance ouverte par utilisateur (**migration `20260926060000_single_active_workout.sql`**). Une erreur réseau n'affiche plus « aucune séance » mais un écran « Réessayer », et démarrer une séance alors qu'une autre est ouverte la reprend.
+- Séance : terminer ou abandonner depuis un onglet périmé ne réécrit plus une séance déjà terminée et ne crée plus de doublon au carnet.
+- Séance : une séance restée ouverte plus de 4 h demande sa durée réelle au lieu d'être enregistrée à 4 h (ce qui faussait la charge d'entraînement pendant 4 semaines).
+- Séance : le signal de fin de repos sonne aussi après un rechargement ou un verrouillage de l'iPhone ; retirer un exercice qui a des séries validées demande confirmation.
+- Camp de préparation : la date de début était annoncée un jour trop tôt.
+- Historique : la réinitialisation ne supprime plus la séance en cours et met à jour les indicateurs.
+- Accessibilité : bouton « Terminer la séance » nommé sur mobile, minuteur de repos qui n'est plus lu chaque seconde, curseurs nommés.
+- Textes : « Séance » au lieu de « Workout », intensités accordées (« Légère », « Modérée »), « Jours consécutifs » et « Plus long enchaînement » au lieu de « Série », qui désigne déjà les séries d'exercices.
+- Performance : l'historique d'entraînement est mis en cache 5 minutes et chargé au-delà de 1000 séances.
 
 ## [0.11.0] - 2026-09-26
 

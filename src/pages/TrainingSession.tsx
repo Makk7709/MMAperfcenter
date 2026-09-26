@@ -43,7 +43,7 @@ const useNowEverySecond = () => {
 export default function TrainingSession() {
   const navigate = useNavigate();
   const session = useActiveWorkout();
-  const { workout, isLoading, pending } = session;
+  const { workout, isLoading, isError, refetch, pending } = session;
   const rest = useCountdown();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
@@ -66,6 +66,25 @@ export default function TrainingSession() {
       <Shell>
         <div className="flex min-h-[70vh] items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Chargement de la séance" />
+        </div>
+      </Shell>
+    );
+  }
+
+  // Showing "no session" here would invite starting a duplicate one.
+  if (isError && !workout) {
+    return (
+      <Shell>
+        <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+          <Eyebrow parts={["Séance", "Connexion"]} />
+          <h1 className="korev-display text-4xl">Séance injoignable</h1>
+          <p className="text-muted-foreground">
+            Impossible de vérifier si une séance est en cours. Vérifiez votre connexion puis réessayez.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/")}>Tableau de bord</Button>
+            <Button onClick={() => void refetch()}>Réessayer</Button>
+          </div>
         </div>
       </Shell>
     );
@@ -125,7 +144,7 @@ export default function TrainingSession() {
             <p className="korev-eyebrow text-[10px]">Temps</p>
             <p className="korev-metric text-lg leading-tight" aria-label="Temps écoulé depuis le début de la séance">{formatClock(elapsedSeconds)}</p>
           </div>
-          <Button size="sm" onClick={() => setFinishOpen(true)} disabled={pending}>
+          <Button size="sm" onClick={() => setFinishOpen(true)} disabled={pending} aria-label="Terminer la séance">
             <Flag className="h-4 w-4" />
             <span className="hidden sm:inline">Terminer</span>
           </Button>
@@ -213,6 +232,7 @@ export default function TrainingSession() {
         open={finishOpen}
         onOpenChange={setFinishOpen}
         minutes={sessionMinutes(workout.started_at, new Date(now))}
+        elapsedMinutes={Math.round(elapsedSeconds / 60)}
         rounds={workout.rounds_completed}
         sets={sets}
         intensity={workout.intensity}

@@ -322,7 +322,8 @@ export function fightCamp(
   if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return null;
   const daysLeft = differenceInCalendarDays(fromDateKey(deadline), fromDateKey(today));
   if (!Number.isFinite(daysLeft) || daysLeft < 0) return null;
-  const startKey = shiftDateKey(deadline, -CAMP_WEEKS * 7);
+  // Week 1 begins when daysLeft drops to CAMP_WEEKS * 7 - 1.
+  const startKey = shiftDateKey(deadline, -(CAMP_WEEKS * 7 - 1));
   const week = daysLeft < CAMP_WEEKS * 7 ? CAMP_WEEKS - Math.floor(daysLeft / 7) : null;
   const name = event?.trim().slice(0, 80);
   return {

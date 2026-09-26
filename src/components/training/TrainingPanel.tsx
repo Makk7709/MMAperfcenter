@@ -16,7 +16,7 @@ export function TrainingPanel() {
 
   const stats = [
     { label: "Cette semaine", value: progress?.consistency.thisWeek ?? 0, unit: "séances" },
-    { label: "Série en cours", value: progress?.streakDays ?? 0, unit: "jours" },
+    { label: "Jours consécutifs", value: progress?.streakDays ?? 0, unit: "jours" },
     { label: "Au total", value: progress?.totalSessions ?? 0, unit: "séances" },
   ];
 

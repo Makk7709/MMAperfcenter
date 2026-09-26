@@ -180,7 +180,7 @@ describe('StartWorkoutDialogV2 - Workout Configuration', () => {
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
     // Should have all intensity options
-    expect(screen.getAllByText(/léger|light/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/légère|light/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/modéré|moderate/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/intense|hard/i).length).toBeGreaterThan(0);
   });

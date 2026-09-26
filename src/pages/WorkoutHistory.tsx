@@ -10,6 +10,8 @@ import { SparringPDFExport } from "@/components/sparring/SparringPDFExport";
 import type { SparringAnalysisData } from "@/components/sparring/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { trainingProgressKey } from "@/hooks/useTraining";
+import { useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -58,6 +60,7 @@ interface SparringAnalysisRow {
 export default function WorkoutHistory() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [workouts, setWorkouts] = useState<HistoricalWorkout[]>([]);
   const [sparrings, setSparrings] = useState<SparringAnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,12 +74,13 @@ export default function WorkoutHistory() {
 
   const handleResetWorkouts = async () => {
     if (!user) return;
-    const { error } = await supabase.from("workouts").delete().eq("user_id", user.id);
+    const { error } = await supabase.from("workouts").delete().eq("user_id", user.id).neq("status", "active");
     if (error) {
       toast.error("Erreur lors de la réinitialisation");
       return;
     }
     setWorkouts([]);
+    void queryClient.invalidateQueries({ queryKey: trainingProgressKey(user.id) });
     toast.success("Historique des entraînements réinitialisé");
   };
 

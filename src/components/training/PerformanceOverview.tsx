@@ -241,7 +241,7 @@ export function RecordsCard({ records }: { records: Records }) {
   const highlights = [
     { label: "Rounds", value: records.rounds ? num(records.rounds.value) : "–", sub: records.rounds && shortDay(records.rounds.dateKey) },
     { label: "Volume", value: records.volume ? `${num(records.volume.value)} kg` : "–", sub: records.volume && shortDay(records.volume.dateKey) },
-    { label: "Plus longue série", value: records.longestStreak ? plural(records.longestStreak, "jour", "jours") : "–", sub: null },
+    { label: "Plus long enchaînement", value: records.longestStreak ? plural(records.longestStreak, "jour", "jours") : "–", sub: null },
   ];
   return (
     <section className="liquid-glass-solid p-4 sm:p-5">
