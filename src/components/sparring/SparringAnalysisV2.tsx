@@ -45,7 +45,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SparringPDFExport } from "./SparringPDFExport";
-import { SparringShareDialog } from "./SparringShareDialog";
 import { SparringProgressTracker } from "./SparringProgressTracker";
 import { extractVideoFrames, formatFramesForAPI } from "@/utils/videoFrameExtractor";
 import { convertToSignedUrl } from "@/utils/storageUtils";
@@ -433,7 +432,6 @@ export const SparringAnalysisV2 = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
-  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [currentVideoName, setCurrentVideoName] = useState<string>("");
   const [discipline, setDiscipline] = useState<string>("auto");
 
@@ -467,6 +465,12 @@ export const SparringAnalysisV2 = () => {
 
     loadAnalyses();
   }, [user]);
+
+  // La vidéo locale est lue via une URL blob: à libérer quand elle est remplacée.
+  useEffect(() => {
+    if (!currentVideoUrl?.startsWith('blob:')) return;
+    return () => URL.revokeObjectURL(currentVideoUrl);
+  }, [currentVideoUrl]);
 
   // Simuler la progression de l'analyse
   useEffect(() => {
@@ -567,6 +571,7 @@ export const SparringAnalysisV2 = () => {
     console.log(`[Sparring] Starting analysis: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
     toast.info(`🎬 Extraction des frames de la vidéo...`);
 
+    let recordId: string | undefined;
     try {
       // Step 1: Extract frames from video client-side
       console.log('[Sparring] Extracting frames from video...');
@@ -607,7 +612,7 @@ export const SparringAnalysisV2 = () => {
 
       if (recordError) throw recordError;
 
-      const recordId = analysisRecord?.id as string | undefined;
+      recordId = analysisRecord?.id as string | undefined;
 
       setUploading(false);
       setAnalyzing(true);
@@ -619,7 +624,6 @@ export const SparringAnalysisV2 = () => {
       const result = await runSparringAnalysis(frames, totalDuration, recordId, file.name);
 
       setCurrentAnalysis(result.analysis);
-      setCurrentAnalysisId(recordId || null);
       setCurrentVideoName(file.name);
       setCurrentVideoUrl(URL.createObjectURL(file)); // Use local URL for playback
       setAnalysisProgress(100);
@@ -630,6 +634,16 @@ export const SparringAnalysisV2 = () => {
       console.error('Error:', error);
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'analyse";
       toast.error(friendlyAnalysisError(errorMessage));
+      // Rejected before the server took over (quota, size) or killed at its
+      // time limit: the record would otherwise stay "in progress" forever.
+      if (recordId) {
+        await supabase
+          .from('sparring_analyses')
+          .update({ status: 'error' })
+          .eq('id', recordId)
+          .in('status', ['pending', 'processing']);
+        await refreshPreviousAnalyses();
+      }
     } finally {
       setUploading(false);
       setAnalyzing(false);
@@ -639,7 +653,6 @@ export const SparringAnalysisV2 = () => {
   const loadAnalysis = async (record: AnalysisRecord) => {
     if (record.analysis) {
       setCurrentAnalysis(record.analysis);
-      setCurrentAnalysisId(record.id);
       setCurrentVideoName(record.video_name);
       setShowHistory(false);
       
@@ -1394,19 +1407,12 @@ export const SparringAnalysisV2 = () => {
             videoName={currentVideoName}
             analysisDate={new Date().toISOString()}
           />
-          {currentAnalysisId && (
-            <SparringShareDialog 
-              analysisId={currentAnalysisId}
-              videoName={currentVideoName}
-            />
-          )}
           <Button 
             variant="default" 
             className="gap-2"
             onClick={() => {
               setCurrentAnalysis(null);
               setCurrentVideoUrl(null);
-              setCurrentAnalysisId(null);
               setCurrentVideoName("");
             }}
           >
@@ -1498,7 +1504,7 @@ export const SparringAnalysisV2 = () => {
                         variant={record.status === 'completed' ? 'default' : 'secondary'}
                         className="ml-2"
                       >
-                        {record.status === 'completed' ? '✓ Terminé' : '⏳ En cours'}
+                        {record.status === 'completed' ? '✓ Terminé' : record.status === 'error' ? '✗ Échec' : '⏳ En cours'}
                       </Badge>
                     </Button>
                   ))}

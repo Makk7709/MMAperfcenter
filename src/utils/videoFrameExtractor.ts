@@ -18,7 +18,8 @@ export interface ExtractionOptions {
   frameInterval?: number;    // seconds between frames (default: 2)
   maxFrames?: number;        // maximum frames to extract (default: 30)
   quality?: number;          // JPEG quality 0-1 (default: 0.7)
-  maxWidth?: number;         // max frame width for scaling (default: 1280)
+  maxWidth?: number;         // max length of the longest side, portrait included (default: 1280)
+  maxDataUrlChars?: number;  // quality is lowered until a frame fits (default: 450000, server rejects > 600000)
   preferWebP?: boolean;      // try WebP format first (default: false)
   validateFrames?: boolean;  // validate frame quality (default: true)
   skipInvalidFrames?: boolean; // skip invalid frames instead of including them (default: true)
@@ -166,6 +167,8 @@ export function calculateOptimalInterval(params: IntervalCalculationParams): num
 // FRAME EXTRACTION
 // ============================================
 
+const MIN_FRAME_QUALITY = 0.3;
+
 /**
  * Extracts frames from a video file at regular intervals
  */
@@ -178,6 +181,7 @@ export async function extractVideoFrames(
     maxFrames = 30,
     quality = 0.7,
     maxWidth = 1280,
+    maxDataUrlChars = 450_000,
     preferWebP = false,
     validateFrames = true,
     skipInvalidFrames = true,
@@ -260,7 +264,7 @@ export async function extractVideoFrames(
       console.log(`[FrameExtractor] Using interval: ${actualInterval}s`);
 
       // Set canvas size based on video dimensions
-      const scale = Math.min(1, maxWidth / video.videoWidth);
+      const scale = Math.min(1, maxWidth / Math.max(video.videoWidth, video.videoHeight));
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
 
@@ -305,7 +309,12 @@ export async function extractVideoFrames(
         }
 
         if (shouldInclude) {
-          const dataUrl = canvas.toDataURL(format, quality);
+          let frameQuality = quality;
+          let dataUrl = canvas.toDataURL(format, frameQuality);
+          while (dataUrl.length > maxDataUrlChars && frameQuality > MIN_FRAME_QUALITY) {
+            frameQuality = Math.max(MIN_FRAME_QUALITY, frameQuality - 0.1);
+            dataUrl = canvas.toDataURL(format, frameQuality);
+          }
           frames.push({
             timestamp: currentTime,
             dataUrl,

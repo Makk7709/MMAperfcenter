@@ -666,7 +666,9 @@ Deno.serve(async (req) => {
     const ticket = await consumeQuota(supabase, user.id, 'sparring_analysis');
     try {
       await updateAnalysis(supabase, input.analysisId, user.id, { status: 'processing' });
-      const analysis = await runAnalysis(input, deadline);
+      // Metered (free) plans always get the cheaper model, whatever the client asks.
+      const qualityMode = ticket.counted ? 'fast' : input.qualityMode;
+      const analysis = await runAnalysis({ ...input, qualityMode }, deadline);
       await updateAnalysis(supabase, input.analysisId, user.id, { analysis, status: 'completed' });
       return jsonResponse(req, { success: true, analysis });
     } catch (e) {
