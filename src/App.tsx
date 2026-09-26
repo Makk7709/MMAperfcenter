@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth, PASSWORD_RESET_PATH } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { VideoBackground } from "@/components/VideoBackground";
+import { IntroSplash } from "@/components/IntroSplash";
+import { readIntroContext, shouldPlayIntro } from "@/lib/intro";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -196,18 +199,22 @@ function AppContent() {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [showIntro, setShowIntro] = useState(() => shouldPlayIntro(readIntroContext()));
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </BrowserRouter>
+        {showIntro && <IntroSplash onDone={() => setShowIntro(false)} />}
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

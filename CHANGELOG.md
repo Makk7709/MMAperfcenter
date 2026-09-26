@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/). La version 1.0.0 correspondra à la première mise en production.
 
+## [Non publié]
+
+### Ajouté
+
+- Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, et sur les pages ouvertes depuis un e-mail ou un paiement.
+
 ## [0.11.0] - 2026-09-26
 
 **Nécessite la migration `20260926050000_session_effort.sql` (en plus de celles de 0.10.x) et le redéploiement de la fonction `ai-coach`.**

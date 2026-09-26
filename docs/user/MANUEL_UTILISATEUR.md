@@ -19,6 +19,8 @@ KOREV Performance Center est une application web de suivi sportif dédiée aux a
 
 L'application est accessible depuis un navigateur web. Aucune installation native n'est requise.
 
+À la première ouverture de chaque session, une courte vidéo d'introduction (10 secondes, sans son) se termine par un fondu au noir puis laisse place à l'application. Le bouton **Passer** ou la touche Échap l'interrompt. Elle n'est pas jouée si votre système demande de réduire les animations, ni sur les pages ouvertes depuis un e-mail ou un paiement.
+
 > **Avertissement :** KOREV Performance Center n'est pas un dispositif médical. Les conseils et analyses produits ne remplacent pas l'avis d'un professionnel de santé. Voir la page [Mentions légales](/legal).
 
 ---
