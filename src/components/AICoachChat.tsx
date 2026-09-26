@@ -34,7 +34,7 @@ const openCoachStream = async (
       Authorization: `Bearer ${accessToken}`,
       apikey: SUPABASE_PUBLISHABLE_KEY,
     },
-    body: JSON.stringify({ messages: payload }),
+    body: JSON.stringify({ messages: payload, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
   });
 
   if (!response.ok) {

@@ -1,5 +1,6 @@
 import { streamChatCompletion } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser } from "../_shared/auth.ts";
+import { formatCoachContext, loadCoachData, safeTimeZone } from "../_shared/coach-context.ts";
 import { errorResponse, preflight, PublicError, readJsonBody, streamResponse } from "../_shared/http.ts";
 import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 
@@ -29,14 +30,13 @@ function parseMessages(raw: unknown): ChatMessage[] {
   return messages;
 }
 
-// deno-lint-ignore no-explicit-any
-function buildSystemPrompt(profile: any): string {
+function buildSystemPrompt(profile: Record<string, unknown> | null, context: string): string {
   let systemPrompt = `Tu es Coach IA KOREV, un expert en arts martiaux et préparation physique pour combattants. Tu es spécialisé dans la création de programmes d'entraînement personnalisés.
 
 PROFIL DU COMBATTANT:`;
 
-  const p: any = profile || {};
-  const add = (label: string, value: any) => {
+  const p = profile ?? {};
+  const add = (label: string, value: unknown) => {
     if (value === null || value === undefined || value === "") return;
     if (Array.isArray(value) && value.length === 0) return;
     systemPrompt += `\n- ${label}: ${Array.isArray(value) ? value.join(", ") : value}`;
@@ -82,8 +82,13 @@ PROFIL DU COMBATTANT:`;
 
   systemPrompt += `
 
+${context}
+
 INSTRUCTIONS:
 - Utilise TOUJOURS ces informations pour personnaliser tes recommandations
+- Appuie-toi sur les données réelles ci-dessus (charge des dernières séances, rounds, fatigue et énergie du carnet, apports par rapport aux objectifs, analyses sparring) et cite-les quand tu t'en sers
+- N'invente jamais de séance, de repas ou de mesure absents de ces données ; si une information manque, dis-le et propose de la noter dans l'application
+- Si une pesée récente du carnet diffère du poids du profil, utilise la plus récente en le précisant
 - Propose des programmes adaptés à sa discipline martiale, son niveau ET son âge
 - Tiens compte de son poids, âge et objectifs dans tes conseils nutritionnels
 - Adapte l'intensité et le volume d'entraînement selon l'âge du combattant
@@ -112,15 +117,18 @@ Deno.serve(async (req) => {
   try {
     const supabase = createServiceClient();
     const user = await requireUser(supabase, req);
-    const body = await readJsonBody(req, MAX_BODY_BYTES) as { messages?: unknown };
+    const body = await readJsonBody(req, MAX_BODY_BYTES) as { messages?: unknown; timeZone?: unknown };
     const messages = parseMessages(body?.messages);
 
     const ticket = await consumeQuota(supabase, user.id, "ai_coach");
     try {
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const [{ data: profile }, coachData] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        loadCoachData(supabase, user.id, safeTimeZone(body?.timeZone)),
+      ]);
       const stream = await streamChatCompletion({
         model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: buildSystemPrompt(profile) }, ...messages],
+        messages: [{ role: "system", content: buildSystemPrompt(profile, formatCoachContext(coachData)) }, ...messages],
       });
       return streamResponse(req, stream);
     } catch (e) {
