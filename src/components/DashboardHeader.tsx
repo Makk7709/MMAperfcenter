@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Menu, LogOut, History, BarChart3, Home, Shield, CreditCard } from "lucide-react";
+import { User, Menu, LogOut, History, BarChart3, Home, Shield, CreditCard, BookOpen } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -22,6 +22,7 @@ interface DashboardHeaderProps {
 const NAV_ITEMS = [
   { path: "/", label: "Accueil", icon: Home },
   { path: "/history", label: "Historique", icon: History },
+  { path: "/journal", label: "Carnet", icon: BookOpen },
   { path: "/statistics", label: "Stats", icon: BarChart3 },
   { path: "/pricing", label: "Abonnements", icon: CreditCard },
 ];

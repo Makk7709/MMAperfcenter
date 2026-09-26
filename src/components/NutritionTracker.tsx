@@ -1,389 +1,319 @@
-import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
+import { format, isToday, isYesterday } from "date-fns";
+import { fr } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, Loader2, Plus, ScanLine, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Settings, Flame, Camera, Beef, Wheat, Droplet, Sparkles } from "lucide-react";
-import { useNutrition } from "@/hooks/useNutrition";
 import { BarcodeScannerDialog } from "@/components/BarcodeScannerDialog";
-import { FoodSearchInput } from "@/components/FoodSearchInput";
+import { AddFoodDialog } from "@/components/nutrition/AddFoodDialog";
+import { useNutrition, type NutritionGoals } from "@/hooks/useNutrition";
+import { fromDateKey, shiftDateKey, toDateKey } from "@/lib/dateKey";
+import { defaultMealType, MEAL_TYPES, type FoodProduct, type MealType } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
-import type { NutritionLog } from "@/hooks/useNutrition";
 
-const QUICK_PORTIONS = [
-  { label: "30 g", grams: 30 },
-  { label: "50 g", grams: 50 },
-  { label: "100 g", grams: 100 },
-  { label: "150 g", grams: 150 },
-  { label: "200 g", grams: 200 },
-  { label: "250 g", grams: 250 },
+interface NutritionTrackerProps {
+  /** Incremented by the dashboard to open the barcode scanner. */
+  scanRequest?: number;
+}
+
+const dayLabelOf = (key: string) => {
+  const d = fromDateKey(key);
+  if (isToday(d)) return "Aujourd'hui";
+  if (isYesterday(d)) return "Hier";
+  return format(d, "EEEE d MMMM", { locale: fr });
+};
+
+const fmt = (n: number) => n.toLocaleString("fr-FR");
+
+const pct = (value: number, target: number) => (target > 0 ? Math.min(100, (value / target) * 100) : 0);
+
+const MACROS = [
+  { key: "protein", goal: "daily_protein_g", label: "Protéines", bar: "bg-primary" },
+  { key: "carbs", goal: "daily_carbs_g", label: "Glucides", bar: "bg-foreground/50" },
+  { key: "fat", goal: "daily_fat_g", label: "Lipides", bar: "bg-corner-blue" },
+] as const;
+
+const GOAL_FIELDS: { key: keyof NutritionGoals; label: string; max: number }[] = [
+  { key: "daily_calories", label: "Calories (kcal / jour)", max: 10000 },
+  { key: "daily_protein_g", label: "Protéines (g / jour)", max: 1000 },
+  { key: "daily_carbs_g", label: "Glucides (g / jour)", max: 2000 },
+  { key: "daily_fat_g", label: "Lipides (g / jour)", max: 1000 },
 ];
 
-export const NutritionTracker = () => {
-  const { todayLogs, goals, loading, addNutritionLog, deleteNutritionLog, updateGoals, getTodayTotals } = useNutrition();
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
+export const NutritionTracker = ({ scanRequest = 0 }: NutritionTrackerProps) => {
+  const todayKey = toDateKey();
+  const [dateKey, setDateKey] = useState(todayKey);
+  const { logs, totals, week, goals, isLoading, isError, addLog, adding, deleteLog, deletingId, saveGoals, savingGoals } =
+    useNutrition(dateKey);
+
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [add, setAdd] = useState<{ open: boolean; key: number; meal: MealType; product: FoodProduct | null }>({
+    open: false,
+    key: 0,
+    meal: "snack",
+    product: null,
+  });
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const [goalsForm, setGoalsForm] = useState<Record<keyof NutritionGoals, string>>({
+    daily_calories: "",
+    daily_protein_g: "",
+    daily_carbs_g: "",
+    daily_fat_g: "",
+  });
 
-  // Form states
-  type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  const [mealType, setMealType] = useState<MealType>('breakfast');
-  const [foodName, setFoodName] = useState('');
-  // Base macros per 100g (from API or manual)
-  const [base, setBase] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-  const [hasBase, setHasBase] = useState(false);
-  const [quantity, setQuantity] = useState<number>(100); // grams
-  const [manualMode, setManualMode] = useState(false);
+  useEffect(() => {
+    if (scanRequest > 0) setScannerOpen(true);
+  }, [scanRequest]);
 
-  // Goals form
-  const [newCalories, setNewCalories] = useState(goals.daily_calories.toString());
-  const [newProtein, setNewProtein] = useState(goals.daily_protein_g.toString());
-  const [newCarbs, setNewCarbs] = useState(goals.daily_carbs_g.toString());
-  const [newFat, setNewFat] = useState(goals.daily_fat_g.toString());
+  const isTodaySelected = dateKey === todayKey;
+  const dayLabel = dayLabelOf(dateKey);
+  const remaining = goals.daily_calories - totals.calories;
 
-  const totals = getTodayTotals();
+  const openAdd = (meal?: MealType, product: FoodProduct | null = null) =>
+    setAdd((s) => ({
+      open: true,
+      key: s.key + 1,
+      meal: meal ?? (isTodaySelected ? defaultMealType() : "lunch"),
+      product,
+    }));
 
-  const macros = {
-    calories: { current: totals.calories, target: goals.daily_calories, unit: "kcal" },
-    protein: { current: Math.round(totals.protein), target: goals.daily_protein_g, unit: "g" },
-    carbs: { current: Math.round(totals.carbs), target: goals.daily_carbs_g, unit: "g" },
-    fat: { current: Math.round(totals.fat), target: goals.daily_fat_g, unit: "g" }
-  };
-
-  // Computed macros for the entered quantity
-  const computed = useMemo(() => {
-    const ratio = quantity / 100;
-    return {
-      calories: Math.round(base.calories * ratio),
-      protein: Math.round(base.protein * ratio * 10) / 10,
-      carbs: Math.round(base.carbs * ratio * 10) / 10,
-      fat: Math.round(base.fat * ratio * 10) / 10,
-    };
-  }, [base, quantity]);
-
-  const resetForm = () => {
-    setFoodName('');
-    setBase({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-    setHasBase(false);
-    setQuantity(100);
-    setManualMode(false);
-  };
-
-  const handleAddFood = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!foodName || computed.calories <= 0) return;
-
-    await addNutritionLog({
-      date: new Date().toISOString().split('T')[0],
-      meal_type: mealType,
-      food_name: quantity === 100 ? foodName : `${foodName} (${quantity}g)`,
-      calories: computed.calories,
-      protein_g: computed.protein,
-      carbs_g: computed.carbs,
-      fat_g: computed.fat,
+  const openGoals = () => {
+    setGoalsForm({
+      daily_calories: String(goals.daily_calories),
+      daily_protein_g: String(goals.daily_protein_g),
+      daily_carbs_g: String(goals.daily_carbs_g),
+      daily_fat_g: String(goals.daily_fat_g),
     });
-
-    resetForm();
-    setAddDialogOpen(false);
+    setGoalsOpen(true);
   };
 
-  const handleUpdateGoals = async (e: React.FormEvent) => {
+  const submitGoals = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateGoals({
-      daily_calories: Number(newCalories),
-      daily_protein_g: Number(newProtein),
-      daily_carbs_g: Number(newCarbs),
-      daily_fat_g: Number(newFat),
-    });
-    setGoalsDialogOpen(false);
+    try {
+      await saveGoals({
+        daily_calories: Math.round(Number(goalsForm.daily_calories)),
+        daily_protein_g: Math.round(Number(goalsForm.daily_protein_g)),
+        daily_carbs_g: Math.round(Number(goalsForm.daily_carbs_g)),
+        daily_fat_g: Math.round(Number(goalsForm.daily_fat_g)),
+      });
+      setGoalsOpen(false);
+    } catch {
+      // Error toast comes from the mutation.
+    }
   };
 
-  const handleFoodScanned = async (food: Omit<NutritionLog, 'id'>) => {
-    await addNutritionLog(food);
-  };
+  const weekMax = Math.max(goals.daily_calories, ...week.map((d) => d.calories)) || 1;
 
   return (
-    <Card className="liquid-glass-solid border-0">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5 text-primary" />
-            Nutrition Aujourd'hui
-          </CardTitle>
-          <Dialog open={goalsDialogOpen} onOpenChange={setGoalsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Objectifs Nutritionnels</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleUpdateGoals} className="space-y-4">
-                <div>
-                  <Label>Calories (kcal/jour)</Label>
-                  <Input type="number" value={newCalories} onChange={(e) => setNewCalories(e.target.value)} required />
-                </div>
-                <div>
-                  <Label>Protéines (g/jour)</Label>
-                  <Input type="number" value={newProtein} onChange={(e) => setNewProtein(e.target.value)} required />
-                </div>
-                <div>
-                  <Label>Glucides (g/jour)</Label>
-                  <Input type="number" value={newCarbs} onChange={(e) => setNewCarbs(e.target.value)} required />
-                </div>
-                <div>
-                  <Label>Lipides (g/jour)</Label>
-                  <Input type="number" value={newFat} onChange={(e) => setNewFat(e.target.value)} required />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>Sauvegarder</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <section className="liquid-glass-solid space-y-6 p-4 sm:p-6" aria-labelledby="nutrition-title">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="korev-eyebrow">Nutrition de combat</p>
+          <h2 id="nutrition-title" className="korev-display mt-1 truncate text-3xl first-letter:uppercase">
+            {dayLabel}
+          </h2>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Calories principales */}
-        <div className="text-center space-y-2 pb-4 border-b">
-          <div className="relative inline-flex items-center justify-center w-28 h-28">
-            <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="50" stroke="hsl(var(--muted))" strokeWidth="8" fill="none" />
-              <circle cx="60" cy="60" r="50" stroke="hsl(var(--primary))" strokeWidth="8" fill="none"
-                strokeDasharray={`${(macros.calories.current / macros.calories.target) * 314} 314`}
-                className="transition-all duration-1000 ease-out" />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-foreground">{macros.calories.current}</span>
-              <span className="text-xs text-muted-foreground">/{macros.calories.target} kcal</span>
-            </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => setDateKey(shiftDateKey(dateKey, -1))} aria-label="Jour précédent">
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDateKey(shiftDateKey(dateKey, 1))}
+            disabled={isTodaySelected}
+            aria-label="Jour suivant"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={openGoals} aria-label="Modifier mes objectifs">
+            <Settings2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      {!isTodaySelected && (
+        <button type="button" onClick={() => setDateKey(todayKey)} className="-mt-3 text-xs font-medium text-korev-gold hover:underline">
+          Revenir à aujourd'hui
+        </button>
+      )}
+
+      <div className="grid gap-5 sm:grid-cols-[1.1fr_1fr]">
+        <div className="korev-frame korev-chamfer p-5 [--chamfer:14px]">
+          <p className="korev-eyebrow">Calories</p>
+          <p className="korev-metric mt-2 text-5xl leading-none">
+            {totals.calories.toLocaleString("fr-FR")}
+            <span className="ml-2 text-sm font-normal text-muted-foreground">/ {goals.daily_calories.toLocaleString("fr-FR")} kcal</span>
+          </p>
+          <div className="mt-4 h-2 overflow-hidden bg-muted" role="progressbar" aria-valuenow={totals.calories} aria-valuemin={0} aria-valuemax={goals.daily_calories} aria-label="Calories consommées">
+            <div className="h-full bg-gradient-primary transition-[width] duration-700" style={{ width: `${pct(totals.calories, goals.daily_calories)}%` }} />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {Math.max(0, macros.calories.target - macros.calories.current)} kcal restantes
+          <p className={cn("mt-2 text-sm", remaining < 0 ? "text-primary" : "text-muted-foreground")}>
+            {remaining >= 0 ? `${remaining.toLocaleString("fr-FR")} kcal restantes` : `${(-remaining).toLocaleString("fr-FR")} kcal au-dessus de l'objectif`}
           </p>
         </div>
 
-        {/* Macros */}
-        <div className="grid grid-cols-3 gap-3">
-          {(['protein', 'carbs', 'fat'] as const).map((k) => {
-            const labels = { protein: 'Protéines', carbs: 'Glucides', fat: 'Lipides' };
-            return (
-              <div key={k} className="text-center space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">{labels[k]}</div>
-                <div className="space-y-1">
-                  <div className="text-sm font-bold text-foreground">
-                    {macros[k].current}<span className="text-xs text-muted-foreground">/{macros[k].target}g</span>
-                  </div>
-                  <Progress value={(macros[k].current / macros[k].target) * 100} className="h-2" />
-                </div>
+        <dl className="space-y-3.5 self-center">
+          {MACROS.map((m) => (
+            <div key={m.key}>
+              <div className="flex items-baseline justify-between text-sm">
+                <dt className="text-muted-foreground">{m.label}</dt>
+                <dd className="korev-metric">
+                  {Math.round(totals[m.key])}
+                  <span className="text-xs font-normal text-muted-foreground"> / {goals[m.goal]} g</span>
+                </dd>
               </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden bg-muted">
+                <div className={cn("h-full transition-[width] duration-700", m.bar)} style={{ width: `${pct(totals[m.key], goals[m.goal])}%` }} />
+              </div>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div>
+        <p className="korev-eyebrow mb-3">7 derniers jours</p>
+        <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Calories des 7 derniers jours">
+          {week.map((d) => {
+            const selected = d.date === dateKey;
+            const date = fromDateKey(d.date);
+            return (
+              <button
+                key={d.date}
+                type="button"
+                onClick={() => setDateKey(d.date)}
+                aria-pressed={selected}
+                aria-label={`${format(date, "EEEE d MMMM", { locale: fr })} : ${d.calories} kcal`}
+                className="group flex flex-col items-center gap-1.5"
+              >
+                <span className="relative flex h-16 w-full items-end bg-muted/40">
+                  <span
+                    className="absolute inset-x-0 border-t border-dashed border-korev-gold/40"
+                    style={{ bottom: `${(goals.daily_calories / weekMax) * 100}%` }}
+                    aria-hidden
+                  />
+                  <span
+                    className={cn("w-full transition-[height]", selected ? "bg-gradient-primary" : "bg-foreground/25 group-hover:bg-foreground/40")}
+                    style={{ height: `${(d.calories / weekMax) * 100}%` }}
+                  />
+                </span>
+                <span className={cn("text-[10px] uppercase", selected ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                  {format(date, "EEEEEE", { locale: fr })}
+                </span>
+              </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Today's logs */}
-        {todayLogs.length > 0 && (
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-sm font-medium">Repas du jour</p>
-            <div className="max-h-40 overflow-y-auto space-y-2">
-              {todayLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between text-sm p-2 bg-secondary/10 rounded">
-                  <div className="flex-1">
-                    <p className="font-medium">{log.food_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {log.calories} kcal • P: {log.protein_g}g • C: {log.carbs_g}g • F: {log.fat_g}g
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => deleteNutritionLog(log.id)} disabled={loading}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
+      <div className="space-y-4">
+        {isLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-label="Chargement" />}
+        {isError && <p className="text-sm text-destructive">Le journal de ce jour n'a pas pu être chargé.</p>}
+        {!isLoading && !isError && logs.length === 0 && (
+          <p className="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            Rien de noté {isTodaySelected ? "aujourd'hui" : "ce jour-là"}. Scannez un produit ou recherchez un aliment.
+          </p>
+        )}
+        {MEAL_TYPES.map((meal) => {
+          const items = logs.filter((l) => l.meal_type === meal.value);
+          if (items.length === 0) return null;
+          const kcal = items.reduce((s, l) => s + l.calories, 0);
+          return (
+            <div key={meal.value}>
+              <div className="flex items-center justify-between border-b border-border pb-1.5">
+                <p className="korev-eyebrow">{meal.label}</p>
+                <div className="flex items-center gap-2">
+                  <span className="korev-metric text-sm">{kcal} <span className="text-xs font-normal text-muted-foreground">kcal</span></span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openAdd(meal.value)} aria-label={`Ajouter au ${meal.label.toLowerCase()}`}>
+                    <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="w-full" onClick={() => setScannerOpen(true)}>
-            <Camera className="h-4 w-4 mr-2" />
-            Scanner
-          </Button>
-          <Dialog open={addDialogOpen} onOpenChange={(o) => { setAddDialogOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Ajouter un aliment
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddFood} className="space-y-5">
-                {/* Repas */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Repas</Label>
-                  <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="breakfast">🌅 Petit-déjeuner</SelectItem>
-                      <SelectItem value="lunch">☀️ Déjeuner</SelectItem>
-                      <SelectItem value="dinner">🌙 Dîner</SelectItem>
-                      <SelectItem value="snack">🍎 Collation</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Recherche */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Aliment</Label>
-                  <FoodSearchInput
-                    value={foodName}
-                    onChange={(v) => { setFoodName(v); if (!v) setHasBase(false); }}
-                    onFoodSelect={(food) => {
-                      setBase({ calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat });
-                      setHasBase(true);
-                      setManualMode(false);
-                      setQuantity(100);
-                    }}
-                    placeholder="Ex: poulet, riz, banane..."
-                  />
-                  {!hasBase && !manualMode && (
-                    <button
-                      type="button"
-                      onClick={() => { setManualMode(true); setHasBase(true); }}
-                      className="text-xs text-primary hover:underline"
+              </div>
+              <ul>
+                {items.map((log) => (
+                  <li key={log.id} className="flex items-center gap-2 border-b border-border/50 py-2 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{log.food_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        P {fmt(log.protein_g)} g · G {fmt(log.carbs_g)} g · L {fmt(log.fat_g)} g
+                      </p>
+                    </div>
+                    <span className="korev-metric shrink-0 text-sm">{log.calories}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteLog(log.id)}
+                      disabled={deletingId === log.id}
+                      aria-label={`Retirer ${log.food_name}`}
                     >
-                      Saisir les valeurs nutritionnelles manuellement
-                    </button>
-                  )}
-                </div>
+                      {deletingId === log.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
 
-                {/* Valeurs pour 100g (manuel ou édition) */}
-                {hasBase && (
-                  <div className="space-y-3 rounded-lg border border-border/50 bg-muted/30 p-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Valeurs pour 100 g
-                      </Label>
-                      {!manualMode && (
-                        <Badge variant="secondary" className="text-[10px]">Open Food Facts</Badge>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Kcal</Label>
-                        <Input type="number" value={base.calories || ''} onChange={(e) => setBase({ ...base, calories: Number(e.target.value) })} className="h-8 text-sm" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Prot.</Label>
-                        <Input type="number" step="0.1" value={base.protein || ''} onChange={(e) => setBase({ ...base, protein: Number(e.target.value) })} className="h-8 text-sm" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Gluc.</Label>
-                        <Input type="number" step="0.1" value={base.carbs || ''} onChange={(e) => setBase({ ...base, carbs: Number(e.target.value) })} className="h-8 text-sm" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Lip.</Label>
-                        <Input type="number" step="0.1" value={base.fat || ''} onChange={(e) => setBase({ ...base, fat: Number(e.target.value) })} className="h-8 text-sm" />
-                      </div>
-                    </div>
-                  </div>
-                )}
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" onClick={() => setScannerOpen(true)}>
+          <ScanLine className="h-4 w-4" />
+          Scanner
+        </Button>
+        <Button onClick={() => openAdd()}>
+          <Plus className="h-4 w-4" />
+          Ajouter
+        </Button>
+      </div>
 
-                {/* Quantité */}
-                {hasBase && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">Quantité</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          value={quantity}
-                          onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 0))}
-                          className="h-8 w-20 text-right text-sm"
-                        />
-                        <span className="text-sm text-muted-foreground">g</span>
-                      </div>
-                    </div>
-                    <Slider
-                      value={[Math.min(quantity, 500)]}
-                      onValueChange={([v]) => setQuantity(v)}
-                      min={10}
-                      max={500}
-                      step={5}
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_PORTIONS.map((p) => (
-                        <button
-                          key={p.grams}
-                          type="button"
-                          onClick={() => setQuantity(p.grams)}
-                          className={cn(
-                            "px-2.5 py-1 text-xs rounded-full border transition-colors",
-                            quantity === p.grams
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-background border-border hover:bg-muted"
-                          )}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      <AddFoodDialog
+        key={add.key}
+        open={add.open}
+        onOpenChange={(open) => setAdd((s) => ({ ...s, open }))}
+        dateKey={dateKey}
+        dayLabel={dayLabel}
+        defaultMeal={add.meal}
+        initialProduct={add.product}
+        pending={adding}
+        onSubmit={addLog}
+      />
 
-                {/* Aperçu live */}
-                {hasBase && (
-                  <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 space-y-3">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">Total pour {quantity}g</span>
-                      <div className="flex items-baseline gap-1">
-                        <Flame className="h-4 w-4 text-primary self-center" />
-                        <span className="text-2xl font-bold text-foreground">{computed.calories}</span>
-                        <span className="text-xs text-muted-foreground">kcal</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-lg bg-background/60 p-2">
-                        <Beef className="h-3.5 w-3.5 mx-auto text-red-500 mb-0.5" />
-                        <div className="text-sm font-bold">{computed.protein}g</div>
-                        <div className="text-[10px] text-muted-foreground">Protéines</div>
-                      </div>
-                      <div className="rounded-lg bg-background/60 p-2">
-                        <Wheat className="h-3.5 w-3.5 mx-auto text-amber-500 mb-0.5" />
-                        <div className="text-sm font-bold">{computed.carbs}g</div>
-                        <div className="text-[10px] text-muted-foreground">Glucides</div>
-                      </div>
-                      <div className="rounded-lg bg-background/60 p-2">
-                        <Droplet className="h-3.5 w-3.5 mx-auto text-blue-500 mb-0.5" />
-                        <div className="text-sm font-bold">{computed.fat}g</div>
-                        <div className="text-[10px] text-muted-foreground">Lipides</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+      <BarcodeScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} onProductFound={(p) => openAdd(undefined, p)} />
 
-                <Button type="submit" className="w-full" disabled={loading || !foodName || !hasBase || computed.calories <= 0}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter au journal
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <BarcodeScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} onFoodScanned={handleFoodScanned} />
-      </CardContent>
-    </Card>
+      <Dialog open={goalsOpen} onOpenChange={setGoalsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <p className="korev-eyebrow">Nutrition</p>
+            <DialogTitle className="font-display text-2xl uppercase">Mes objectifs</DialogTitle>
+            <DialogDescription>Apports visés par jour, utilisés pour les barres de progression.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitGoals} className="space-y-4">
+            {GOAL_FIELDS.map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label htmlFor={`goal-${f.key}`}>{f.label}</Label>
+                <Input
+                  id={`goal-${f.key}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={f.key === "daily_calories" ? 500 : 0}
+                  max={f.max}
+                  value={goalsForm[f.key]}
+                  onChange={(e) => setGoalsForm({ ...goalsForm, [f.key]: e.target.value })}
+                  required
+                />
+              </div>
+            ))}
+            <Button type="submit" className="w-full" disabled={savingGoals}>
+              {savingGoals && <Loader2 className="h-4 w-4 animate-spin" />}
+              Enregistrer
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 };

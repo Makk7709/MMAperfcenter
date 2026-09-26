@@ -1,436 +1,441 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { toast } from "sonner";
+import { BookOpen, Dumbbell, Loader2, Pencil, Plus, Timer, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent } from "@/components/ui/card";
+import { Eyebrow } from "@/components/brand/Eyebrow";
+import { MoodBars, MoodPicker } from "@/components/training/MoodPicker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import {
-  BookOpen,
-  Plus,
-  Calendar,
-  TrendingUp,
-  Dumbbell,
-  Edit,
-  Trash2,
-  Flame,
-  Zap,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { fromDateKey, shiftDateKey, toDateKey } from "@/lib/dateKey";
+import { moodOf } from "@/lib/training/moods";
+import { asSessionType, SESSION_TYPE_LABELS } from "@/lib/training/session";
+
+interface LinkedWorkout {
+  name: string;
+  session_type: string | null;
+  duration_minutes: number | null;
+  total_volume_kg: number | null;
+  rounds_completed: number;
+}
 
 interface JournalEntry {
   id: string;
-  user_id: string;
+  date: string;
+  title: string;
+  notes: string | null;
+  mood: string;
+  energy_level: number;
+  weight_kg: number | null;
+  workout: LinkedWorkout | null;
+}
+
+interface JournalForm {
   date: string;
   title: string;
   notes: string;
   mood: string;
   energy_level: number;
-  weight_kg?: number;
-  created_at: string;
+  weight: string;
 }
 
-interface JournalFormData {
-  date: string;
-  title: string;
-  notes: string;
-  mood: string;
-  energy_level: number;
-  weight_kg: number | undefined;
-}
+const TITLE_MAX = 120;
+const NOTES_MAX = 2000;
 
-const MOODS = [
-  { value: "excellent", emoji: "🔥", label: "Excellent" },
-  { value: "good", emoji: "💪", label: "Bien" },
-  { value: "neutral", emoji: "😐", label: "Neutre" },
-  { value: "tired", emoji: "😓", label: "Fatigué" },
-  { value: "bad", emoji: "😞", label: "Difficile" },
-];
+const emptyForm = (): JournalForm => ({
+  date: toDateKey(),
+  title: "",
+  notes: "",
+  mood: "neutral",
+  energy_level: 5,
+  weight: "",
+});
+
+const journalKey = (userId?: string) => ["journal", userId] as const;
 
 const WorkoutJournal = () => {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
-
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    title: "",
-    notes: "",
-    mood: "neutral",
-    energy_level: 5,
-    weight_kg: undefined as number | undefined,
-  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<JournalForm>(emptyForm);
+  const [toDelete, setToDelete] = useState<JournalEntry | null>(null);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Fighter";
 
-  useEffect(() => {
-    if (!user) { navigate("/auth"); return; }
-    loadEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const loadEntries = async () => {
-    try {
-      setLoading(true);
+  const { data: entries = [], isLoading, isError } = useQuery({
+    queryKey: journalKey(user?.id),
+    enabled: !!user,
+    queryFn: async (): Promise<JournalEntry[]> => {
       const { data, error } = await supabase
         .from("workout_journal")
-        .select("*")
-        .eq("user_id", user?.id)
-        .order("date", { ascending: false });
+        .select(
+          "id, date, title, notes, mood, energy_level, weight_kg, workout:workouts(name, session_type, duration_minutes, total_volume_kg, rounds_completed)",
+        )
+        .eq("user_id", user!.id)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      setEntries(data || []);
-    } catch (e) {
-      console.error(e);
-      toast.error("Erreur lors du chargement du carnet");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      if (!formData.title.trim()) { toast.error("Le titre est requis"); return; }
-      const payload = {
-        user_id: user?.id,
-        date: formData.date,
-        title: formData.title,
-        notes: formData.notes,
-        mood: formData.mood,
-        energy_level: formData.energy_level,
-        weight_kg: formData.weight_kg,
-      };
-      if (editingEntry) {
-        const { error } = await supabase.from("workout_journal").update(payload).eq("id", editingEntry.id);
-        if (error) throw error;
-        toast.success("Entrée mise à jour");
-      } else {
-        const { error } = await supabase.from("workout_journal").insert([payload]);
-        if (error) throw error;
-        toast.success("Entrée ajoutée");
-      }
-      setDialogOpen(false);
-      setEditingEntry(null);
-      resetForm();
-      loadEntries();
-    } catch (e) {
-      console.error(e);
-      toast.error("Erreur lors de l'enregistrement");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase.from("workout_journal").delete().eq("id", id);
-      if (error) throw error;
-      toast.success("Entrée supprimée");
-      loadEntries();
-    } catch (e) {
-      console.error(e);
-      toast.error("Erreur lors de la suppression");
-    }
-  };
-
-  const resetForm = () => setFormData({
-    date: new Date().toISOString().split("T")[0],
-    title: "", notes: "", mood: "neutral", energy_level: 5, weight_kg: undefined,
+      return (data ?? []).map((row) => ({
+        ...row,
+        weight_kg: row.weight_kg === null ? null : Number(row.weight_kg),
+        workout: row.workout
+          ? {
+              ...row.workout,
+              total_volume_kg: row.workout.total_volume_kg === null ? null : Number(row.workout.total_volume_kg),
+            }
+          : null,
+      }));
+    },
   });
 
-  const openEditDialog = (entry: JournalEntry) => {
-    setEditingEntry(entry);
-    setFormData({
-      date: entry.date, title: entry.title, notes: entry.notes,
-      mood: entry.mood, energy_level: entry.energy_level, weight_kg: entry.weight_kg,
+  const refresh = () => queryClient.invalidateQueries({ queryKey: journalKey(user?.id) });
+
+  const save = useMutation({
+    mutationFn: async (values: JournalForm) => {
+      const weight = values.weight.trim() ? Number(values.weight.replace(",", ".")) : null;
+      const payload = {
+        date: values.date,
+        title: values.title.trim().slice(0, TITLE_MAX),
+        notes: values.notes.trim().slice(0, NOTES_MAX) || null,
+        mood: values.mood,
+        energy_level: values.energy_level,
+        weight_kg: weight !== null && Number.isFinite(weight) ? weight : null,
+      };
+      const { error } = editingId
+        ? await supabase.from("workout_journal").update(payload).eq("id", editingId)
+        : await supabase.from("workout_journal").insert({ ...payload, user_id: user!.id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(editingId ? "Entrée mise à jour" : "Entrée ajoutée au carnet");
+      setDialogOpen(false);
+      void refresh();
+    },
+    onError: () => toast.error("L'entrée n'a pas pu être enregistrée"),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("workout_journal").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entrée supprimée");
+      void refresh();
+    },
+    onError: () => toast.error("L'entrée n'a pas pu être supprimée"),
+    onSettled: () => setToDelete(null),
+  });
+
+  const openNew = () => {
+    setEditingId(null);
+    setForm(emptyForm());
+    setDialogOpen(true);
+  };
+
+  const openEdit = (entry: JournalEntry) => {
+    setEditingId(entry.id);
+    setForm({
+      date: entry.date,
+      title: entry.title,
+      notes: entry.notes ?? "",
+      mood: entry.mood,
+      energy_level: entry.energy_level,
+      weight: entry.weight_kg === null ? "" : String(entry.weight_kg),
     });
     setDialogOpen(true);
   };
 
-  const monthCount = entries.filter((e) => new Date(e.date) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
-  const avgEnergy = entries.length > 0 ? Math.round(entries.reduce((s, e) => s + e.energy_level, 0) / entries.length) : 0;
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) {
+      toast.error("Donnez un titre à cette entrée");
+      return;
+    }
+    save.mutate(form);
+  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-primary">Chargement…</div>
-      </div>
-    );
-  }
+  const since = shiftDateKey(toDateKey(), -29);
+  const recent = entries.filter((e) => e.date >= since);
+  const avgEnergy = recent.length ? Math.round((recent.reduce((s, e) => s + e.energy_level, 0) / recent.length) * 10) / 10 : null;
+
+  const stats = [
+    { label: "Entrées", value: entries.length },
+    { label: "30 derniers jours", value: recent.length },
+    { label: "Énergie moyenne", value: avgEnergy === null ? "–" : `${avgEnergy.toLocaleString("fr-FR")}/10` },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-korev-deep">
       <DashboardHeader userName={userName} onSignOut={() => signOut()} />
 
-      <div className="container px-4 py-8">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* Hero header */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/15 via-card to-card p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="h-14 w-14 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="h-7 w-7 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-                    Carnet d'entraînement
-                  </h1>
-                  <p className="text-muted-foreground mt-1">
-                    Suis tes progrès, écoute tes sensations
-                  </p>
-                </div>
-              </div>
-              <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingEntry(null); resetForm(); } }}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="h-12 font-semibold shadow-lg shadow-primary/20">
-                    <Plus className="h-5 w-5 mr-2" />
-                    Nouvelle entrée
-                  </Button>
-                </DialogTrigger>
-                <JournalDialog
-                  editingEntry={editingEntry}
-                  formData={formData}
-                  setFormData={setFormData}
-                  onSave={handleSave}
-                />
-              </Dialog>
-            </div>
-
-            {/* Inline stats */}
-            <div className="grid grid-cols-3 gap-3 mt-6">
-              <StatPill icon={Calendar} value={entries.length} label="Total" tone="primary" />
-              <StatPill icon={TrendingUp} value={monthCount} label="Ce mois" tone="accent" />
-              <StatPill icon={Zap} value={`${avgEnergy}/10`} label="Énergie moy." tone="warm" />
-            </div>
+      <main className="container max-w-4xl space-y-8 px-4 py-8 md:py-12">
+        <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <Eyebrow parts={["Carnet", "D'entraînement"]} bullet />
+            <h1 className="korev-display mt-3 text-4xl md:text-5xl">Vos sensations, séance après séance.</h1>
+            <p className="mt-2 max-w-xl text-muted-foreground">
+              Chaque séance terminée peut y laisser une note. Ajoutez aussi vos ressentis de repos, de pesée ou de sparring.
+            </p>
           </div>
+          <Button size="lg" onClick={openNew} className="shrink-0">
+            <Plus className="h-4 w-4" />
+            Nouvelle entrée
+          </Button>
+        </header>
 
-          {/* Entries */}
-          {entries.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
-                  <BookOpen className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-1">Ton carnet est vide</h3>
-                <p className="text-muted-foreground mb-6 text-sm">
-                  Commence à noter tes séances pour suivre ta progression
-                </p>
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Première entrée
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {entries.map((entry) => {
-                const mood = MOODS.find((m) => m.value === entry.mood) || MOODS[2];
-                const date = new Date(entry.date);
-                const dateLabel = date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-                return (
-                  <Card key={entry.id} className="group overflow-hidden hover:border-primary/40 transition-all">
-                    <CardContent className="p-0">
-                      <div className="flex">
-                        {/* Date strip */}
-                        <div className="w-20 flex-shrink-0 bg-muted/40 border-r border-border flex flex-col items-center justify-center py-4">
-                          <span className="text-3xl font-bold text-primary leading-none">{date.getDate()}</span>
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                            {date.toLocaleDateString("fr-FR", { month: "short" })}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground mt-0.5">
-                            {date.toLocaleDateString("fr-FR", { weekday: "short" })}
-                          </span>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 p-4 min-w-0">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-foreground truncate">{entry.title}</h3>
-                              <p className="text-[11px] text-muted-foreground capitalize">{dateLabel}</p>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className="text-2xl" title={mood.label}>{mood.emoji}</span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 ml-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(entry)}>
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => handleDelete(entry.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Metrics row */}
-                          <div className="flex items-center gap-4 mb-2">
-                            <div className="flex items-center gap-1.5">
-                              <Flame className="h-3.5 w-3.5 text-orange-400" />
-                              <span className="text-xs text-muted-foreground">Énergie</span>
-                              <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full bg-gradient-to-r from-orange-400 to-primary"
-                                  style={{ width: `${entry.energy_level * 10}%` }}
-                                />
-                              </div>
-                              <span className="text-xs font-semibold tabular-nums">{entry.energy_level}/10</span>
-                            </div>
-                            {entry.weight_kg && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Dumbbell className="h-3.5 w-3.5" />
-                                <span className="font-semibold text-foreground">{entry.weight_kg} kg</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {entry.notes && (
-                            <p className="text-sm text-foreground/75 whitespace-pre-line line-clamp-3">
-                              {entry.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+        <dl className="grid grid-cols-3 gap-px border border-border bg-border">
+          {stats.map((s) => (
+            <div key={s.label} className="bg-card px-3 py-4 sm:px-5">
+              <dt className="korev-eyebrow text-[10px]">{s.label}</dt>
+              <dd className="korev-metric mt-1.5 text-2xl leading-none sm:text-3xl">{isLoading ? "–" : s.value}</dd>
             </div>
-          )}
-        </div>
-      </div>
+          ))}
+        </dl>
+
+        {isLoading && (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Chargement du carnet" />
+          </div>
+        )}
+
+        {isError && <p className="text-center text-destructive">Le carnet n'a pas pu être chargé. Rechargez la page.</p>}
+
+        {!isLoading && !isError && entries.length === 0 && (
+          <div className="border border-dashed border-border px-6 py-14 text-center">
+            <BookOpen className="mx-auto h-7 w-7 text-korev-gold" />
+            <h2 className="mt-4 font-display text-xl font-semibold uppercase">Votre carnet est vide</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              Terminez une séance avec une note, ou écrivez votre première entrée maintenant.
+            </p>
+            <Button className="mt-6" onClick={openNew}>
+              <Plus className="h-4 w-4" />
+              Première entrée
+            </Button>
+          </div>
+        )}
+
+        <ol className="space-y-3">
+          {entries.map((entry, i) => (
+            <li key={entry.id} className="animate-korev-rise" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+              <EntryCard entry={entry} onEdit={() => openEdit(entry)} onDelete={() => setToDelete(entry)} />
+            </li>
+          ))}
+        </ol>
+      </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <p className="korev-eyebrow">Carnet</p>
+            <DialogTitle className="font-display text-2xl uppercase">{editingId ? "Modifier l'entrée" : "Nouvelle entrée"}</DialogTitle>
+            <DialogDescription>Comment vous sentiez-vous ? Ces notes vous aident à repérer fatigue et progrès.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="journal-date" className="korev-eyebrow text-[11px] font-normal">Date</Label>
+                <Input
+                  id="journal-date"
+                  type="date"
+                  max={toDateKey()}
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value || toDateKey() })}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="journal-weight" className="korev-eyebrow text-[11px] font-normal">Poids (kg)</Label>
+                <Input
+                  id="journal-weight"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min={20}
+                  max={300}
+                  placeholder="Facultatif"
+                  value={form.weight}
+                  onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="journal-title" className="korev-eyebrow text-[11px] font-normal">Titre</Label>
+              <Input
+                id="journal-title"
+                placeholder="Boxe technique et cardio"
+                maxLength={TITLE_MAX}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="korev-eyebrow text-[11px] font-normal">Ressenti</Label>
+              <MoodPicker value={form.mood} onChange={(mood) => setForm({ ...form, mood })} />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <Label className="korev-eyebrow text-[11px] font-normal">Énergie</Label>
+                <span className="korev-metric text-xl">
+                  {form.energy_level}
+                  <span className="text-sm font-normal text-muted-foreground">/10</span>
+                </span>
+              </div>
+              <Slider
+                value={[form.energy_level]}
+                onValueChange={([v]) => setForm({ ...form, energy_level: v })}
+                min={1}
+                max={10}
+                step={1}
+                aria-label="Niveau d'énergie"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="journal-notes" className="korev-eyebrow text-[11px] font-normal">Notes</Label>
+              <Textarea
+                id="journal-notes"
+                placeholder="Ressentis, exercices, points à retenir…"
+                maxLength={NOTES_MAX}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="min-h-[110px]"
+              />
+            </div>
+
+            <Button type="submit" size="lg" className="w-full" disabled={save.isPending}>
+              {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editingId ? "Enregistrer les modifications" : "Ajouter au carnet"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && !remove.isPending && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette entrée ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              « {toDelete?.title} » sera définitivement retirée du carnet.
+              {toDelete?.workout && " La séance associée reste dans votre historique."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (toDelete) remove.mutate(toDelete.id);
+              }}
+              disabled={remove.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {remove.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-// ============================================
-// Sub-components
-// ============================================
+function EntryCard({ entry, onEdit, onDelete }: { entry: JournalEntry; onEdit: () => void; onDelete: () => void }) {
+  const date = fromDateKey(entry.date);
+  const mood = moodOf(entry.mood);
+  const w = entry.workout;
 
-function StatPill({
-  icon: Icon, value, label, tone,
-}: { icon: React.ElementType; value: React.ReactNode; label: string; tone: "primary" | "accent" | "warm" }) {
-  const tones = {
-    primary: "text-primary bg-primary/10",
-    accent: "text-emerald-400 bg-emerald-500/10",
-    warm: "text-orange-400 bg-orange-500/10",
-  };
   return (
-    <div className="rounded-xl bg-background/40 border border-border p-3 flex items-center gap-3">
-      <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0", tones[tone])}>
-        <Icon className="h-4 w-4" />
+    <article className="liquid-glass-solid flex overflow-hidden">
+      <div className="flex w-16 shrink-0 flex-col items-center justify-center border-r border-border bg-korev-deep/50 py-4 sm:w-20">
+        <span className="korev-metric text-3xl leading-none text-korev-gold">{format(date, "d")}</span>
+        <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{format(date, "MMM", { locale: fr })}</span>
+        <span className="text-[10px] uppercase text-muted-foreground">{format(date, "EEE", { locale: fr })}</span>
       </div>
-      <div className="min-w-0">
-        <div className="text-xl font-bold text-foreground leading-none tabular-nums">{value}</div>
-        <div className="text-[11px] text-muted-foreground mt-1">{label}</div>
+
+      <div className="min-w-0 flex-1 p-4">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-semibold">{entry.title}</h2>
+            <p className="text-xs text-muted-foreground first-letter:uppercase">{format(date, "EEEE d MMMM yyyy", { locale: fr })}</p>
+          </div>
+          <div className="flex shrink-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} aria-label={`Modifier « ${entry.title} »`}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={onDelete}
+              aria-label={`Supprimer « ${entry.title} »`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+          <span className="flex items-center gap-2">
+            <MoodBars level={mood.level} />
+            <span className="font-medium">{mood.label}</span>
+          </span>
+          <span className="flex items-center gap-2 text-muted-foreground">
+            Énergie
+            <span className="h-1.5 w-14 overflow-hidden bg-muted" aria-hidden>
+              <span className="block h-full bg-gradient-primary" style={{ width: `${entry.energy_level * 10}%` }} />
+            </span>
+            <span className="korev-metric text-foreground">{entry.energy_level}/10</span>
+          </span>
+          {entry.weight_kg !== null && (
+            <span className="text-muted-foreground">
+              Pesée <span className="korev-metric text-foreground">{entry.weight_kg.toLocaleString("fr-FR")} kg</span>
+            </span>
+          )}
+        </div>
+
+        {w && (
+          <p className="mt-3 flex w-fit max-w-full items-start gap-2 border border-korev-gold/25 bg-korev-gold/5 px-2.5 py-1.5 text-xs">
+            {w.rounds_completed > 0 ? <Timer className="h-3.5 w-3.5 shrink-0 text-korev-gold" /> : <Dumbbell className="h-3.5 w-3.5 shrink-0 text-korev-gold" />}
+            <span>
+              <span className="font-medium">{w.name}</span>
+              <span className="text-muted-foreground">
+                {" · "}
+                {SESSION_TYPE_LABELS[asSessionType(w.session_type)]}
+                {w.duration_minutes ? ` · ${w.duration_minutes} min` : ""}
+                {w.rounds_completed > 0 ? ` · ${w.rounds_completed} rounds` : ""}
+                {w.total_volume_kg ? ` · ${w.total_volume_kg.toLocaleString("fr-FR")} kg` : ""}
+              </span>
+            </span>
+          </p>
+        )}
+
+        {entry.notes && <p className="mt-3 whitespace-pre-line text-sm text-foreground/80 line-clamp-4">{entry.notes}</p>}
       </div>
-    </div>
-  );
-}
-
-function JournalDialog({
-  editingEntry, formData, setFormData, onSave,
-}: {
-  editingEntry: JournalEntry | null;
-  formData: JournalFormData;
-  setFormData: (v: JournalFormData) => void;
-  onSave: () => void;
-}) {
-  return (
-    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
-          {editingEntry ? "Modifier l'entrée" : "Nouvelle entrée"}
-        </DialogTitle>
-      </DialogHeader>
-      <div className="space-y-5 pt-2">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Date</Label>
-            <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="mt-1.5" />
-          </div>
-          <div>
-            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Poids (kg)</Label>
-            <Input
-              type="number" step="0.1" placeholder="Optionnel"
-              value={formData.weight_kg ?? ""}
-              onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value ? Number.parseFloat(e.target.value) : undefined })}
-              className="mt-1.5"
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Titre</Label>
-          <Input
-            placeholder="Ex : Boxe technique + cardio"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="mt-1.5 h-11 text-base"
-          />
-        </div>
-
-        <div>
-          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Humeur</Label>
-          <div className="grid grid-cols-5 gap-2 mt-1.5">
-            {MOODS.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => setFormData({ ...formData, mood: m.value })}
-                className={cn(
-                  "rounded-lg border py-3 flex flex-col items-center gap-1 transition-all",
-                  formData.mood === m.value
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-card/30 hover:border-primary/40"
-                )}
-              >
-                <span className="text-2xl leading-none">{m.emoji}</span>
-                <span className="text-[10px] text-muted-foreground">{m.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-baseline justify-between mb-2">
-            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Niveau d'énergie</Label>
-            <span className="text-xl font-bold text-primary tabular-nums">{formData.energy_level}<span className="text-sm text-muted-foreground">/10</span></span>
-          </div>
-          <Slider
-            value={[formData.energy_level]}
-            onValueChange={([v]) => setFormData({ ...formData, energy_level: v })}
-            min={1} max={10} step={1}
-          />
-        </div>
-
-        <div>
-          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Notes</Label>
-          <Textarea
-            placeholder="Ressentis, exercices, points à retenir…"
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="mt-1.5 min-h-[110px]"
-          />
-        </div>
-
-        <Button onClick={onSave} className="w-full h-11 text-base font-semibold">
-          {editingEntry ? "Mettre à jour" : "Enregistrer l'entrée"}
-        </Button>
-      </div>
-    </DialogContent>
+    </article>
   );
 }
 

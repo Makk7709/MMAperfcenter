@@ -15,15 +15,14 @@ describe('WolfRankDisplay', () => {
       expect(elements.length).toBeGreaterThan(0);
     });
 
-    it('should render rank icon', () => {
+    it('should render rank level', () => {
       render(<WolfRankDisplay currentXP={0} />);
-      const elements = screen.getAllByText('🐺');
-      expect(elements.length).toBeGreaterThan(0);
+      expect(screen.getByLabelText(/niveau 1 sur 7/i)).toHaveTextContent('01');
     });
 
     it('should render XP count', () => {
       render(<WolfRankDisplay currentXP={250} />);
-      expect(screen.getByText(/250/)).toBeInTheDocument();
+      expect(screen.getByText('250')).toBeInTheDocument();
     });
 
     it('should render progress bar', () => {

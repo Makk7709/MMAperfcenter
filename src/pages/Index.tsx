@@ -3,7 +3,8 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { QuickStatsCards } from "@/components/QuickStatsCards";
 import { QuickActions } from "@/components/QuickActions";
 import { NutritionTracker } from "@/components/NutritionTracker";
-import { WorkoutLogger } from "@/components/WorkoutLogger";
+import { TrainingPanel } from "@/components/training/TrainingPanel";
+import { StartSessionTrigger } from "@/components/training/StartSessionTrigger";
 import { RoundTimer } from "@/components/RoundTimer";
 import { MeuteCard } from "@/components/MeuteCard";
 import { MMANewsBanner } from "@/components/MMANewsBanner";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useTrainingProgress } from "@/hooks/useTraining";
 import { useNavigate } from "react-router-dom";
 import { 
   Brain, 
@@ -30,7 +32,16 @@ const Index = () => {
   const { isPaid: isPremium } = useSubscription();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nutrition");
+  const [scanRequest, setScanRequest] = useState(0);
   const aiCoachRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const { data: trainingProgress } = useTrainingProgress();
+
+  const openScanner = () => {
+    setActiveTab("nutrition");
+    setScanRequest((n) => n + 1);
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const scrollToAICoach = () => {
     aiCoachRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -132,18 +143,18 @@ const Index = () => {
             </div>
             
             {/* Wolf Rank Display */}
-            <WolfRankDisplay currentXP={1250} />
+            <WolfRankDisplay currentXP={trainingProgress?.totalXP ?? 0} />
 
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
-              <QuickActions onSwitchTab={setActiveTab} />
+              <QuickActions onSwitchTab={setActiveTab} onScan={openScanner} />
             </div>
             
             <MeuteCard />
           </div>
 
           {/* Center/Right Columns - Main Tracking */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 scroll-mt-24" ref={tabsRef}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-3 bg-card border border-border/50 p-1">
                 <TabsTrigger 
@@ -167,11 +178,11 @@ const Index = () => {
               </TabsList>
               
               <TabsContent value="nutrition" className="space-y-6">
-                <NutritionTracker />
+                <NutritionTracker scanRequest={scanRequest} />
               </TabsContent>
               
               <TabsContent value="workout" className="space-y-6">
-                <WorkoutLogger />
+                <TrainingPanel />
               </TabsContent>
               
               <TabsContent value="combat" className="space-y-6">
@@ -190,12 +201,18 @@ const Index = () => {
                       <br />
                       <span className="text-sm">Analyse vidéo IA des combats</span>
                     </p>
-                    <Button 
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary group"
-                    >
-                      <Zap className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                      Démarrer Session Combat
-                    </Button>
+                    <StartSessionTrigger defaultType="mma">
+                      {({ active, onClick, loading }) => (
+                        <Button
+                          className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary group"
+                          onClick={onClick}
+                          disabled={loading}
+                        >
+                          <Zap className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                          {active ? "Reprendre la séance" : "Démarrer une séance combat"}
+                        </Button>
+                      )}
+                    </StartSessionTrigger>
                   </div>
                 </div>
               </TabsContent>

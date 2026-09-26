@@ -1,19 +1,18 @@
 /**
- * StartWorkoutDialogV2 — Refonte moderne KOREV
- * Hiérarchie claire, labels FR uniquement, design dense mais lisible.
+ * StartWorkoutDialogV2 — configuration d'une séance (modèle, durée, intensité, rounds).
  */
 
 import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,7 +25,9 @@ import {
   Target,
   Clock,
   History,
-  Sparkles,
+  Swords,
+  HeartPulse,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export interface WorkoutConfig {
 
 export type WorkoutType = "boxing" | "mma" | "strength" | "cardio" | "custom";
 export type IntensityLevel = "light" | "moderate" | "intense";
+type TemplateType = Exclude<WorkoutType, "custom">;
 
 export interface RecentWorkout {
   id: string;
@@ -60,6 +62,7 @@ export interface StartWorkoutDialogV2Props {
   onStartWorkout: (config: WorkoutConfig) => void;
   loading?: boolean;
   recentWorkouts?: RecentWorkout[];
+  defaultType?: TemplateType;
 }
 
 interface WorkoutTemplate {
@@ -71,33 +74,32 @@ interface WorkoutTemplate {
   roundDuration?: number;
   restDuration?: number;
   icon: React.ElementType;
-  accent: string; // tailwind text color class
 }
 
 // ============================================
 // DATA
 // ============================================
 
-const TEMPLATES: Record<Exclude<WorkoutType, "custom">, WorkoutTemplate[]> = {
+const TEMPLATES: Record<TemplateType, WorkoutTemplate[]> = {
   boxing: [
-    { name: "Shadow Boxing", type: "boxing", duration: 15, intensity: "moderate", rounds: 5, roundDuration: 180, restDuration: 60, icon: Target, accent: "text-red-400" },
-    { name: "Sac de frappe", type: "boxing", duration: 20, intensity: "intense", rounds: 6, roundDuration: 180, restDuration: 60, icon: Flame, accent: "text-orange-400" },
-    { name: "Pattes d'ours", type: "boxing", duration: 25, intensity: "intense", rounds: 8, roundDuration: 180, restDuration: 60, icon: Zap, accent: "text-yellow-400" },
+    { name: "Shadow Boxing", type: "boxing", duration: 15, intensity: "moderate", rounds: 5, roundDuration: 180, restDuration: 60, icon: Target },
+    { name: "Sac de frappe", type: "boxing", duration: 20, intensity: "intense", rounds: 6, roundDuration: 180, restDuration: 60, icon: Flame },
+    { name: "Pattes d'ours", type: "boxing", duration: 25, intensity: "intense", rounds: 8, roundDuration: 180, restDuration: 60, icon: Zap },
   ],
   mma: [
-    { name: "Grappling Drills", type: "mma", duration: 30, intensity: "moderate", icon: Dumbbell, accent: "text-blue-400" },
-    { name: "Sparring", type: "mma", duration: 25, intensity: "intense", rounds: 5, roundDuration: 300, restDuration: 60, icon: Target, accent: "text-purple-400" },
-    { name: "Technique MMA", type: "mma", duration: 45, intensity: "moderate", icon: Target, accent: "text-indigo-400" },
+    { name: "Grappling Drills", type: "mma", duration: 30, intensity: "moderate", icon: Shield },
+    { name: "Sparring", type: "mma", duration: 25, intensity: "intense", rounds: 5, roundDuration: 300, restDuration: 60, icon: Swords },
+    { name: "Technique MMA", type: "mma", duration: 45, intensity: "moderate", icon: Target },
   ],
   strength: [
-    { name: "Haut du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell, accent: "text-emerald-400" },
-    { name: "Bas du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell, accent: "text-teal-400" },
-    { name: "Full Body", type: "strength", duration: 60, intensity: "moderate", icon: Dumbbell, accent: "text-cyan-400" },
+    { name: "Haut du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell },
+    { name: "Bas du corps", type: "strength", duration: 45, intensity: "intense", icon: Dumbbell },
+    { name: "Full Body", type: "strength", duration: 60, intensity: "moderate", icon: Dumbbell },
   ],
   cardio: [
-    { name: "HIIT", type: "cardio", duration: 20, intensity: "intense", icon: Flame, accent: "text-red-400" },
-    { name: "Endurance", type: "cardio", duration: 40, intensity: "moderate", icon: Timer, accent: "text-pink-400" },
-    { name: "Circuit", type: "cardio", duration: 30, intensity: "intense", icon: Zap, accent: "text-amber-400" },
+    { name: "HIIT", type: "cardio", duration: 20, intensity: "intense", rounds: 8, roundDuration: 40, restDuration: 20, icon: Flame },
+    { name: "Endurance", type: "cardio", duration: 40, intensity: "moderate", icon: Timer },
+    { name: "Circuit", type: "cardio", duration: 30, intensity: "intense", icon: Zap },
   ],
 };
 
@@ -107,18 +109,22 @@ const QUICK_START = [
   { name: "Standard", duration: 15, intensity: "moderate" as IntensityLevel, icon: Flame },
 ];
 
-const INTENSITIES: { value: IntensityLevel; label: string; color: string }[] = [
-  { value: "light", label: "Léger", color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  { value: "moderate", label: "Modéré", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  { value: "intense", label: "Intense", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+const INTENSITIES: { value: IntensityLevel; label: string }[] = [
+  { value: "light", label: "Léger" },
+  { value: "moderate", label: "Modéré" },
+  { value: "intense", label: "Intense" },
 ];
 
-const TYPE_TABS: { value: Exclude<WorkoutType, "custom">; icon: string; label: string }[] = [
-  { value: "boxing", icon: "🥊", label: "Boxe" },
-  { value: "mma", icon: "🥋", label: "MMA" },
-  { value: "strength", icon: "💪", label: "Force" },
-  { value: "cardio", icon: "🔥", label: "Cardio" },
+const TYPE_TABS: { value: TemplateType; icon: React.ElementType; label: string }[] = [
+  { value: "boxing", icon: Target, label: "Boxe" },
+  { value: "mma", icon: Swords, label: "MMA" },
+  { value: "strength", icon: Dumbbell, label: "Force" },
+  { value: "cardio", icon: HeartPulse, label: "Cardio" },
 ];
+
+const sectionLabel = "korev-eyebrow text-[11px] font-normal";
+
+const formatSeconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`);
 
 // ============================================
 // COMPONENT
@@ -130,28 +136,31 @@ export const StartWorkoutDialogV2 = ({
   onStartWorkout,
   loading = false,
   recentWorkouts = [],
+  defaultType = "boxing",
 }: StartWorkoutDialogV2Props) => {
   const [workoutName, setWorkoutName] = useState("");
-  const [selectedType, setSelectedType] = useState<WorkoutType>("boxing");
+  const [selectedType, setSelectedType] = useState<WorkoutType>(defaultType);
   const [duration, setDuration] = useState(30);
   const [intensity, setIntensity] = useState<IntensityLevel>("moderate");
   const [rounds, setRounds] = useState(5);
+  const [roundDuration, setRoundDuration] = useState(180);
   const [showRoundConfig, setShowRoundConfig] = useState(false);
   const [restDuration, setRestDuration] = useState(60);
-  const [activeTab, setActiveTab] = useState<Exclude<WorkoutType, "custom">>("boxing");
+  const [activeTab, setActiveTab] = useState<TemplateType>(defaultType);
 
   useEffect(() => {
     if (!open) {
       setWorkoutName("");
-      setSelectedType("boxing");
+      setSelectedType(defaultType);
       setDuration(30);
       setIntensity("moderate");
       setRounds(5);
+      setRoundDuration(180);
       setShowRoundConfig(false);
       setRestDuration(60);
-      setActiveTab("boxing");
+      setActiveTab(defaultType);
     }
-  }, [open]);
+  }, [open, defaultType]);
 
   const handleTemplateSelect = (t: WorkoutTemplate) => {
     setWorkoutName(t.name);
@@ -160,8 +169,9 @@ export const StartWorkoutDialogV2 = ({
     setIntensity(t.intensity);
     if (t.rounds) {
       setRounds(t.rounds);
+      setRoundDuration(t.roundDuration ?? 180);
       setShowRoundConfig(true);
-      if (t.restDuration) setRestDuration(t.restDuration);
+      if (t.restDuration !== undefined) setRestDuration(t.restDuration);
     } else {
       setShowRoundConfig(false);
     }
@@ -187,7 +197,7 @@ export const StartWorkoutDialogV2 = ({
       intensity,
       ...(showRoundConfig && {
         rounds,
-        roundDuration: 180,
+        roundDuration,
         restDuration,
       }),
     });
@@ -196,33 +206,20 @@ export const StartWorkoutDialogV2 = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
-        {/* Hero header */}
-        <div className="relative px-6 pt-6 pb-5 border-b border-border bg-gradient-to-br from-primary/10 via-transparent to-transparent">
+      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <div className="border-b border-border px-6 pb-5 pt-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2.5 text-xl">
-              <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center">
-                <Dumbbell className="h-5 w-5 text-primary" />
-              </div>
-              Nouvelle séance
-            </DialogTitle>
+            <p className="korev-eyebrow">Préparation / Séance</p>
+            <DialogTitle className="font-display text-2xl uppercase">Nouvelle séance</DialogTitle>
+            <DialogDescription>Choisissez un modèle ou composez votre séance.</DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground mt-1.5 ml-12">
-            Choisis un template ou personnalise ton entraînement
-          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ScrollArea className="flex-1 px-6">
-            <div className="py-5 space-y-6">
-              {/* Quick Start cards */}
+            <div className="space-y-6 py-5">
               <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Démarrage express
-                  </Label>
-                </div>
+                <Label className={cn(sectionLabel, "mb-3 block")}>Démarrage express</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {QUICK_START.map((q) => {
                     const Icon = q.icon;
@@ -232,13 +229,9 @@ export const StartWorkoutDialogV2 = ({
                         type="button"
                         onClick={() => handleQuickStart(q)}
                         disabled={loading}
-                        className={cn(
-                          "group relative overflow-hidden rounded-xl border border-border bg-card/50",
-                          "p-3 text-left transition-all hover:border-primary/50 hover:bg-primary/5",
-                          "disabled:opacity-50"
-                        )}
+                        className="group border border-border bg-korev-deep/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50"
                       >
-                        <Icon className="h-4 w-4 text-primary mb-2" />
+                        <Icon className="mb-2 h-4 w-4 text-korev-gold" />
                         <div className="text-sm font-semibold text-foreground">{q.name}</div>
                         <div className="text-[11px] text-muted-foreground">{q.duration} min</div>
                       </button>
@@ -247,9 +240,8 @@ export const StartWorkoutDialogV2 = ({
                 </div>
               </section>
 
-              {/* Custom name */}
               <section>
-                <Label htmlFor="workout-name" className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 block">
+                <Label htmlFor="workout-name" className={cn(sectionLabel, "mb-2 block")}>
                   Nom de la séance
                 </Label>
                 <Input
@@ -257,28 +249,25 @@ export const StartWorkoutDialogV2 = ({
                   value={workoutName}
                   onChange={(e) => setWorkoutName(e.target.value)}
                   placeholder="Ex : Boxe technique"
+                  maxLength={80}
                   disabled={loading}
                   className="h-11 text-base"
                 />
               </section>
 
-              {/* Templates */}
               <section>
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3 block">
-                  Templates
-                </Label>
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Exclude<WorkoutType, "custom">)}>
-                  <TabsList className="grid grid-cols-4 h-auto p-1 bg-muted/50">
-                    {TYPE_TABS.map((t) => (
-                      <TabsTrigger
-                        key={t.value}
-                        value={t.value}
-                        className="flex-col gap-0.5 py-2 data-[state=active]:bg-background"
-                      >
-                        <span className="text-lg leading-none">{t.icon}</span>
-                        <span className="text-[11px] font-medium">{t.label}</span>
-                      </TabsTrigger>
-                    ))}
+                <Label className={cn(sectionLabel, "mb-3 block")}>Modèles</Label>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TemplateType)}>
+                  <TabsList className="grid h-auto grid-cols-4 p-1">
+                    {TYPE_TABS.map((t) => {
+                      const Icon = t.icon;
+                      return (
+                        <TabsTrigger key={t.value} value={t.value} className="flex-col gap-1 py-2">
+                          <Icon className="h-4 w-4" />
+                          <span className="text-[11px] font-medium">{t.label}</span>
+                        </TabsTrigger>
+                      );
+                    })}
                   </TabsList>
 
                   {TYPE_TABS.map((t) => (
@@ -286,32 +275,30 @@ export const StartWorkoutDialogV2 = ({
                       {TEMPLATES[t.value].map((tpl) => {
                         const Icon = tpl.icon;
                         const isSelected = workoutName === tpl.name;
-                        const intensityMeta = INTENSITIES.find((i) => i.value === tpl.intensity)!;
+                        const intensityLabel = INTENSITIES.find((i) => i.value === tpl.intensity)!.label;
                         return (
                           <button
                             key={tpl.name}
                             type="button"
                             onClick={() => handleTemplateSelect(tpl)}
                             className={cn(
-                              "w-full rounded-xl border p-3 flex items-center gap-3 transition-all text-left",
-                              isSelected
-                                ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]"
-                                : "border-border bg-card/30 hover:border-primary/40 hover:bg-card/60"
+                              "flex w-full items-center gap-3 border p-3 text-left transition-colors",
+                              isSelected ? "border-primary bg-primary/10" : "border-border bg-korev-deep/30 hover:border-primary/40",
                             )}
                           >
-                            <div className={cn("h-10 w-10 rounded-lg bg-background/80 flex items-center justify-center flex-shrink-0", tpl.accent)}>
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-korev-gold/30 bg-korev-deep text-korev-gold">
                               <Icon className="h-5 w-5" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-sm text-foreground truncate">{tpl.name}</div>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-semibold text-foreground">{tpl.name}</div>
+                              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                 <Clock className="h-3 w-3" />
                                 <span>{tpl.duration} min</span>
-                                {tpl.rounds && <span>• {tpl.rounds} rounds</span>}
+                                {tpl.rounds && <span>· {tpl.rounds} rounds</span>}
                               </div>
                             </div>
-                            <span className={cn("px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide", intensityMeta.color)}>
-                              {intensityMeta.label}
+                            <span className={cn("korev-eyebrow text-[10px]", tpl.intensity === "intense" && "text-korev-gold")}>
+                              {intensityLabel}
                             </span>
                           </button>
                         );
@@ -321,34 +308,19 @@ export const StartWorkoutDialogV2 = ({
                 </Tabs>
               </section>
 
-              {/* Config */}
-              <section className="space-y-5 rounded-xl border border-border bg-card/30 p-4">
-                {/* Duration slider */}
+              <section className="space-y-5 border border-border bg-korev-deep/30 p-4">
                 <div>
-                  <div className="flex items-baseline justify-between mb-2">
-                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Durée</Label>
-                    <span className="text-2xl font-bold text-primary tabular-nums">
-                      {duration}<span className="text-sm text-muted-foreground font-normal ml-1">min</span>
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <Label className={sectionLabel}>Durée visée</Label>
+                    <span className="korev-metric text-2xl text-primary">
+                      {duration}<span className="ml-1 text-sm font-normal text-muted-foreground">min</span>
                     </span>
                   </div>
-                  <Slider
-                    value={[duration]}
-                    onValueChange={([v]) => setDuration(v)}
-                    min={5}
-                    max={120}
-                    step={5}
-                    disabled={loading}
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                    <span>5min</span><span>60min</span><span>120min</span>
-                  </div>
+                  <Slider value={[duration]} onValueChange={([v]) => setDuration(v)} min={5} max={120} step={5} disabled={loading} aria-label="Durée visée" />
                 </div>
 
-                {/* Intensity */}
                 <div>
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 block">
-                    Intensité
-                  </Label>
+                  <Label className={cn(sectionLabel, "mb-2 block")}>Intensité</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {INTENSITIES.map((opt) => (
                       <button
@@ -356,11 +328,12 @@ export const StartWorkoutDialogV2 = ({
                         type="button"
                         onClick={() => setIntensity(opt.value)}
                         disabled={loading}
+                        aria-pressed={intensity === opt.value}
                         className={cn(
-                          "rounded-lg border py-2 text-xs font-semibold transition-all",
+                          "border py-2 text-xs font-semibold transition-colors",
                           intensity === opt.value
-                            ? `${opt.color} ring-1 ring-current`
-                            : "border-border bg-background/40 text-muted-foreground hover:border-primary/30"
+                            ? "border-primary bg-primary/15 text-foreground"
+                            : "border-border bg-korev-deep/40 text-muted-foreground hover:border-primary/30",
                         )}
                       >
                         {opt.label}
@@ -369,63 +342,61 @@ export const StartWorkoutDialogV2 = ({
                   </div>
                 </div>
 
-                {/* Rounds toggle + config */}
                 <div>
                   <button
                     type="button"
                     onClick={() => setShowRoundConfig(!showRoundConfig)}
-                    className="flex items-center justify-between w-full text-left"
+                    aria-pressed={showRoundConfig}
+                    className="flex w-full items-center justify-between text-left"
                   >
-                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer">
-                      Mode rounds
-                    </Label>
-                    <span className={cn(
-                      "h-5 w-9 rounded-full border transition-colors relative",
-                      showRoundConfig ? "bg-primary border-primary" : "bg-muted border-border"
-                    )}>
-                      <span className={cn(
-                        "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-background transition-transform",
-                        showRoundConfig ? "translate-x-4" : "translate-x-0.5"
-                      )} />
+                    <span className={cn(sectionLabel, "cursor-pointer")}>Mode rounds</span>
+                    <span className={cn("relative h-5 w-9 border transition-colors", showRoundConfig ? "border-primary bg-primary" : "border-border bg-muted")}>
+                      <span className={cn("absolute top-0.5 h-3.5 w-3.5 bg-background transition-transform", showRoundConfig ? "translate-x-4" : "translate-x-0.5")} />
                     </span>
                   </button>
                   {showRoundConfig && (
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="mt-4 grid grid-cols-3 gap-4">
                       <div>
-                        <div className="flex items-baseline justify-between mb-1">
-                          <span className="text-[10px] text-muted-foreground">Rounds</span>
-                          <span className="text-lg font-bold text-foreground tabular-nums">{rounds}</span>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <span className="text-[11px] text-muted-foreground">Rounds</span>
+                          <span className="korev-metric text-lg">{rounds}</span>
                         </div>
-                        <Slider value={[rounds]} onValueChange={([v]) => setRounds(v)} min={1} max={15} step={1} disabled={loading} />
+                        <Slider value={[rounds]} onValueChange={([v]) => setRounds(v)} min={1} max={15} step={1} disabled={loading} aria-label="Nombre de rounds" />
                       </div>
                       <div>
-                        <div className="flex items-baseline justify-between mb-1">
-                          <span className="text-[10px] text-muted-foreground">Repos</span>
-                          <span className="text-lg font-bold text-foreground tabular-nums">{restDuration}s</span>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <span className="text-[11px] text-muted-foreground">Round</span>
+                          <span className="korev-metric text-lg">{formatSeconds(roundDuration)}</span>
                         </div>
-                        <Slider value={[restDuration]} onValueChange={([v]) => setRestDuration(v)} min={15} max={180} step={15} disabled={loading} />
+                        <Slider value={[roundDuration]} onValueChange={([v]) => setRoundDuration(v)} min={20} max={600} step={10} disabled={loading} aria-label="Durée d'un round" />
+                      </div>
+                      <div>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <span className="text-[11px] text-muted-foreground">Repos</span>
+                          <span className="korev-metric text-lg">{formatSeconds(restDuration)}</span>
+                        </div>
+                        <Slider value={[restDuration]} onValueChange={([v]) => setRestDuration(v)} min={0} max={180} step={10} disabled={loading} aria-label="Repos entre les rounds" />
                       </div>
                     </div>
                   )}
                 </div>
               </section>
 
-              {/* Recent */}
               {recentWorkouts.length > 0 && (
                 <section>
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
+                  <Label className={cn(sectionLabel, "mb-2 flex items-center gap-1.5")}>
                     <History className="h-3 w-3" /> Récents
                   </Label>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {recentWorkouts.slice(0, 5).map((w) => (
-                      <Badge
+                      <button
                         key={w.id}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap py-1.5 px-3"
+                        type="button"
+                        className="shrink-0 whitespace-nowrap border border-border px-3 py-1.5 text-xs hover:border-primary/40"
                         onClick={() => { setWorkoutName(w.name); setSelectedType(w.type as WorkoutType); }}
                       >
                         {w.name}
-                      </Badge>
+                      </button>
                     ))}
                   </div>
                 </section>
@@ -433,24 +404,19 @@ export const StartWorkoutDialogV2 = ({
             </div>
           </ScrollArea>
 
-          {/* Footer actions */}
-          <div className="px-6 py-4 border-t border-border bg-background flex gap-2">
+          <div className="flex gap-2 border-t border-border bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Annuler
             </Button>
-            <Button
-              type="submit"
-              disabled={!workoutName.trim() || loading}
-              className="flex-1 h-11 text-base font-semibold"
-            >
+            <Button type="submit" disabled={!workoutName.trim() || loading} className="h-11 flex-1 text-base">
               {loading ? (
                 <>
-                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  <Clock className="h-4 w-4 animate-spin" />
                   Démarrage…
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4 mr-2 fill-current" />
+                  <Play className="h-4 w-4 fill-current" />
                   Démarrer la séance
                 </>
               )}

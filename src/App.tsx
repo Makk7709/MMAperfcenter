@@ -12,6 +12,8 @@ import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import WorkoutJournal from "./pages/WorkoutJournal";
+import TrainingSession from "./pages/TrainingSession";
+import { SESSION_PATH } from "@/lib/training/session";
 import Statistics from "./pages/Statistics";
 import TrainingVideos from "./pages/TrainingVideos";
 import Pricing from "./pages/Pricing";
@@ -145,6 +147,7 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
+        <Route path={SESSION_PATH} element={<ProtectedRoute><TrainingSession /></ProtectedRoute>} />
         <Route 
           path="/statistics" 
           element={

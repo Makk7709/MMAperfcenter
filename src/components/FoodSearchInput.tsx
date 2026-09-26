@@ -2,26 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface FoodResult {
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  brand?: string;
-}
-
-interface OpenFoodFactsSearchProduct {
-  product_name?: string;
-  brands?: string;
-  nutriments?: Record<string, number>;
-}
+import { parseOffProduct, type FoodProduct } from "@/lib/nutrition";
 
 interface FoodSearchInputProps {
   value: string;
   onChange: (value: string) => void;
-  onFoodSelect: (food: FoodResult) => void;
+  onFoodSelect: (food: FoodProduct) => void;
   placeholder?: string;
 }
 
@@ -31,11 +17,12 @@ export const FoodSearchInput = ({
   onFoodSelect,
   placeholder = "Rechercher un aliment..."
 }: FoodSearchInputProps) => {
-  const [results, setResults] = useState<FoodResult[]>([]);
+  const [results, setResults] = useState<FoodProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const selectedValueRef = useRef<string | null>(null);
 
   // Close results when clicking outside
   useEffect(() => {
@@ -54,6 +41,9 @@ export const FoodSearchInput = ({
       clearTimeout(debounceRef.current);
     }
 
+    if (value === selectedValueRef.current) return;
+    selectedValueRef.current = null;
+
     if (value.length < 2) {
       setResults([]);
       setShowResults(false);
@@ -64,28 +54,19 @@ export const FoodSearchInput = ({
       setIsSearching(true);
       try {
         const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(value)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments`
+          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(value)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,product_name_fr,brands,nutriments,serving_quantity`
         );
         
         if (!response.ok) throw new Error("Search failed");
         
         const data = await response.json();
         
-        const products: OpenFoodFactsSearchProduct[] = data.products || [];
-        const foods: FoodResult[] = products
-          .filter((p) => p.product_name && p.nutriments)
-          .map((product) => {
-            const n = product.nutriments ?? {};
-            return {
-              name: product.product_name as string,
-              brand: product.brands,
-              calories: Math.round(n["energy-kcal_100g"] || n["energy-kcal"] || 0),
-              protein: Math.round((n.proteins_100g || n.proteins || 0) * 10) / 10,
-              carbs: Math.round((n.carbohydrates_100g || n.carbohydrates || 0) * 10) / 10,
-              fat: Math.round((n.fat_100g || n.fat || 0) * 10) / 10,
-            };
-          })
-          .filter((f: FoodResult) => f.calories > 0 || f.protein > 0 || f.carbs > 0 || f.fat > 0);
+        const products: unknown[] = Array.isArray(data.products) ? data.products : [];
+        const foods = products
+          .filter((p) => !!(p as { product_name?: string })?.product_name)
+          .map(parseOffProduct)
+          .filter((f): f is FoodProduct => f !== null)
+          .slice(0, 8);
         
         setResults(foods);
         setShowResults(foods.length > 0);
@@ -104,9 +85,11 @@ export const FoodSearchInput = ({
     };
   }, [value]);
 
-  const handleSelect = (food: FoodResult) => {
+  const handleSelect = (food: FoodProduct) => {
+    const label = food.brand ? `${food.name} (${food.brand})` : food.name;
+    selectedValueRef.current = label;
     onFoodSelect(food);
-    onChange(food.brand ? `${food.name} (${food.brand})` : food.name);
+    onChange(label);
     setShowResults(false);
   };
 
@@ -127,10 +110,10 @@ export const FoodSearchInput = ({
       </div>
       
       {showResults && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-border bg-popover shadow-lg">
           {results.map((food) => (
             <button
-              key={`${food.name}-${food.brand ?? ""}-${food.calories}`}
+              key={`${food.name}-${food.brand ?? ""}-${food.per100.calories}`}
               type="button"
               onClick={() => handleSelect(food)}
               className={cn(
@@ -140,11 +123,11 @@ export const FoodSearchInput = ({
             >
               <p className="font-medium text-sm text-foreground truncate">
                 {food.name}
-                {food.brand && <span className="text-muted-foreground"> - {food.brand}</span>}
+                {food.brand && <span className="text-muted-foreground"> · {food.brand}</span>}
               </p>
               <p className="text-xs text-muted-foreground">
-                {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
-                <span className="text-muted-foreground/70"> (pour 100g)</span>
+                {food.per100.calories} kcal · P {food.per100.protein.toLocaleString("fr-FR")} g · G {food.per100.carbs.toLocaleString("fr-FR")} g · L {food.per100.fat.toLocaleString("fr-FR")} g
+                <span className="text-muted-foreground/70"> pour 100 g</span>
               </p>
             </button>
           ))}
