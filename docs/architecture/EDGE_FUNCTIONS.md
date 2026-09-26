@@ -108,15 +108,21 @@ JWT + gating identique au coach IA (`sparring_analysis`).
 
 | Champ | Type | Description |
 |---|---|---|
-| `frames` | string[] | Images base64 |
+| `frames` | `{ base64, timestamps? }[]` | 3 à 60 images JPEG base64 (600 000 caractères max chacune). `timestamps` : jusqu'à 4 instants en secondes par image (l'ancien champ `timestamp` unique reste accepté) |
+| `layout` | string? | `sheet_2x2` : chaque image est une planche de mouvement 2×2 (4 instants consécutifs, timecode incrusté par case). Sinon image simple |
+| `burstSpacing` | number? | Écart en secondes entre deux cases d'une planche (0,05 à 2, défaut 0,25) |
+| `totalDuration` | number | Durée de la vidéo en secondes (obligatoire, 3 600 max) |
+| `athlete` | string? | Description visuelle de l'utilisateur (« short noir, gants rouges »), 160 caractères max, nettoyée. Placé en `fighter_1` si reconnu |
+| `analysisId` | uuid? | Ligne `sparring_analyses` à mettre à jour |
+| `videoName` | string? | Nom du fichier |
 | `discipline` | string | boxe, mma, bjj, etc. |
 | `qualityMode` | string | `fast` → Gemini Flash, sinon Pro (forcé à `fast` quand l'analyse consomme le quota gratuit) |
-| `videoUrl` | string? | Référence storage |
-| `metadata` | object? | Contexte additionnel |
+
+Le client (`src/utils/motionSheetExtractor.ts`) produit jusqu'à 48 planches. La couverture réelle de la vidéo est calculée côté serveur et exposée dans `sampling.coverage_percent`.
 
 ### Sortie
 
-JSON normalisé conforme au schéma sparring ; persistance `sparring_analyses`.
+JSON normalisé conforme au schéma sparring ; persistance `sparring_analyses`. Chaque moment clé et technique porte un `timestamp_seconds` lu sur les timecodes ; `athlete_identified` indique si la description de l'athlète a été retrouvée ; `sampling` décrit l'échantillonnage (disposition, nombre d'images, écart, couverture).
 
 ### Modèles
 
