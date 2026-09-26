@@ -18,8 +18,39 @@ export default {
 				'2xl': '1400px'
 			}
 		},
+		// Angular KOREV scale: replaces Tailwind's defaults so every rounded-*
+		// utility in the app stays near-square; rounded-full is kept for dots/avatars.
+		borderRadius: {
+			none: '0px',
+			sm: '1px',
+			DEFAULT: 'var(--radius)',
+			md: 'var(--radius)',
+			lg: 'var(--radius)',
+			xl: '3px',
+			'2xl': '4px',
+			'3xl': '6px',
+			full: '9999px'
+		},
 		extend: {
+			fontFamily: {
+				sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+				display: ['"Barlow Semi Condensed"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+				mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+			},
 			colors: {
+				korev: {
+					deep: 'hsl(var(--korev-deep))',
+					panel: 'hsl(var(--korev-command-bg))',
+					'panel-2': 'hsl(var(--korev-command-bg-2))',
+					gold: 'hsl(var(--korev-gold))',
+					'gold-deep': 'hsl(var(--korev-gold-deep))',
+					'gold-light': 'hsl(var(--korev-gold-highlight))',
+					ivory: 'hsl(var(--korev-ivory))'
+				},
+				corner: {
+					red: 'hsl(var(--corner-red))',
+					blue: 'hsl(var(--corner-blue))'
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -82,12 +113,19 @@ export default {
 				'smooth': 'var(--transition-smooth)',
 				'bounce': 'var(--transition-bounce)'
 			},
-			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
-			},
 			keyframes: {
+				'korev-scan': {
+					'0%': { transform: 'translateY(-100%)' },
+					'100%': { transform: 'translateY(100%)' }
+				},
+				'korev-float': {
+					'0%, 100%': { transform: 'translate3d(0, 0, 0)', opacity: '0.25' },
+					'50%': { transform: 'translate3d(0, -18px, 0)', opacity: '0.9' }
+				},
+				'korev-rise': {
+					from: { opacity: '0', transform: 'translateY(8px)' },
+					to: { opacity: '1', transform: 'translateY(0)' }
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -106,6 +144,9 @@ export default {
 				}
 			},
 			animation: {
+				'korev-scan': 'korev-scan 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite',
+				'korev-float': 'korev-float 7s ease-in-out infinite',
+				'korev-rise': 'korev-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
