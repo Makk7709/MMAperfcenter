@@ -50,7 +50,7 @@ const PLAN_LABELS: Record<string, string> = {
 const PLAN_ORDER = ["free", "pro", "elite", "sensei"];
 
 export default function AdminSubscriptions() {
-  const { users, isLoading, updateSubscription } = useAdminUsers();
+  const { users, isLoading, error, updateSubscription } = useAdminUsers();
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [changingPlan, setChangingPlan] = useState<{ user: AdminUser; newPlan: string } | null>(null);
@@ -93,6 +93,16 @@ export default function AdminSubscriptions() {
       <AdminLayout>
         <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="p-6 lg:p-8 text-destructive">
+          {error instanceof Error ? error.message : "Impossible de charger les abonnements"}
         </div>
       </AdminLayout>
     );
@@ -207,6 +217,7 @@ export default function AdminSubscriptions() {
                     <Select 
                       value={user.subscription?.plan || "free"}
                       onValueChange={(newPlan) => handlePlanChange(user, newPlan)}
+                      disabled={user.subscription?.stripe_managed && ["active", "trialing", "past_due"].includes(user.subscription.status)}
                     >
                       <SelectTrigger className="w-[130px]">
                         <SelectValue />

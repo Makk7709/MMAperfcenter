@@ -19,6 +19,8 @@
 | [`customer-portal`](#7-customer-portal) | Portail client Stripe | ✅ | — |
 | [`stripe-webhook`](#8-stripe-webhook) | Webhooks Stripe signés | ❌ | HMAC `STRIPE_WEBHOOK_SECRET` |
 | [`fetch-mma-results`](#9-fetch-mma-results) | Agrégation RSS MMA | ❌ | Public |
+| `delete-account` | Effacement du compte (Stripe, fichiers, Auth) | ✅ | Confirmation `SUPPRIMER` |
+| `admin-users` | Back-office : utilisateurs, stats, plan, suspension | ✅ | Rôle `admin` vérifié côté serveur |
 
 **Code partagé :** `supabase/functions/_shared/` (`ai-gateway.ts`, `errors.ts`).
 
@@ -108,7 +110,7 @@ JWT + gating identique au coach IA (`sparring_analysis`).
 |---|---|---|
 | `frames` | string[] | Images base64 |
 | `discipline` | string | boxe, mma, bjj, etc. |
-| `qualityMode` | string | `fast` → Gemini Flash, sinon Pro |
+| `qualityMode` | string | `fast` → Gemini Flash, sinon Pro (forcé à `fast` quand l'analyse consomme le quota gratuit) |
 | `videoUrl` | string? | Référence storage |
 | `metadata` | object? | Contexte additionnel |
 

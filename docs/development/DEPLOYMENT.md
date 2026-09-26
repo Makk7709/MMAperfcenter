@@ -12,7 +12,7 @@ Le déploiement couvre quatre composants :
 | Composant | Plateforme | Statut dans le dépôt |
 |---|---|---|
 | Base de données + Auth + Storage | Supabase | Migrations versionnées |
-| Edge Functions (9) | Supabase | Code versionné |
+| Edge Functions (10) | Supabase | Code versionné |
 | Frontend SPA | Hostinger (Apache/LiteSpeed) | Build Vite → `dist/` |
 | Paiements | Stripe | Webhook + Checkout |
 
@@ -147,11 +147,14 @@ supabase functions deploy customer-portal
 supabase functions deploy stripe-webhook
 supabase functions deploy fetch-mma-results
 supabase functions deploy delete-account
+supabase functions deploy admin-users
 ```
 
 `analyze-sparring` borne son exécution à 140 s (limite murale Supabase : 150 s sur le plan gratuit). Au-delà, la fonction est tuée sans rembourser le quota : ne pas augmenter ce budget sans passer sur un plan payant (400 s).
 
 `delete-account` (droit à l'effacement) résilie d'abord les abonnements Stripe, puis efface fichiers et compte. Il requiert `STRIPE_SECRET_KEY`.
+
+`admin-users` sert le back-office (liste, statistiques, édition du profil, plan, suspension) et vérifie le rôle `admin` côté serveur ; les coachs n'ont accès qu'à l'écran Vidéos. La suspension est un bannissement Supabase Auth : connexion et rafraîchissement du jeton sont refusés, et toutes les fonctions rejettent un jeton encore valide (403 `ACCOUNT_SUSPENDED`). Un plan payé via Stripe ne se modifie pas depuis l'admin (409) : passer par le dashboard Stripe.
 
 La configuration JWT est dans `supabase/config.toml` :
 

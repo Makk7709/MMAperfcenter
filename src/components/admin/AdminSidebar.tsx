@@ -10,11 +10,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { COACH_ADMIN_PATHS } from "./adminPaths";
 
 interface AdminSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isAdmin: boolean;
 }
+
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
@@ -24,8 +27,9 @@ const navItems = [
   { icon: Settings, label: "Paramètres", path: "/admin/settings" },
 ];
 
-export const AdminSidebar = ({ collapsed, onToggle }: AdminSidebarProps) => {
+export const AdminSidebar = ({ collapsed, onToggle, isAdmin }: AdminSidebarProps) => {
   const location = useLocation();
+  const visibleItems = isAdmin ? navItems : navItems.filter((item) => COACH_ADMIN_PATHS.includes(item.path));
 
   return (
     <aside 
@@ -54,7 +58,7 @@ export const AdminSidebar = ({ collapsed, onToggle }: AdminSidebarProps) => {
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = location.pathname === item.path || 
             (item.path !== "/admin" && location.pathname.startsWith(item.path));
           

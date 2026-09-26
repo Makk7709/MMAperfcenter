@@ -61,19 +61,19 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 export default function AdminUsers() {
-  const { users, isLoading, updateUser, suspendUser, isUpdating } = useAdminUsers();
+  const { users, isLoading, error, updateUser, suspendUser, isUpdating } = useAdminUsers();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: "", email: "", fitness_level: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", fitness_level: "" });
 
   const filteredUsers = users?.filter(user => {
     const matchesSearch = !searchQuery || 
       user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || 
-      user.subscription?.status === statusFilter;
+    const matchesStatus = statusFilter === "all" ||
+      (statusFilter === "suspended" ? !!user.is_suspended : !user.is_suspended && user.subscription?.status === statusFilter);
     
     return matchesSearch && matchesStatus;
   });
@@ -82,7 +82,6 @@ export default function AdminUsers() {
     setEditingUser(user);
     setEditForm({
       full_name: user.full_name || "",
-      email: user.email || "",
       fitness_level: user.fitness_level || "",
     });
   };
@@ -103,6 +102,16 @@ export default function AdminUsers() {
       <AdminLayout>
         <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="p-6 lg:p-8 text-destructive">
+          {error instanceof Error ? error.message : "Impossible de charger les utilisateurs"}
         </div>
       </AdminLayout>
     );
@@ -176,9 +185,14 @@ export default function AdminUsers() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_LABELS[user.subscription?.status || "active"]?.variant}>
-                      {STATUS_LABELS[user.subscription?.status || "active"]?.label}
-                    </Badge>
+                    {(() => {
+                      const status = user.is_suspended ? "suspended" : user.subscription?.status || "active";
+                      return (
+                        <Badge variant={STATUS_LABELS[status]?.variant}>
+                          {STATUS_LABELS[status]?.label ?? status}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     {format(new Date(user.created_at), "dd MMM yyyy", { locale: fr })}
@@ -253,13 +267,6 @@ export default function AdminUsers() {
                 <Input
                   value={editForm.full_name}
                   onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
