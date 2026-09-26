@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { newPasswordSchema } from '@/lib/passwordPolicy';
+import { KorevLogo } from '@/components/brand/KorevLogo';
+import { Eyebrow } from '@/components/brand/Eyebrow';
+import { GoldParticles } from '@/components/brand/GoldParticles';
 
 const emailSchema = z.string().email({ message: "Email invalide" });
 
@@ -126,18 +129,45 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/5 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">MMA Performance Center</h1>
-          <p className="text-muted-foreground">Votre coach de combat personnel</p>
-        </div>
+    <div className="relative min-h-screen overflow-hidden">
+      <div aria-hidden className="korev-grid absolute inset-0" />
+      <GoldParticles />
+      <div className="relative mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-5 py-8 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-10">
+        <section className="animate-korev-rise">
+          <KorevLogo className="h-10 sm:h-14" />
+          <Eyebrow parts={["KOREV", "Performance Center"]} className="mt-6 sm:mt-10" />
+          <h1 className="korev-display mt-4 text-4xl sm:mt-5 sm:text-6xl lg:text-7xl">
+            Entraînez-vous.
+            <span className="korev-rule my-3 sm:my-4" aria-hidden />
+            Mesurez.
+            <br />
+            <span className="text-korev-gold">Progressez.</span>
+          </h1>
+          <p className="mt-6 hidden max-w-md text-lg text-muted-foreground sm:block">
+            Votre centre de performance pour les sports de combat : entraînement, nutrition et analyse vidéo de sparring par IA.
+          </p>
+          <ul className="mt-8 hidden space-y-2.5 sm:block">
+            {[
+              ["PRISM", "Analyse vidéo IA"],
+              ["Coach", "IA personnel"],
+              ["Meute", "Progression collective"],
+            ].map(([name, role]) => (
+              <li key={name} className="korev-eyebrow flex items-center gap-3 text-foreground/85">
+                <span className="korev-bullet" aria-hidden />
+                {name}
+                <span className="text-korev-gold/60" aria-hidden>/</span>
+                <span className="text-korev-gold/80">{role}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        <Card className="border-accent/20 bg-card/95 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Authentification</CardTitle>
-            <CardDescription className="text-center">
-              Connectez-vous ou créez un compte pour accéder à votre coach personnel
+        <Card className="korev-frame korev-chamfer w-full max-w-md justify-self-center animate-korev-rise [--chamfer:18px] [animation-delay:120ms] lg:justify-self-end">
+          <CardHeader className="space-y-3">
+            <Eyebrow parts={["Accès", "Membre"]} bullet />
+            <CardTitle className="korev-display text-3xl">Authentification</CardTitle>
+            <CardDescription>
+              Connectez-vous ou créez un compte pour accéder à votre espace.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Menu, Dumbbell, LogOut, History, BarChart3, Home, Shield } from "lucide-react";
+import { User, Menu, LogOut, History, BarChart3, Home, Shield, CreditCard } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
+import { KorevLogo } from "@/components/brand/KorevLogo";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,118 +19,68 @@ interface DashboardHeaderProps {
   onSignOut?: () => void;
 }
 
+const NAV_ITEMS = [
+  { path: "/", label: "Accueil", icon: Home },
+  { path: "/history", label: "Historique", icon: History },
+  { path: "/statistics", label: "Stats", icon: BarChart3 },
+  { path: "/pricing", label: "Abonnements", icon: CreditCard },
+];
+
 export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHeaderProps) => {
-  const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { hasAdminAccess } = useUserRole();
   const { isPaid: isPremium } = useSubscription();
 
-  return (
-    <header className="sticky top-0 z-50 w-full liquid-glass-solid backdrop-blur-md border-b border-border/50 shadow-card">
-      <div className="container flex items-center justify-between h-16 px-4">
-        {/* Logo & Brand */}
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            className="p-2 hover:bg-transparent"
-            onClick={() => navigate("/")}
-          >
-            <div className="p-2 bg-gradient-primary rounded-xl shadow-primary">
-              <Dumbbell className="h-6 w-6 text-primary-foreground" />
-            </div>
-          </Button>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-bold bg-gradient-hero bg-clip-text text-transparent">
-              Coach Sportif IA
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Bonjour {userName} ! {isPremium && "✨"}
-            </p>
-          </div>
-        </div>
-        
-        {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-2">
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/")}
-            className={`gap-2 ${location.pathname === "/" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
-          >
-            <Home className="h-4 w-4" />
-            Accueil
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/history")}
-            className={`gap-2 ${location.pathname === "/history" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
-          >
-            <History className="h-4 w-4" />
-            Historique
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/statistics")}
-            className={`gap-2 ${location.pathname === "/statistics" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Stats
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/pricing")}
-            className={`gap-2 ${location.pathname === "/pricing" ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
-          >
-            Abonnements
-          </Button>
-          {hasAdminAccess && (
-            <Button 
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/admin")}
-              className={`gap-2 ${location.pathname.startsWith("/admin") ? "bg-primary/20 text-primary border border-primary/40" : ""}`}
-            >
-              <Shield className="h-4 w-4" />
-              Admin
-            </Button>
-          )}
-        </nav>
+  const navItems = hasAdminAccess ? [...NAV_ITEMS, { path: "/admin", label: "Admin", icon: Shield }] : NAV_ITEMS;
+  const isActive = (path: string) => (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path));
 
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-korev-deep/85 backdrop-blur-md">
+      <span aria-hidden className="absolute inset-x-0 bottom-[-1px] h-px bg-gradient-to-r from-transparent via-korev-gold/40 to-transparent" />
+      <div className="container flex h-16 items-center justify-between gap-4 px-4">
+        {/* Logo & Brand */}
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Accueil KOREV Performance Center"
+        >
+          <KorevLogo className="h-9" />
+          <span className="hidden flex-col items-start border-l border-border/70 pl-3 sm:flex">
+            <span className="korev-eyebrow text-[10px] text-korev-gold/90">Performance Center</span>
+            <span className="text-xs text-muted-foreground">Bonjour {userName}</span>
+          </span>
+        </button>
+
+        {/* Navigation Links */}
+        <nav className="hidden items-center gap-1 md:flex">
+          {navItems.map(({ path, label, icon: Icon }) => (
+            <button
+              key={path}
+              type="button"
+              onClick={() => navigate(path)}
+              aria-current={isActive(path) ? "page" : undefined}
+              className={cn(
+                "relative inline-flex h-16 items-center gap-2 px-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground",
+                "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-korev-gold after:transition-transform after:duration-200",
+                isActive(path) && "text-foreground after:scale-x-100",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
 
         {/* Search & Actions */}
         <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="relative hidden md:block">
-            {searchOpen ? (
-              <Input
-                placeholder="Rechercher exercices, nutrition..."
-                className="w-64 transition-all duration-300"
-                onBlur={() => setSearchOpen(false)}
-                autoFocus
-              />
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSearchOpen(true)}
-                className="gap-2"
-              >
-                <Search className="h-4 w-4" />
-                <span className="hidden lg:inline">Rechercher</span>
-              </Button>
-            )}
-          </div>
-
           {/* Notifications */}
           <NotificationsPopover />
 
           {/* Premium Badge */}
           {isPremium && (
-            <Badge className="bg-gradient-primary text-primary-foreground font-semibold">
+            <Badge className="korev-chamfer border-0 bg-gradient-primary font-mono text-[10px] tracking-[0.16em] text-primary-foreground [--chamfer:6px]">
               PREMIUM
             </Badge>
           )}
@@ -175,8 +125,15 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
                 Statistiques
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/pricing")}>
+                <CreditCard className="h-4 w-4 mr-2" />
                 Abonnements
               </DropdownMenuItem>
+              {hasAdminAccess && (
+                <DropdownMenuItem onClick={() => navigate("/admin")}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
