@@ -911,6 +911,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weight_kg: number | null
+          workout_id: string | null
         }
         Insert: {
           created_at?: string
@@ -923,6 +924,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weight_kg?: number | null
+          workout_id?: string | null
         }
         Update: {
           created_at?: string
@@ -935,8 +937,17 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+          workout_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workout_journal_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workouts: {
         Row: {
@@ -945,7 +956,13 @@ export type Database = {
           created_at: string
           duration_minutes: number | null
           id: string
+          intensity: string | null
           name: string
+          planned_rounds: number | null
+          rest_seconds: number | null
+          round_seconds: number | null
+          rounds_completed: number
+          session_type: string | null
           started_at: string | null
           status: string | null
           total_volume_kg: number | null
@@ -958,7 +975,13 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           id?: string
+          intensity?: string | null
           name: string
+          planned_rounds?: number | null
+          rest_seconds?: number | null
+          round_seconds?: number | null
+          rounds_completed?: number
+          session_type?: string | null
           started_at?: string | null
           status?: string | null
           total_volume_kg?: number | null
@@ -971,7 +994,13 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           id?: string
+          intensity?: string | null
           name?: string
+          planned_rounds?: number | null
+          rest_seconds?: number | null
+          round_seconds?: number | null
+          rounds_completed?: number
+          session_type?: string | null
           started_at?: string | null
           status?: string | null
           total_volume_kg?: number | null
