@@ -84,6 +84,10 @@ Redéployer la fonction `ai-coach` avec le frontend 0.10.1 (elle lit désormais 
 
 **`20260926060000_single_active_workout.sql`** garantit une seule séance ouverte par utilisateur (index unique partiel sur `workouts (user_id) WHERE status = 'active'`). Les doublons existants sont d'abord passés en `paused` (la plus récente reste ouverte) : aucune donnée n'est supprimée. Le frontend reprend la séance existante si une création se heurte à l'index. Migration rejouable.
 
+**`20260926070000_session_details_and_feed.sql`** ajoute `workouts.planned_minutes` (1–240, lu par le frontend : à appliquer avant lui), passe `workout_exercises.exercise_id` en `ON DELETE RESTRICT` (un exercice utilisé ne peut plus être supprimé du catalogue), ajoute une policy restrictive sur `meute_activities.workout_id`, et remplace le déclencheur du fil communautaire pour publier le type de séance au lieu du nom saisi. Migration rejouable.
+
+Le quota de scans de code-barres (plan gratuit) reste une limite **côté client** : les données Open Food Facts sont publiques et consultables sans quota via la recherche d'aliments, donc un contournement ne donne accès à rien de protégé. Les quotas qui ont un coût (Coach IA, analyse PRISM) sont décomptés côté serveur.
+
 Contrôles après `db push` (SQL editor) :
 
 ```sql

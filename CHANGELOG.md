@@ -26,6 +26,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - Accessibilité : bouton « Terminer la séance » nommé sur mobile, minuteur de repos qui n'est plus lu chaque seconde, curseurs nommés.
 - Textes : « Séance » au lieu de « Workout », intensités accordées (« Légère », « Modérée »), « Jours consécutifs » et « Plus long enchaînement » au lieu de « Série », qui désigne déjà les séries d'exercices.
 - Performance : l'historique d'entraînement est mis en cache 5 minutes et chargé au-delà de 1000 séances.
+- Coach IA : une réponse vide (blocage de sécurité du modèle) ne consomme plus de crédit. Les champs texte du profil sont transmis au modèle comme des données entre « », jamais comme des instructions. Boutons et zone de saisie nommés pour les lecteurs d'écran, réponses annoncées.
+- Nutrition : les aliments à 0 kcal (eau, café noir, boissons zéro) peuvent être enregistrés ; si Open Food Facts n'indique pas l'énergie, elle est estimée à partir des macronutriments. Saisir « 0,5 » ne s'efface plus. Un objectif de 0 g n'est plus remplacé par la valeur par défaut.
+- Nutrition : la recherche d'aliments n'affiche plus de résultats périmés ; un produit scanné n'ouvre plus de liste de recherche. Fermer le scanner pendant une recherche ne compte plus de scan. Le journal passe au nouveau jour à minuit si l'application reste ouverte.
+- Tableau de bord : les cartes « Vue d'ensemble » se mettent à jour dès qu'un aliment est ajouté ou une séance terminée, et le volume total ne concatène plus les valeurs au lieu de les additionner.
+- Séance : la durée visée choisie au démarrage est enregistrée et affichée pendant la séance (**migration `20260926070000_session_details_and_feed.sql`**).
+- Fil communautaire : seul le type de séance est publié (« a terminé une séance de boxe »), plus le nom saisi, qui reste privé. Initiales correctes pour les prénoms contenant un « a ».
+- Base : supprimer un exercice du catalogue qui figure dans des séances est refusé au lieu d'effacer l'historique de tous les utilisateurs ; une activité de team ne peut viser que ses propres séances.
 
 ## [0.11.0] - 2026-09-26
 

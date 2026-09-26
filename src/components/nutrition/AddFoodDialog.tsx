@@ -13,6 +13,7 @@ import {
   PER100_MAX,
   clampPer100,
   scaleMacros,
+  withEstimatedCalories,
   type FoodProduct,
   type Macros,
   type MealType,
@@ -39,6 +40,18 @@ const MACRO_FIELDS: { key: keyof Macros; label: string; step: string }[] = [
   { key: "carbs", label: "Glucides", step: "0.1" },
   { key: "fat", label: "Lipides", step: "0.1" },
 ];
+
+const parseDecimal = (text: string) => {
+  const n = Number(text.replace(",", ".").trim());
+  return Number.isFinite(n) ? n : 0;
+};
+
+const toFieldText = (m: Macros): Record<keyof Macros, string> => ({
+  calories: m.calories ? String(m.calories) : "",
+  protein: m.protein ? String(m.protein) : "",
+  carbs: m.carbs ? String(m.carbs) : "",
+  fat: m.fat ? String(m.fat) : "",
+});
 
 const Chip = ({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) => (
   <button
@@ -68,16 +81,33 @@ export function AddFoodDialog({
   const [name, setName] = useState(
     initialProduct ? (initialProduct.brand ? `${initialProduct.name} (${initialProduct.brand})` : initialProduct.name) : "",
   );
-  const [per100, setPer100] = useState<Macros>(initialProduct?.per100 ?? EMPTY_MACROS);
+  // Inputs keep the raw text: a numeric state would erase "0" while typing "0,5".
+  const [per100Text, setPer100Text] = useState(() => toFieldText(initialProduct?.per100 ?? EMPTY_MACROS));
   const [source, setSource] = useState<"off" | "manual" | null>(initialProduct ? "off" : null);
   const [serving, setServing] = useState(initialProduct?.servingGrams);
-  const [grams, setGrams] = useState(initialProduct?.servingGrams ?? 100);
+  const [gramsText, setGramsText] = useState(String(initialProduct?.servingGrams ?? 100));
 
+  const grams = Math.min(MAX_PORTION_GRAMS, Math.max(0, Math.round(parseDecimal(gramsText))));
+  const { macros: per100, estimated } = useMemo(
+    () =>
+      withEstimatedCalories(
+        clampPer100({
+          calories: parseDecimal(per100Text.calories),
+          protein: parseDecimal(per100Text.protein),
+          carbs: parseDecimal(per100Text.carbs),
+          fat: parseDecimal(per100Text.fat),
+        }),
+      ),
+    [per100Text],
+  );
   const total = useMemo(() => scaleMacros(per100, grams), [per100, grams]);
-  const ready = !!source && name.trim().length > 0 && grams > 0 && total.calories > 0;
+  // Zero-calorie foods (water, black coffee) are valid entries.
+  const ready = !!source && name.trim().length > 0 && grams > 0;
+
+  const setGrams = (g: number) => setGramsText(String(g));
 
   const pickProduct = (food: FoodProduct) => {
-    setPer100(clampPer100(food.per100));
+    setPer100Text(toFieldText(clampPer100(food.per100)));
     setSource("off");
     setServing(food.servingGrams);
     setGrams(food.servingGrams ?? 100);
@@ -124,8 +154,9 @@ export function AddFoodDialog({
           </fieldset>
 
           <div className="space-y-2">
-            <Label className="korev-eyebrow text-[11px] font-normal">Aliment</Label>
+            <Label htmlFor="food-name" className="korev-eyebrow text-[11px] font-normal">Aliment</Label>
             <FoodSearchInput
+              id="food-name"
               value={name}
               onChange={(v) => {
                 setName(v);
@@ -155,18 +186,24 @@ export function AddFoodDialog({
                     <Label htmlFor={`per100-${f.key}`} className="text-[10px] text-muted-foreground">{f.label}</Label>
                     <Input
                       id={`per100-${f.key}`}
-                      type="number"
                       inputMode="decimal"
-                      min={0}
-                      max={PER100_MAX[f.key]}
-                      step={f.step}
-                      value={per100[f.key] || ""}
-                      onChange={(e) => setPer100(clampPer100({ ...per100, [f.key]: Number(e.target.value) || 0 }))}
+                      placeholder={f.key === "calories" && estimated ? String(per100.calories) : "0"}
+                      value={per100Text[f.key]}
+                      onChange={(e) => setPer100Text((t) => ({ ...t, [f.key]: e.target.value.replace(/[^\d.,]/g, "").slice(0, 6) }))}
+                      aria-describedby={f.key === "calories" && estimated ? "per100-kcal-estimated" : undefined}
                       className="h-9 text-sm"
                     />
                   </div>
                 ))}
               </div>
+              {estimated && (
+                <p id="per100-kcal-estimated" className="text-xs text-muted-foreground">
+                  Énergie absente : {per100.calories} kcal estimées à partir des macronutriments.
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                Maximum pour 100 g : {PER100_MAX.calories} kcal, {PER100_MAX.protein} g par macronutriment.
+              </p>
             </div>
           )}
 
@@ -177,17 +214,16 @@ export function AddFoodDialog({
                 <div className="flex items-center gap-2">
                   <Input
                     id="food-grams"
-                    type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={MAX_PORTION_GRAMS}
-                    value={grams || ""}
-                    onChange={(e) => setGrams(Math.min(MAX_PORTION_GRAMS, Math.max(0, Math.round(Number(e.target.value) || 0))))}
+                    value={gramsText}
+                    onChange={(e) => setGramsText(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    aria-describedby="food-grams-max"
                     className="h-9 w-24 text-right"
                   />
                   <span className="text-sm text-muted-foreground">g</span>
                 </div>
               </div>
+              <p id="food-grams-max" className="sr-only">Maximum {MAX_PORTION_GRAMS} g</p>
               <div className="flex flex-wrap gap-1.5">
                 {serving && (
                   <Chip active={grams === serving} onClick={() => setGrams(serving)}>

@@ -45,8 +45,24 @@ const GOAL_FIELDS: { key: keyof NutritionGoals; label: string; max: number }[] =
 ];
 
 export const NutritionTracker = ({ scanRequested = false, onScanHandled }: NutritionTrackerProps) => {
-  const todayKey = toDateKey();
+  const [todayKey, setTodayKey] = useState(() => toDateKey());
   const [dateKey, setDateKey] = useState(todayKey);
+
+  // App left open past midnight: follow the new day if "today" was on screen.
+  useEffect(() => {
+    const check = () => {
+      const now = toDateKey();
+      if (now === todayKey) return;
+      setDateKey((current) => (current === todayKey ? now : current));
+      setTodayKey(now);
+    };
+    const id = setInterval(check, 60_000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [todayKey]);
   const { logs, totals, week, goals, isLoading, isError, addLog, adding, deleteLog, deletingId, saveGoals, savingGoals } =
     useNutrition(dateKey);
 
@@ -230,7 +246,7 @@ export const NutritionTracker = ({ scanRequested = false, onScanHandled }: Nutri
                 <p className="korev-eyebrow">{meal.label}</p>
                 <div className="flex items-center gap-2">
                   <span className="korev-metric text-sm">{kcal} <span className="text-xs font-normal text-muted-foreground">kcal</span></span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openAdd(meal.value)} aria-label={`Ajouter au ${meal.label.toLowerCase()}`}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openAdd(meal.value)} aria-label={`Ajouter ${meal.value === "snack" ? "à la" : "au"} ${meal.label.toLowerCase()}`}>
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>

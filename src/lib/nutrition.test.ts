@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { asMealType, defaultMealType, parseOffProduct, scaleMacros, sumMacros } from "./nutrition";
+import { asMealType, defaultMealType, parseOffProduct, scaleMacros, sumMacros, withEstimatedCalories } from "./nutrition";
+
+describe("withEstimatedCalories", () => {
+  it("keeps a declared energy value", () => {
+    expect(withEstimatedCalories({ calories: 120, protein: 10, carbs: 10, fat: 1 })).toEqual({
+      macros: { calories: 120, protein: 10, carbs: 10, fat: 1 },
+      estimated: false,
+    });
+  });
+
+  it("estimates missing energy from the macros", () => {
+    expect(withEstimatedCalories({ calories: 0, protein: 10, carbs: 20, fat: 5 })).toEqual({
+      macros: { calories: 165, protein: 10, carbs: 20, fat: 5 },
+      estimated: true,
+    });
+  });
+
+  it("leaves a zero-calorie food at zero", () => {
+    expect(withEstimatedCalories({ calories: 0, protein: 0, carbs: 0, fat: 0 }).estimated).toBe(false);
+  });
+});
 
 describe("defaultMealType", () => {
   const at = (h: number) => new Date(2026, 8, 26, h, 0);

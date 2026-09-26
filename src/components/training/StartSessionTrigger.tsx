@@ -29,6 +29,7 @@ export function StartSessionTrigger({ defaultType, children }: StartSessionTrigg
       name: config.name,
       type: config.type,
       intensity: config.intensity,
+      plannedMinutes: config.duration,
       rounds: config.rounds,
       roundDuration: config.roundDuration,
       restDuration: config.restDuration,

@@ -44,6 +44,18 @@ export const clampPer100 = (m: Macros): Macros => ({
   fat: Math.min(PER100_MAX.fat, Math.max(0, m.fat)),
 });
 
+/**
+ * Open Food Facts often omits energy while listing macros: estimate it with
+ * the Atwater factors (4/4/9 kcal per gram) instead of logging 0 kcal.
+ * A genuinely zero-calorie food (water, black coffee) stays at 0.
+ */
+export const withEstimatedCalories = (m: Macros): { macros: Macros; estimated: boolean } => {
+  if (m.calories > 0) return { macros: m, estimated: false };
+  const kcal = Math.round(m.protein * 4 + m.carbs * 4 + m.fat * 9);
+  if (kcal <= 0) return { macros: m, estimated: false };
+  return { macros: { ...m, calories: Math.min(PER100_MAX.calories, kcal) }, estimated: true };
+};
+
 /** Macros for `grams` of a food described per 100 g. Calories are whole numbers, the rest keep one decimal. */
 export const scaleMacros = (per100: Macros, grams: number): Macros => {
   const ratio = Math.max(0, grams) / 100;

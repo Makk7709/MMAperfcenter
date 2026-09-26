@@ -1,73 +1,46 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Target, Flame, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { subDays } from "date-fns";
+import { useNutrition } from "@/hooks/useNutrition";
+import { useTrainingProgress } from "@/hooks/useTraining";
 import { startOfDayDaysAgo, toDateKey } from "@/lib/dateKey";
 
+// Built on the shared queries so the cards refresh as soon as a food is logged
+// or a session is finished, without reloading the page.
 export const QuickStatsCards = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [stats, setStats] = useState({
-    workoutsThisWeek: 0,
-    totalVolume: 0,
-    caloriesConsumed: 0,
-    avgWorkoutTime: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const { data: progress, isLoading: progressLoading } = useTrainingProgress();
+  const { week, isLoading: nutritionLoading } = useNutrition(toDateKey());
 
-  useEffect(() => {
-    if (!user) return;
-
-    const loadStats = async () => {
-      const weekAgo = startOfDayDaysAgo(6);
-
-      // Load workout stats
-      const { data: workouts } = await supabase
-        .from('workouts')
-        .select('duration_minutes, total_volume_kg')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .gte('completed_at', weekAgo);
-
-      // Load nutrition stats
-      const { data: nutrition } = await supabase
-        .from('nutrition_logs')
-        .select('calories')
-        .eq('user_id', user.id)
-        .gte('date', toDateKey(subDays(new Date(), 6)));
-
-      const workoutCount = workouts?.length || 0;
-      const totalVolume = workouts?.reduce((sum, w) => sum + (w.total_volume_kg || 0), 0) || 0;
-      const totalTime = workouts?.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) || 0;
-      const avgTime = workoutCount > 0 ? Math.round(totalTime / workoutCount) : 0;
-      const totalCalories = nutrition?.reduce((sum, n) => sum + (n.calories || 0), 0) || 0;
-
-      setStats({
-        workoutsThisWeek: workoutCount,
-        totalVolume: Math.round(totalVolume),
-        caloriesConsumed: totalCalories,
-        avgWorkoutTime: avgTime
-      });
-      setLoading(false);
+  const stats = useMemo(() => {
+    const since = new Date(startOfDayDaysAgo(6)).getTime();
+    const recent = (progress?.sessions ?? []).filter((s) => new Date(s.completed_at).getTime() >= since);
+    const totalVolume = recent.reduce((sum, s) => sum + (Number(s.total_volume_kg) || 0), 0);
+    const totalTime = recent.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
+    return {
+      workoutsThisWeek: recent.length,
+      totalVolume: Math.round(totalVolume),
+      caloriesConsumed: Math.round(week.reduce((sum, d) => sum + d.calories, 0)),
+      avgWorkoutTime: recent.length > 0 ? Math.round(totalTime / recent.length) : 0,
     };
+  }, [progress, week]);
 
-    loadStats();
-  }, [user]);
+  const header = (
+    <div className="flex items-center justify-between">
+      <h2 className="text-2xl font-bold">Vue d'ensemble</h2>
+      <Button variant="outline" size="sm" onClick={() => navigate("/statistics")}>
+        Voir les détails
+      </Button>
+    </div>
+  );
 
-  if (loading) {
+  if (progressLoading || nutritionLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Vue d'ensemble</h2>
-          <Button variant="outline" size="sm" onClick={() => navigate("/statistics")}>
-            Voir Détails
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {header}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4" aria-busy="true">
           {[1, 2, 3, 4].map(i => (
             <Card key={i} className="liquid-glass-solid border-0 animate-pulse">
               <CardContent className="p-4">
@@ -82,26 +55,26 @@ export const QuickStatsCards = () => {
 
   const statsData = [
     {
-      title: "Cette Semaine",
+      title: "Cette semaine",
       value: stats.workoutsThisWeek.toString(),
-      unit: "workouts",
+      unit: stats.workoutsThisWeek > 1 ? "séances" : "séance",
       icon: TrendingUp,
       color: "text-primary",
       bgColor: "bg-gradient-primary",
       trend: "7 derniers jours"
     },
     {
-      title: "Volume Total",
-      value: stats.totalVolume.toString(),
+      title: "Volume total",
+      value: stats.totalVolume.toLocaleString("fr-FR"),
       unit: "kg",
       icon: Target,
       color: "text-secondary",
       bgColor: "bg-gradient-secondary",
-      trend: "Cette semaine"
+      trend: "7 derniers jours"
     },
     {
       title: "Calories",
-      value: stats.caloriesConsumed.toString(),
+      value: stats.caloriesConsumed.toLocaleString("fr-FR"),
       unit: "kcal",
       icon: Flame,
       color: "text-accent",
@@ -109,41 +82,31 @@ export const QuickStatsCards = () => {
       trend: "7 derniers jours"
     },
     {
-      title: "Durée Moy.",
+      title: "Durée moy.",
       value: stats.avgWorkoutTime.toString(),
       unit: "min",
       icon: Clock,
       color: "text-foreground",
       bgColor: "bg-muted",
-      trend: "Par session"
+      trend: "Par séance"
     }
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Vue d'ensemble</h2>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => navigate("/statistics")}
-        >
-          Voir Détails
-        </Button>
-      </div>
-      
+      {header}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statsData.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card
               key={stat.title}
-              className="liquid-glass-solid border-0 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
+              className="liquid-glass-solid border-0 hover:shadow-card-hover transition-all duration-300 group"
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className={`p-2 ${stat.bgColor} rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className={`h-4 w-4 ${stat.color}`} />
+                    <Icon className={`h-4 w-4 ${stat.color}`} aria-hidden />
                   </div>
                 </div>
                 <div className="space-y-1">

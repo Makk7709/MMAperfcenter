@@ -9,20 +9,22 @@ interface FoodSearchInputProps {
   onChange: (value: string) => void;
   onFoodSelect: (food: FoodProduct) => void;
   placeholder?: string;
+  id?: string;
 }
 
 export const FoodSearchInput = ({
   value,
   onChange,
   onFoodSelect,
-  placeholder = "Rechercher un aliment..."
+  placeholder = "Rechercher un aliment...",
+  id,
 }: FoodSearchInputProps) => {
   const [results, setResults] = useState<FoodProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
-  const selectedValueRef = useRef<string | null>(null);
+  // A prefilled value (scanned product) is not a search.
+  const selectedValueRef = useRef<string | null>(value || null);
 
   // Close results when clicking outside
   useEffect(() => {
@@ -37,51 +39,51 @@ export const FoodSearchInput = ({
 
   // Search Open Food Facts
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
     if (value === selectedValueRef.current) return;
     selectedValueRef.current = null;
 
-    if (value.length < 2) {
+    if (value.trim().length < 2) {
       setResults([]);
       setShowResults(false);
       return;
     }
 
-    debounceRef.current = setTimeout(async () => {
+    // Each keystroke cancels the previous request: a slow, older response
+    // must never overwrite newer results or reopen the list after a pick.
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(value)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,product_name_fr,brands,nutriments,serving_quantity`
+          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(value)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,product_name_fr,brands,nutriments,serving_quantity`,
+          { signal: controller.signal },
         );
-        
         if (!response.ok) throw new Error("Search failed");
-        
         const data = await response.json();
-        
+
         const products: unknown[] = Array.isArray(data.products) ? data.products : [];
         const foods = products
           .filter((p) => !!(p as { product_name?: string })?.product_name)
           .map(parseOffProduct)
           .filter((f): f is FoodProduct => f !== null)
           .slice(0, 8);
-        
+
+        if (controller.signal.aborted) return;
         setResults(foods);
         setShowResults(foods.length > 0);
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error("Food search error:", error);
         setResults([]);
       } finally {
-        setIsSearching(false);
+        if (!controller.signal.aborted) setIsSearching(false);
       }
     }, 400);
 
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      clearTimeout(timer);
+      controller.abort();
+      setIsSearching(false);
     };
   }, [value]);
 
@@ -98,7 +100,9 @@ export const FoodSearchInput = ({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          id={id}
           value={value}
+          autoComplete="off"
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
           placeholder={placeholder}

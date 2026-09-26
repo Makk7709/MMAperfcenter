@@ -58,6 +58,7 @@ export interface ActiveWorkout {
   rest_seconds: number | null;
   rounds_completed: number;
   started_at: string;
+  planned_minutes: number | null;
   workout_exercises: SessionExercise[];
 }
 
@@ -65,6 +66,7 @@ export interface StartSessionInput {
   name: string;
   type: SessionType;
   intensity: Intensity;
+  plannedMinutes?: number;
   rounds?: number;
   roundDuration?: number;
   restDuration?: number;
@@ -90,7 +92,7 @@ export interface FinishedSession extends SetsSummary {
 }
 
 const ACTIVE_SELECT = `
-  id, name, session_type, intensity, planned_rounds, round_seconds, rest_seconds, rounds_completed, started_at,
+  id, name, session_type, intensity, planned_rounds, round_seconds, rest_seconds, rounds_completed, started_at, planned_minutes,
   workout_exercises (id, exercise_id, order_index, rest_seconds, exercise:exercises (*), sets (id, set_number, weight_kg, reps, completed))
 `;
 
@@ -102,6 +104,7 @@ type RawWorkout = Omit<ActiveWorkout, "session_type" | "intensity" | "workout_ex
   intensity: string | null;
   rounds_completed: number | null;
   started_at: string | null;
+  planned_minutes: number | null;
   workout_exercises: Array<Omit<SessionExercise, "sets" | "rest_seconds"> & {
     rest_seconds: number | null;
     sets: Array<Omit<SessionSet, "weight_kg" | "completed"> & { weight_kg: number | string | null; completed: boolean | null }>;
@@ -217,6 +220,8 @@ export function useActiveWorkout() {
       run("Impossible de démarrer la séance", async () => {
         if (!user) throw new Error("not signed in");
         const withRounds = !!input.rounds && !!input.roundDuration;
+        const planned = Math.round(Number(input.plannedMinutes));
+        const plannedMinutes = Number.isFinite(planned) && planned >= 1 ? Math.min(MAX_SESSION_MINUTES, planned) : null;
         const { data, error } = await supabase
           .from("workouts")
           .insert({
@@ -228,6 +233,7 @@ export function useActiveWorkout() {
             planned_rounds: withRounds ? input.rounds : null,
             round_seconds: withRounds ? input.roundDuration : null,
             rest_seconds: withRounds ? input.restDuration ?? 60 : null,
+            planned_minutes: plannedMinutes,
           })
           .select(ACTIVE_SELECT)
           .single();

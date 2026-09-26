@@ -273,7 +273,8 @@ supabase/migrations/
 ├── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
 ├── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
 ├── 20260926050000_*.sql    # effort perçu des séances (charge d'entraînement)
-└── 20260926060000_*.sql    # une seule séance ouverte par utilisateur
+├── 20260926060000_*.sql    # une seule séance ouverte par utilisateur
+└── 20260926070000_*.sql    # durée visée, exercices protégés, fil sans nom de séance
 ```
 
 ### 6.2 Application

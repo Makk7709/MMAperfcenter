@@ -41,6 +41,10 @@ export const BarcodeScannerDialog = ({
   const { gate, paywallOpen, setPaywallOpen } = useFeatureGate("barcode_scan");
   const callbacks = useRef({ gate, onOpenChange, onProductFound });
   callbacks.current = { gate, onOpenChange, onProductFound };
+  // A lookup finishing after the user closed the scanner must neither count a
+  // scan nor open the add dialog.
+  const openRef = useRef(open);
+  openRef.current = open;
 
   const stop = useCallback(() => {
     controlsRef.current?.stop();
@@ -55,6 +59,7 @@ export const BarcodeScannerDialog = ({
         `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${OFF_FIELDS}`,
       );
       const data = res.ok ? await res.json() : null;
+      if (!openRef.current) return true;
       const product = data?.status === 1 ? parseOffProduct(data.product) : null;
       if (!product) {
         toast.error("Produit introuvable", {
@@ -67,6 +72,7 @@ export const BarcodeScannerDialog = ({
         onOpenChange(false);
         return true;
       }
+      if (!openRef.current) return true;
       onProductFound(product);
       onOpenChange(false);
       return true;

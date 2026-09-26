@@ -959,6 +959,7 @@ export type Database = {
           intensity: string | null
           name: string
           perceived_effort: number | null
+          planned_minutes: number | null
           planned_rounds: number | null
           rest_seconds: number | null
           round_seconds: number | null
@@ -979,6 +980,7 @@ export type Database = {
           intensity?: string | null
           name: string
           perceived_effort?: number | null
+          planned_minutes?: number | null
           planned_rounds?: number | null
           rest_seconds?: number | null
           round_seconds?: number | null
@@ -999,6 +1001,7 @@ export type Database = {
           intensity?: string | null
           name?: string
           perceived_effort?: number | null
+          planned_minutes?: number | null
           planned_rounds?: number | null
           rest_seconds?: number | null
           round_seconds?: number | null

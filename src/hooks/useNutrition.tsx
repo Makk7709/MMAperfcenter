@@ -98,11 +98,16 @@ export const useNutrition = (dateKey: string) => {
         .maybeSingle();
       if (error) throw error;
       if (!data) return DEFAULT_GOALS;
+      // A macro goal of 0 g is a deliberate choice (e.g. low carb), not a missing value.
+      const macro = (v: unknown, fallback: number) => {
+        const n = Number(v);
+        return v !== null && Number.isFinite(n) && n >= 0 ? n : fallback;
+      };
       return {
         daily_calories: Number(data.daily_calories) || DEFAULT_GOALS.daily_calories,
-        daily_protein_g: Number(data.daily_protein_g) || DEFAULT_GOALS.daily_protein_g,
-        daily_carbs_g: Number(data.daily_carbs_g) || DEFAULT_GOALS.daily_carbs_g,
-        daily_fat_g: Number(data.daily_fat_g) || DEFAULT_GOALS.daily_fat_g,
+        daily_protein_g: macro(data.daily_protein_g, DEFAULT_GOALS.daily_protein_g),
+        daily_carbs_g: macro(data.daily_carbs_g, DEFAULT_GOALS.daily_carbs_g),
+        daily_fat_g: macro(data.daily_fat_g, DEFAULT_GOALS.daily_fat_g),
       };
     },
   });

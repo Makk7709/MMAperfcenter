@@ -141,8 +141,15 @@ export default function TrainingSession() {
             <h1 className="truncate font-display text-lg font-semibold uppercase leading-tight">{workout.name}</h1>
           </div>
           <div className="text-right">
-            <p className="korev-eyebrow text-[10px]">Temps</p>
-            <p className="korev-metric text-lg leading-tight" aria-label="Temps écoulé depuis le début de la séance">{formatClock(elapsedSeconds)}</p>
+            <p className="korev-eyebrow text-[10px]">
+              {workout.planned_minutes ? `Temps / ${workout.planned_minutes} min` : "Temps"}
+            </p>
+            <p
+              className={`korev-metric text-lg leading-tight ${workout.planned_minutes && elapsedSeconds >= workout.planned_minutes * 60 ? "text-korev-gold" : ""}`}
+              aria-label={`Temps écoulé : ${formatClock(elapsedSeconds)}${workout.planned_minutes ? `, durée visée ${workout.planned_minutes} minutes` : ""}`}
+            >
+              {formatClock(elapsedSeconds)}
+            </p>
           </div>
           <Button size="sm" onClick={() => setFinishOpen(true)} disabled={pending} aria-label="Terminer la séance">
             <Flag className="h-4 w-4" />

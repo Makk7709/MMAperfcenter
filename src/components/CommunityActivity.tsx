@@ -62,12 +62,11 @@ export const CommunityActivity = () => {
   }, []);
 
   const getInitials = (description: string) => {
-    // Extract name from description like "User a terminé: Workout"
-    const match = /^([^a]+)/.exec(description);
-    if (match) {
-      const name = match[1].trim();
+    // Description reads "<Nom> a terminé …"
+    const name = description.split(" a terminé")[0]?.trim();
+    if (name) {
       return name
-        .split(" ")
+        .split(/\s+/)
         .map((n) => n[0])
         .join("")
         .toUpperCase()

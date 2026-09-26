@@ -175,6 +175,8 @@ export const AICoachChat = () => {
           variant="ghost"
           size="icon"
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-label={isExpanded ? "Réduire le Coach IA" : "Agrandir le Coach IA"}
+          aria-pressed={isExpanded}
         >
           {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </Button>
@@ -208,7 +210,7 @@ export const AICoachChat = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4" role="log" aria-live="polite" aria-busy={isLoading} aria-label="Conversation avec le Coach IA">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -259,6 +261,8 @@ export const AICoachChat = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Posez votre question au Coach IA..."
+              aria-label="Votre question au Coach IA"
+              maxLength={4000}
               className="min-h-[44px] max-h-[120px] resize-none"
               rows={1}
             />
@@ -266,6 +270,7 @@ export const AICoachChat = () => {
               onClick={sendMessage} 
               disabled={!input.trim() || isLoading}
               className="px-3"
+              aria-label="Envoyer la question"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
