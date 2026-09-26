@@ -11,7 +11,7 @@ import { MMANewsBanner } from "@/components/MMANewsBanner";
 import { AICoachChat } from "@/components/AICoachChat";
 import { SparringShowcase } from "@/components/SparringShowcase";
 import { SparringAnalysisFAB } from "@/components/SparringAnalysisFAB";
-import { WolfRankDisplay } from "@/components/gamification/WolfRankDisplay";
+import { PerformanceSummary } from "@/components/training/PerformanceOverview";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +35,7 @@ const Index = () => {
   const [scanRequest, setScanRequest] = useState(0);
   const aiCoachRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
-  const { data: trainingProgress } = useTrainingProgress();
+  const { data: trainingProgress, isError: trainingProgressError } = useTrainingProgress();
 
   const openScanner = () => {
     setActiveTab("nutrition");
@@ -142,8 +142,7 @@ const Index = () => {
               <AICoachChat />
             </div>
             
-            {/* Wolf Rank Display */}
-            <WolfRankDisplay currentXP={trainingProgress?.totalXP ?? 0} />
+            <PerformanceSummary progress={trainingProgress} error={trainingProgressError} />
 
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />

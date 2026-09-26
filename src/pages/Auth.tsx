@@ -150,7 +150,7 @@ export default function Auth() {
             {[
               ["PRISM", "Analyse vidéo IA"],
               ["Coach", "IA personnel"],
-              ["Meute", "Progression collective"],
+              ["Team", "Progression collective"],
             ].map(([name, role]) => (
               <li key={name} className="korev-eyebrow flex items-center gap-3 text-foreground/85">
                 <span className="korev-bullet" aria-hidden />

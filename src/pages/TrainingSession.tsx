@@ -215,6 +215,7 @@ export default function TrainingSession() {
         minutes={sessionMinutes(workout.started_at, new Date(now))}
         rounds={workout.rounds_completed}
         sets={sets}
+        intensity={workout.intensity}
         pending={pending}
         onConfirm={finish}
       />

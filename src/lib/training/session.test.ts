@@ -4,13 +4,10 @@ import {
   asSessionType,
   estimateCalories,
   formatClock,
-  progressFromXP,
   roundClock,
   roundPlanSeconds,
   sessionMinutes,
   summarizeSets,
-  totalXP,
-  workoutXP,
 } from "./session";
 
 describe("summarizeSets", () => {
@@ -41,28 +38,6 @@ describe("sessionMinutes", () => {
     expect(sessionMinutes(start, new Date(2026, 8, 26, 8, 47))).toBe(47);
     expect(sessionMinutes(start, new Date(2026, 8, 27, 8, 0))).toBe(240);
     expect(sessionMinutes(null)).toBe(0);
-  });
-});
-
-describe("XP", () => {
-  it("gives nothing for an empty, instant session", () => {
-    expect(workoutXP({ intensity: "intense", duration_minutes: 1, rounds_completed: 0, setsCompleted: 0 })).toBe(0);
-  });
-  it("rewards time, rounds, sets and intensity", () => {
-    expect(workoutXP({ intensity: "moderate", duration_minutes: 30, rounds_completed: 0, setsCompleted: 0 })).toBe(80);
-    expect(workoutXP({ intensity: "intense", duration_minutes: 20, rounds_completed: 5, setsCompleted: 0 })).toBe(156);
-    expect(workoutXP({ intensity: null, duration_minutes: 45, rounds_completed: 0, setsCompleted: 12 })).toBe(155);
-  });
-  it("caps a single session", () => {
-    expect(workoutXP({ intensity: "intense", duration_minutes: 240, rounds_completed: 30, setsCompleted: 80 })).toBe(400);
-  });
-  it("adds sparring analyses and maps to a rank", () => {
-    const xp = totalXP([{ intensity: "moderate", duration_minutes: 30, rounds_completed: 0, setsCompleted: 0 }], 2);
-    expect(xp).toBe(140);
-    const p = progressFromXP(600);
-    expect(p.rank.name).toBe("Loup Solitaire");
-    expect(p.nextRank?.xpRequired).toBe(1500);
-    expect(p.rankProgress).toBe(10);
   });
 });
 

@@ -1,5 +1,3 @@
-import { calculateRank, getNextRank, getRankProgress, XP_REWARDS, type WolfRank } from "@/utils/gamification/wolfPack";
-
 export const SESSION_PATH = "/seance";
 
 export type SessionType = "boxing" | "mma" | "strength" | "cardio" | "custom";
@@ -92,47 +90,6 @@ export function sessionMinutes(startedAt: string | null, endedAt: Date = new Dat
   if (!startedAt) return 0;
   const minutes = Math.round((endedAt.getTime() - new Date(startedAt).getTime()) / 60000);
   return Math.min(MAX_SESSION_MINUTES, Math.max(0, minutes));
-}
-
-// ---------------------------------------------------------------------------
-// XP and rank, derived from stored sessions only
-// ---------------------------------------------------------------------------
-
-const INTENSITY_MULTIPLIER: Record<Intensity, number> = { light: 0.8, moderate: 1, intense: 1.3 };
-const MAX_SESSION_XP = 400;
-
-export interface XpInput {
-  intensity: string | null;
-  duration_minutes: number | null;
-  rounds_completed: number | null;
-  setsCompleted: number;
-}
-
-/** A session with no set, no round and under 5 minutes earns nothing. */
-export function workoutXP(w: XpInput): number {
-  const minutes = Math.min(MAX_SESSION_MINUTES, Math.max(0, w.duration_minutes ?? 0));
-  const rounds = Math.max(0, w.rounds_completed ?? 0);
-  const sets = Math.max(0, w.setsCompleted);
-  if (minutes < 5 && rounds === 0 && sets === 0) return 0;
-  const raw = (XP_REWARDS.workout_completed + Math.min(minutes, 120) + 10 * rounds + XP_REWARDS.set_completed * sets)
-    * INTENSITY_MULTIPLIER[asIntensity(w.intensity)];
-  return Math.min(MAX_SESSION_XP, Math.round(raw));
-}
-
-export interface Progress {
-  totalXP: number;
-  rank: WolfRank;
-  nextRank: WolfRank | null;
-  rankProgress: number;
-}
-
-export function progressFromXP(totalXP: number): Progress {
-  const rank = calculateRank(totalXP);
-  return { totalXP, rank, nextRank: getNextRank(rank), rankProgress: getRankProgress(totalXP) };
-}
-
-export function totalXP(workouts: ReadonlyArray<XpInput>, sparringAnalyses: number): number {
-  return workouts.reduce((sum, w) => sum + workoutXP(w), 0) + XP_REWARDS.sparring_analyzed * Math.max(0, sparringAnalyses);
 }
 
 // ---------------------------------------------------------------------------

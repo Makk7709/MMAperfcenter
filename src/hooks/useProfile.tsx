@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { trainingProgressKey } from './useTraining';
 import { toast } from 'sonner';
 
 export interface Profile {
@@ -50,6 +52,7 @@ export interface Profile {
 
 export const useProfile = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -93,6 +96,7 @@ export const useProfile = () => {
       if (error) throw error;
 
       toast.success('Profil mis à jour avec succès');
+      void queryClient.invalidateQueries({ queryKey: trainingProgressKey(user?.id) });
       await fetchProfile();
     } catch (error) {
       console.error('Error updating profile:', error);

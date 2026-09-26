@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { MoodPicker } from "./MoodPicker";
 import type { FinishInput } from "@/hooks/useTraining";
-import type { SetsSummary } from "@/lib/training/session";
+import type { Intensity, SetsSummary } from "@/lib/training/session";
+import { EFFORT_BY_INTENSITY, effortLabel } from "@/lib/training/performance";
 
 interface FinishSessionDialogProps {
   open: boolean;
@@ -15,15 +16,21 @@ interface FinishSessionDialogProps {
   minutes: number;
   rounds: number;
   sets: SetsSummary;
+  intensity: Intensity;
   pending: boolean;
   onConfirm: (input: FinishInput) => void;
 }
 
-export function FinishSessionDialog({ open, onOpenChange, minutes, rounds, sets, pending, onConfirm }: FinishSessionDialogProps) {
+export function FinishSessionDialog({ open, onOpenChange, minutes, rounds, sets, intensity, pending, onConfirm }: FinishSessionDialogProps) {
+  const [effort, setEffort] = useState(EFFORT_BY_INTENSITY[intensity]);
   const [mood, setMood] = useState("good");
   const [energy, setEnergy] = useState(6);
   const [note, setNote] = useState("");
   const empty = sets.setsCompleted === 0 && rounds === 0 && minutes < 5;
+
+  useEffect(() => {
+    if (open) setEffort(EFFORT_BY_INTENSITY[intensity]);
+  }, [open, intensity]);
 
   const metrics = [
     { label: "Durée", value: `${minutes} min` },
@@ -51,9 +58,24 @@ export function FinishSessionDialog({ open, onOpenChange, minutes, rounds, sets,
         </dl>
         {empty && (
           <p className="border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
-            Aucune série validée ni round terminé : cette séance sera enregistrée mais ne rapportera pas d'XP.
+            Aucune série validée ni round terminé, et moins de 5 minutes : vérifiez avant d'enregistrer.
           </p>
         )}
+
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <Label className="korev-eyebrow text-[11px] font-normal">Effort perçu</Label>
+            <span className="korev-metric text-xl text-primary">
+              {effort}
+              <span className="text-sm text-muted-foreground">/10</span>
+              <span className="ml-2 font-sans text-sm font-normal text-foreground/80">{effortLabel(effort)}</span>
+            </span>
+          </div>
+          <Slider value={[effort]} onValueChange={([v]) => setEffort(v)} min={1} max={10} step={1} aria-label="Effort perçu" />
+          <p className="text-xs text-muted-foreground">
+            La dureté de la séance dans son ensemble. Avec la durée, elle donne votre charge d'entraînement.
+          </p>
+        </div>
 
         <div className="space-y-2">
           <Label className="korev-eyebrow text-[11px] font-normal">Ressenti</Label>
@@ -87,7 +109,7 @@ export function FinishSessionDialog({ open, onOpenChange, minutes, rounds, sets,
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending} className="sm:flex-1">
             Continuer la séance
           </Button>
-          <Button onClick={() => onConfirm({ mood, energy, note })} disabled={pending} className="sm:flex-[1.4]">
+          <Button onClick={() => onConfirm({ effort, mood, energy, note })} disabled={pending} className="sm:flex-[1.4]">
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
             Enregistrer la séance
           </Button>

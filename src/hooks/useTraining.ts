@@ -8,17 +8,19 @@ import {
   asIntensity,
   asSessionType,
   estimateCalories,
-  progressFromXP,
   sessionMinutes,
   summarizeSets,
-  totalXP,
-  workoutXP,
   type Intensity,
-  type Progress,
   type SessionType,
   type SetsSummary,
 } from "@/lib/training/session";
-import { calculateStreak } from "@/utils/gamification/wolfPack";
+import {
+  buildPerformance,
+  sessionLoad,
+  type Performance,
+  type PerfSession,
+  type PerformanceProfile,
+} from "@/lib/training/performance";
 
 export interface Exercise {
   id: string;
@@ -68,17 +70,20 @@ export interface StartSessionInput {
 }
 
 export interface FinishInput {
+  effort: number;
   mood?: string;
   energy?: number;
   note?: string;
 }
 
 export interface FinishedSession extends SetsSummary {
+  id: string;
   name: string;
   minutes: number;
   calories: number;
   rounds: number;
-  xp: number;
+  effort: number;
+  load: number;
 }
 
 const ACTIVE_SELECT = `
@@ -308,6 +313,7 @@ export function useActiveWorkout() {
         const sets = summarizeSets(workout.workout_exercises);
         const { data: profile } = await supabase.from("profiles").select("weight").eq("id", user.id).maybeSingle();
         const calories = estimateCalories(workout.session_type, workout.intensity, minutes, profile?.weight ? Number(profile.weight) : null);
+        const effort = Math.min(10, Math.max(1, Math.round(input.effort)));
 
         const { error } = await supabase
           .from("workouts")
@@ -318,6 +324,7 @@ export function useActiveWorkout() {
             total_volume_kg: sets.volumeKg,
             calories_burned: calories,
             rounds_completed: workout.rounds_completed,
+            perceived_effort: effort,
           })
           .eq("id", workout.id);
         if (error) throw error;
@@ -346,11 +353,13 @@ export function useActiveWorkout() {
 
         return {
           ...sets,
+          id: workout.id,
           name: workout.name,
           minutes,
           calories,
           rounds: workout.rounds_completed,
-          xp: workoutXP({ intensity: workout.intensity, duration_minutes: minutes, rounds_completed: workout.rounds_completed, setsCompleted: sets.setsCompleted }),
+          effort,
+          load: sessionLoad({ duration_minutes: minutes, intensity: workout.intensity, perceived_effort: effort }),
         };
       }),
     [run, workout, user, queryClient, key],
@@ -395,12 +404,26 @@ export interface RecentSession {
   rounds_completed: number;
 }
 
-export interface TrainingProgress extends Progress {
-  totalWorkouts: number;
-  weekWorkouts: number;
-  streakDays: number;
+export interface TrainingProgress extends Performance {
+  sessions: PerfSession[];
   recent: RecentSession[];
 }
+
+const PROGRESS_SELECT = `
+  id, name, session_type, completed_at, duration_minutes, intensity, perceived_effort, rounds_completed, total_volume_kg,
+  workout_exercises (exercise_id, exercise:exercises (name), sets (weight_kg, reps, completed))
+`;
+
+type ProgressRow = Omit<PerfSession, "completed_at" | "exercises"> & {
+  name: string;
+  session_type: string | null;
+  completed_at: string | null;
+  workout_exercises: Array<{
+    exercise_id: string;
+    exercise: { name: string } | null;
+    sets: PerfSession["exercises"][number]["sets"] | null;
+  }> | null;
+};
 
 export function useTrainingProgress() {
   const { user } = useAuth();
@@ -408,53 +431,45 @@ export function useTrainingProgress() {
     queryKey: trainingProgressKey(user?.id),
     enabled: !!user,
     queryFn: async (): Promise<TrainingProgress> => {
-      const [workoutsRes, sparringRes] = await Promise.all([
+      const [workoutsRes, profileRes] = await Promise.all([
         supabase
           .from("workouts")
-          .select("id, name, session_type, completed_at, duration_minutes, intensity, rounds_completed, total_volume_kg, workout_exercises (sets (completed))")
+          .select(PROGRESS_SELECT)
           .eq("user_id", user!.id)
           .eq("status", "completed")
           .order("completed_at", { ascending: false }),
-        supabase
-          .from("sparring_analyses")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user!.id)
-          .eq("status", "completed"),
+        supabase.from("profiles").select("weekly_availability, goal_deadline, target_event").eq("id", user!.id).maybeSingle(),
       ]);
       if (workoutsRes.error) throw workoutsRes.error;
+      // Without the profile the indicators still work, with default targets.
+      if (profileRes.error) console.error("profile", profileRes.error);
 
-      const rows = (workoutsRes.data ?? []) as unknown as Array<{
-        id: string;
-        name: string;
-        session_type: string | null;
-        completed_at: string | null;
-        duration_minutes: number | null;
-        intensity: string | null;
-        rounds_completed: number | null;
-        total_volume_kg: number | string | null;
-        workout_exercises: Array<{ sets: Array<{ completed: boolean | null }> }> | null;
-      }>;
-
-      const xpInputs = rows.map((w) => ({
-        intensity: w.intensity,
+      const rows = ((workoutsRes.data ?? []) as unknown as ProgressRow[]).filter(
+        (w): w is ProgressRow & { completed_at: string } => !!w.completed_at,
+      );
+      const sessions: PerfSession[] = rows.map((w) => ({
+        id: w.id,
+        completed_at: w.completed_at,
         duration_minutes: w.duration_minutes,
+        intensity: w.intensity,
+        perceived_effort: w.perceived_effort,
         rounds_completed: w.rounds_completed,
-        setsCompleted: (w.workout_exercises ?? []).reduce((n, we) => n + we.sets.filter((s) => s.completed).length, 0),
+        total_volume_kg: w.total_volume_kg,
+        exercises: (w.workout_exercises ?? []).map((we) => ({
+          exercise_id: we.exercise_id,
+          name: we.exercise?.name ?? "Exercice",
+          sets: we.sets ?? [],
+        })),
       }));
 
-      const weekStart = Date.now() - 7 * 24 * 3600 * 1000;
-      const completedDates = rows.map((w) => w.completed_at).filter((d): d is string => !!d);
-
       return {
-        ...progressFromXP(totalXP(xpInputs, sparringRes.count ?? 0)),
-        totalWorkouts: rows.length,
-        weekWorkouts: completedDates.filter((d) => new Date(d).getTime() >= weekStart).length,
-        streakDays: calculateStreak(completedDates),
+        ...buildPerformance(sessions, (profileRes.data as PerformanceProfile | null) ?? null),
+        sessions,
         recent: rows.slice(0, 3).map((w) => ({
           id: w.id,
           name: w.name,
           session_type: asSessionType(w.session_type),
-          completed_at: w.completed_at ?? "",
+          completed_at: w.completed_at,
           duration_minutes: w.duration_minutes ?? 0,
           total_volume_kg: Number(w.total_volume_kg) || 0,
           rounds_completed: w.rounds_completed ?? 0,

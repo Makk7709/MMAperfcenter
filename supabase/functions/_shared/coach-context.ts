@@ -37,6 +37,7 @@ export interface WorkoutRow {
   session_type?: string | null;
   intensity?: string | null;
   rounds_completed?: number | null;
+  perceived_effort?: number | null;
   workout_exercises?: Array<{ sets: Array<{ completed: boolean | null }> | null }> | null;
 }
 
@@ -150,12 +151,39 @@ const macroLine = (t: { calories: number; protein: number; carbs: number; fat: n
 const isGoals = (g: unknown): g is GoalsRow =>
   !!g && typeof g === "object" && !Array.isArray(g) && Number((g as GoalsRow).daily_calories) > 0;
 
+// Same rules as src/lib/training/performance.ts (session-RPE load, acute:chronic ratio).
+const EFFORT_BY_INTENSITY: Record<string, number> = { light: 3, moderate: 5, intense: 8 };
+const MAX_SESSION_MINUTES = 240;
+const MIN_HISTORY_DAYS = 21;
+
+const validEffort = (w: WorkoutRow) => {
+  const e = Number(w.perceived_effort);
+  return Number.isInteger(e) && e >= 1 && e <= 10 ? e : null;
+};
+const sessionLoad = (w: WorkoutRow) =>
+  (validEffort(w) ?? EFFORT_BY_INTENSITY[w.intensity ?? ""] ?? 5) *
+  Math.min(MAX_SESSION_MINUTES, Math.max(0, n(w.duration_minutes)));
+
+function loadLine(rows: WorkoutRow[], ageOf: (w: WorkoutRow) => number): string {
+  const acute = rows.filter((w) => ageOf(w) < 7).reduce((s, w) => s + sessionLoad(w), 0);
+  const chronic = rows.filter((w) => ageOf(w) < WORKOUT_DAYS).reduce((s, w) => s + sessionLoad(w), 0) / (WORKOUT_DAYS / 7);
+  const head = `Charge d'entraînement (effort perçu × minutes) : ${fmt(acute)} sur les 7 derniers jours, moyenne ${fmt(chronic)} par semaine sur ${WORKOUT_DAYS} jours`;
+  const oldest = Math.max(...rows.map(ageOf));
+  if (oldest < MIN_HISTORY_DAYS || chronic === 0) {
+    return `${head}. Moins de 3 semaines de séances sur la période : ratio de charge non interprétable.`;
+  }
+  const ratio = acute / chronic;
+  const zone = ratio < 0.8 ? "sous-charge" : ratio <= 1.3 ? "zone optimale" : ratio <= 1.5 ? "charge élevée" : "hausse brutale, risque de surmenage";
+  return `${head}. Ratio 7 j / 28 j : ${fmt(ratio, 2)} (${zone} ; repères : 0,8 à 1,3 optimal, au-delà de 1,5 risque de blessure accru).`;
+}
+
 function formatWorkouts(rows: WorkoutRow[], data: CoachData): string {
   if (rows.length === 0) return `Séances terminées (${WORKOUT_DAYS} derniers jours) : aucune séance enregistrée.`;
   const keyOf = (w: WorkoutRow) => dateKeyInZone(new Date(w.completed_at), data.timeZone);
+  const ageOf = (w: WorkoutRow) => daysBetween(keyOf(w), data.today);
   const totalMin = rows.reduce((s, w) => s + n(w.duration_minutes), 0);
-  const week = rows.filter((w) => daysBetween(keyOf(w), data.today) < 7).length;
-  const last = daysBetween(keyOf(rows[0]), data.today);
+  const week = rows.filter((w) => ageOf(w) < 7).length;
+  const last = ageOf(rows[0]);
 
   const lines = rows.slice(0, MAX_WORKOUT_LINES).map((w) => {
     const sets = (w.workout_exercises ?? []).reduce(
@@ -167,6 +195,7 @@ function formatWorkouts(rows: WorkoutRow[], data: CoachData): string {
       quoteUserText(w.name, 60),
       w.session_type ? SESSION_TYPES[w.session_type] ?? w.session_type : null,
       w.intensity ? INTENSITIES[w.intensity] ?? w.intensity : null,
+      validEffort(w) ? `effort perçu ${validEffort(w)}/10` : null,
       w.duration_minutes ? `${w.duration_minutes} min` : null,
       n(w.rounds_completed) > 0 ? `${n(w.rounds_completed)} rounds` : null,
       sets > 0 ? `${sets} séries` : null,
@@ -177,6 +206,7 @@ function formatWorkouts(rows: WorkoutRow[], data: CoachData): string {
 
   return [
     `Séances terminées (${WORKOUT_DAYS} derniers jours) : ${plural(rows.length, "séance", "séances")}, ${fmt(totalMin / 60, 1)} h au total, ${week} sur les 7 derniers jours. Dernière séance : ${last === 0 ? "aujourd'hui" : last === 1 ? "hier" : `il y a ${last} jours`}.`,
+    loadLine(rows, ageOf),
     ...lines,
     rows.length > MAX_WORKOUT_LINES ? `- … et ${plural(rows.length - MAX_WORKOUT_LINES, "séance plus ancienne", "séances plus anciennes")}.` : "",
   ].filter(Boolean).join("\n");
@@ -304,6 +334,7 @@ async function attempt<T>(label: string, run: () => PromiseLike<Result<T>>): Pro
 
 const WORKOUT_COLUMNS = "name, completed_at, duration_minutes, total_volume_kg, workout_exercises (sets (completed))";
 const WORKOUT_SESSION_COLUMNS = "session_type, intensity, rounds_completed";
+const WORKOUT_EFFORT_COLUMN = "perceived_effort";
 
 export async function loadCoachData(db: Db, userId: string, timeZone: string, now = new Date()): Promise<CoachData> {
   const today = dateKeyInZone(now, timeZone);
@@ -314,8 +345,9 @@ export async function loadCoachData(db: Db, userId: string, timeZone: string, no
       .gte("completed_at", since).order("completed_at", { ascending: false }).limit(60);
 
   const [workouts, nutrition, goals, journal, sparring] = await Promise.all([
-    attempt<WorkoutRow[]>("workouts", workoutsQuery(`${WORKOUT_COLUMNS}, ${WORKOUT_SESSION_COLUMNS}`))
-      // Session columns come with migration 20260926030000; keep the base data without them.
+    attempt<WorkoutRow[]>("workouts", workoutsQuery(`${WORKOUT_COLUMNS}, ${WORKOUT_SESSION_COLUMNS}, ${WORKOUT_EFFORT_COLUMN}`))
+      // Session columns come with migrations 20260926030000 and 20260926050000; keep what exists.
+      .then((rows) => rows ?? attempt<WorkoutRow[]>("workouts (session)", workoutsQuery(`${WORKOUT_COLUMNS}, ${WORKOUT_SESSION_COLUMNS}`)))
       .then((rows) => rows ?? attempt<WorkoutRow[]>("workouts (base)", workoutsQuery(WORKOUT_COLUMNS))),
     attempt<NutritionRow[]>("nutrition", () =>
       db.from("nutrition_logs").select("date, meal_type, food_name, calories, protein_g, carbs_g, fat_g")

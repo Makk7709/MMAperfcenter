@@ -171,12 +171,12 @@ export const useMeutes = () => {
 
       if (error) throw error;
       
-      toast.success("Meute créée!", { description: `"${name}" est prête` });
+      toast.success("Team créée !", { description: `"${name}" est prête` });
       await loadMeutes();
       return data;
     } catch (error) {
       console.error("Error creating meute:", error);
-      toast.error("Erreur lors de la création de la meute");
+      toast.error("Erreur lors de la création de la team");
       return null;
     }
   };
@@ -207,7 +207,7 @@ export const useMeutes = () => {
 
       if (existingMember) {
         if (existingMember.status === "accepted") {
-          toast.error("Déjà membre", { description: "Cet utilisateur est déjà dans la meute" });
+          toast.error("Déjà membre", { description: "Cet utilisateur est déjà dans la team" });
         } else {
           toast.error("Invitation en attente", { description: "Une invitation a déjà été envoyée" });
         }
@@ -248,7 +248,7 @@ export const useMeutes = () => {
 
       if (error) throw error;
       
-      toast.success(accept ? "Bienvenue dans la meute!" : "Invitation déclinée");
+      toast.success(accept ? "Bienvenue dans la team !" : "Invitation déclinée");
       await loadPendingInvitations();
       await loadMeutes();
     } catch (error) {
@@ -269,7 +269,7 @@ export const useMeutes = () => {
 
       if (error) throw error;
       
-      toast.success("Vous avez quitté la meute");
+      toast.success("Vous avez quitté la team");
       await loadMeutes();
     } catch (error) {
       console.error("Error leaving meute:", error);
@@ -286,7 +286,7 @@ export const useMeutes = () => {
 
       if (error) throw error;
       
-      toast.success("Meute supprimée");
+      toast.success("Team supprimée");
       setSelectedMeute(null);
       await loadMeutes();
     } catch (error) {

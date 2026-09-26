@@ -4,7 +4,7 @@ import { fr } from "date-fns/locale";
 import { ArrowRight, Dumbbell, Play, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/brand/Eyebrow";
-import { WolfRankDisplay } from "@/components/gamification/WolfRankDisplay";
+import { CampCard, ConsistencyCard, LoadCard, RecordsCard } from "./PerformanceOverview";
 import { StartSessionTrigger } from "./StartSessionTrigger";
 import { useActiveWorkout, useTrainingProgress } from "@/hooks/useTraining";
 import { SESSION_PATH, SESSION_TYPE_LABELS } from "@/lib/training/session";
@@ -12,12 +12,12 @@ import { SESSION_PATH, SESSION_TYPE_LABELS } from "@/lib/training/session";
 export function TrainingPanel() {
   const navigate = useNavigate();
   const { workout } = useActiveWorkout();
-  const { data: progress, isLoading } = useTrainingProgress();
+  const { data: progress, isLoading, isError } = useTrainingProgress();
 
   const stats = [
-    { label: "7 derniers jours", value: progress?.weekWorkouts ?? 0, unit: "séances" },
+    { label: "Cette semaine", value: progress?.consistency.thisWeek ?? 0, unit: "séances" },
     { label: "Série en cours", value: progress?.streakDays ?? 0, unit: "jours" },
-    { label: "Au total", value: progress?.totalWorkouts ?? 0, unit: "séances" },
+    { label: "Au total", value: progress?.totalSessions ?? 0, unit: "séances" },
   ];
 
   return (
@@ -40,7 +40,7 @@ export function TrainingPanel() {
           <Eyebrow parts={["Préparation", "Physique"]} bullet />
           <h3 className="korev-display mt-3 text-3xl sm:text-4xl">Une séance, tout suivi.</h3>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            Rounds chronométrés, séries et charges, repos minuté : tout est enregistré dans votre historique et fait progresser votre rang.
+            Rounds chronométrés, séries et charges, repos minuté : tout est enregistré et alimente votre constance, votre charge et vos records.
           </p>
           <StartSessionTrigger>
             {({ onClick, loading }) => (
@@ -65,7 +65,22 @@ export function TrainingPanel() {
         ))}
       </dl>
 
-      <WolfRankDisplay currentXP={progress?.totalXP ?? 0} variant="compact" />
+      {isError && (
+        <p className="border-l-2 border-destructive bg-destructive/5 px-3 py-2 text-sm text-muted-foreground">
+          Impossible de charger vos indicateurs pour le moment. Vos séances restent enregistrées.
+        </p>
+      )}
+
+      {progress && (
+        <>
+          <CampCard camp={progress.camp} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ConsistencyCard consistency={progress.consistency} />
+            <LoadCard load={progress.load} />
+          </div>
+          <RecordsCard records={progress.records} />
+        </>
+      )}
 
       <section className="liquid-glass-solid p-4 sm:p-5">
         <div className="flex items-center justify-between">

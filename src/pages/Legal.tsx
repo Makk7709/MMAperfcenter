@@ -261,7 +261,7 @@ const Legal = () => {
               <strong className="text-foreground">Visibilité :</strong> les données sont privées par 
               défaut. Seuls sont partagés avec les autres membres le nom affiché et les séances 
               terminées (fil communautaire), ainsi que les informations échangées au sein des 
-              meutes que l'utilisateur rejoint.
+              teams que l'utilisateur rejoint.
             </p>
             <p>
               <strong className="text-foreground">Sous-traitants :</strong> les données ne sont pas 

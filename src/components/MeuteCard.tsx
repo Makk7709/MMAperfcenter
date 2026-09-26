@@ -86,7 +86,7 @@ export const MeuteCard = () => {
       <Card className="liquid-glass-solid border-0 p-6">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Meute</h3>
+          <h3 className="font-semibold">Team</h3>
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -218,7 +218,7 @@ export const MeuteCard = () => {
     <Card className="liquid-glass-solid border-0 p-6">
       <div className="flex items-center gap-2 mb-4">
         <Users className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold">Meute</h3>
+        <h3 className="font-semibold">Team</h3>
         
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
@@ -228,11 +228,11 @@ export const MeuteCard = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Créer une meute</DialogTitle>
+              <DialogTitle>Créer une team</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <Input
-                placeholder="Nom de la meute..."
+                placeholder="Nom de la team…"
                 value={newMeuteName}
                 onChange={(e) => setNewMeuteName(e.target.value)}
               />
@@ -246,7 +246,7 @@ export const MeuteCard = () => {
                 disabled={isCreating || !newMeuteName.trim()}
                 className="w-full"
               >
-                {isCreating ? "Création..." : "Créer la meute"}
+                {isCreating ? "Création..." : "Créer la team"}
               </Button>
             </div>
           </DialogContent>
@@ -286,8 +286,8 @@ export const MeuteCard = () => {
       {meutes.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Aucune meute</p>
-          <p className="text-xs mt-1">Créez votre première meute!</p>
+          <p className="text-sm">Aucune team</p>
+          <p className="text-xs mt-1">Créez votre première team !</p>
         </div>
       ) : (
         <div className="space-y-2">

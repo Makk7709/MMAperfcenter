@@ -79,9 +79,46 @@ Deno.test("coach-context keeps base workout data when session columns are missin
     return { data: [], error: null };
   });
   const data = await loadCoachData(db, USER, "Europe/Paris", NOW);
-  assertEquals(calls.filter((c) => c.table === "workouts").length, 2);
+  assertEquals(calls.filter((c) => c.table === "workouts").length, 3);
   assertEquals(data.workouts?.length, 1);
   assertStringIncludes(formatCoachContext(data), "3 200 kg soulevés");
+});
+
+Deno.test("coach-context keeps session columns when only the effort column is missing", async () => {
+  const { db, calls } = fakeDb((c) => {
+    if (c.table === "workouts" && c.select.includes("perceived_effort")) {
+      return { data: null, error: { code: "42703", message: "column workouts.perceived_effort does not exist" } };
+    }
+    if (c.table === "workouts") {
+      return {
+        data: [{ name: "Boxe", completed_at: "2026-09-25T17:00:00Z", duration_minutes: 40, total_volume_kg: 0, session_type: "boxing", intensity: "intense", rounds_completed: 8 }],
+        error: null,
+      };
+    }
+    return { data: [], error: null };
+  });
+  const data = await loadCoachData(db, USER, "Europe/Paris", NOW);
+  assertEquals(calls.filter((c) => c.table === "workouts").length, 2);
+  assertStringIncludes(formatCoachContext(data), "Boxe · intense · 40 min · 8 rounds");
+});
+
+Deno.test("coach-context reports the training load and its ratio", () => {
+  const session = (daysAgo: number, effort: number | null, minutes: number) => ({
+    name: "Séance",
+    completed_at: new Date(Date.parse("2026-09-26T16:00:00Z") - daysAgo * 86_400_000).toISOString(),
+    duration_minutes: minutes,
+    total_volume_kg: 0,
+    intensity: "moderate",
+    perceived_effort: effort,
+  });
+  const steady = formatCoachContext({ ...base, workouts: [0, 7, 14, 21].map((d) => session(d, 6, 60)) });
+  assertStringIncludes(steady, "Charge d'entraînement (effort perçu × minutes) : 360 sur les 7 derniers jours, moyenne 360 par semaine");
+  assertStringIncludes(steady, "Ratio 7 j / 28 j : 1 (zone optimale");
+  assertStringIncludes(steady, "effort perçu 6/10");
+
+  const recent = formatCoachContext({ ...base, workouts: [session(0, null, 60), session(3, 9, 30)] });
+  assertStringIncludes(recent, "570 sur les 7 derniers jours");
+  assertStringIncludes(recent, "ratio de charge non interprétable");
 });
 
 Deno.test("coach-context uses the user's calendar day, not UTC", () => {
