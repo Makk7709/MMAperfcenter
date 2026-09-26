@@ -13,8 +13,8 @@ KOREV Performance Center est une application web de suivi sportif dédiée aux a
 - suivre entraînements et nutrition ;
 - consulter un Coach IA personnalisé ;
 - analyser des vidéos de sparring par intelligence artificielle ;
-- progresser via un système de gamification « Wolf Pack » ;
-- rejoindre des groupes (« meutes ») ;
+- piloter sa préparation avec des indicateurs de performance (constance, charge d'entraînement, records, camp) ;
+- rejoindre des groupes (« teams ») ;
 - souscrire à un abonnement pour débloquer des fonctionnalités avancées.
 
 L'application est accessible depuis un navigateur web. Aucune installation native n'est requise.
@@ -90,9 +90,9 @@ Le tableau de bord (`/`) est organisé en plusieurs zones :
 ### 4.3 Colonne gauche
 
 - **Coach IA** : chat conversationnel (voir § 8).
-- **Rang Wolf Pack** : rang et XP calculés à partir de vos séances enregistrées (voir § 10).
+- **Performance / Semaine** : constance de la semaine, série en cours, zone de charge et compte à rebours du camp (voir § 10).
 - **Actions rapides** : démarrer ou reprendre une séance, scanner un produit, vidéos, technique, carnet, historique.
-- **Meute** : carte du groupe actif (voir § 12).
+- **Team** : carte du groupe actif (voir § 12).
 
 ### 4.4 Onglets centraux
 
@@ -101,7 +101,7 @@ Trois onglets principaux :
 | Onglet | Contenu |
 |---|---|
 | **Nutrition Combat** | Journal nutritionnel du jour, navigation entre les jours, objectifs, scanner |
-| **Préparation Physique** | Séance en cours ou nouvelle séance, statistiques de la semaine, rang, dernières séances |
+| **Préparation Physique** | Séance en cours ou nouvelle séance, statistiques de la semaine, camp, constance, charge d'entraînement, records, dernières séances |
 | **Technique** | Minuteur de rounds libre (non enregistré) et démarrage d'une séance combat enregistrée |
 
 Un bouton flottant (FAB) permet d'accéder directement à l'**analyse sparring** depuis n'importe quelle page du tableau de bord.
@@ -125,9 +125,9 @@ Un bouton flottant (FAB) permet d'accéder directement à l'**analyse sparring**
 
 ### 5.3 Fin de séance
 
-**Terminer** affiche le bilan réel : durée, séries validées, volume soulevé (kg), rounds. Vous pouvez indiquer votre ressenti, votre énergie et une note : ils sont ajoutés au carnet et rattachés à la séance. Après enregistrement : XP gagnée, calories estimées (selon le type, l'intensité, la durée et votre poids de profil, 75 kg par défaut) et rang mis à jour.
+**Terminer** affiche le bilan réel : durée, séries validées, volume soulevé (kg), rounds. Vous indiquez l'**effort perçu** de la séance (1 à 10, échelle de Borg ; proposé par défaut selon l'intensité choisie), puis, si vous le souhaitez, votre ressenti, votre énergie et une note : ces trois derniers sont ajoutés au carnet et rattachés à la séance. Après enregistrement : charge de la séance (effort × minutes), calories estimées (selon le type, l'intensité, la durée et votre poids de profil, 75 kg par défaut), records battus et résumé de la semaine.
 
-Une séance de moins de 5 minutes sans série ni round ne rapporte pas d'XP. La durée comptée est plafonnée à 4 heures (séance oubliée ouverte).
+La durée comptée est plafonnée à 4 heures (séance oubliée ouverte).
 
 ### 5.4 Historique
 
@@ -139,7 +139,7 @@ Page **Carnet** (`/journal`, aussi dans le menu) : une entrée par jour ou par s
 
 ### 5.6 Timer de rounds
 
-Onglet **Technique** : minuteur libre (nombre de rounds, durée, repos), sans enregistrement. Pour que les rounds comptent dans l'historique et l'XP, utilisez **Démarrer une séance combat** ou le mode rounds d'une séance.
+Onglet **Technique** : minuteur libre (nombre de rounds, durée, repos), sans enregistrement. Pour que les rounds comptent dans l'historique, la charge et les records, utilisez **Démarrer une séance combat** ou le mode rounds d'une séance.
 
 ---
 
@@ -186,7 +186,7 @@ Disponible depuis le tableau de bord (colonne gauche) ou via le bouton **Coach I
 
 - Conversation en **streaming** (réponses progressives) ;
 - Le coach connaît votre profil sportif (~30 champs : anthropométrie, expérience martiale, mode de vie, équipement, restrictions) ;
-- Il lit aussi vos données réelles de l'application à chaque question : séances des 28 derniers jours (type, durée, rounds, séries, volume), nutrition des 7 derniers jours par rapport à vos objectifs, vos 5 dernières entrées de carnet (ressenti, énergie, pesée, notes) et vos 2 dernières analyses sparring. Les scores sparring ne lui sont transmis que si vous avez été identifié dans la vidéo ;
+- Il lit aussi vos données réelles de l'application à chaque question : séances des 28 derniers jours (type, durée, effort perçu, rounds, séries, volume) avec votre charge d'entraînement et son ratio, nutrition des 7 derniers jours par rapport à vos objectifs, vos 5 dernières entrées de carnet (ressenti, énergie, pesée, notes) et vos 2 dernières analyses sparring. Les scores sparring ne lui sont transmis que si vous avez été identifié dans la vidéo ;
 - Il ne voit que vos propres données et signale ce qui manque plutôt que de l'inventer : plus votre journal est complet, plus ses conseils sont précis ;
 - Modèle utilisé : Gemini 2.5 Flash via passerelle IA externe.
 
@@ -235,36 +235,49 @@ Lorsque le quota est atteint, un **paywall** s'affiche avec proposition de mise 
 
 ---
 
-## 10. Gamification « Wolf Pack »
+## 10. Indicateurs de performance
 
-Système thématique « meute de loups » intégré aux séances et à l'analyse sparring.
+Quatre indicateurs, calculés à partir de vos séances terminées et de votre profil, remplacent tout système de points ou de rangs.
 
-### 10.1 Rangs (7 niveaux)
+### 10.1 Constance
 
-| Niveau | Rang | XP requis |
+Nombre de séances de la semaine en cours (du lundi au dimanche) face à votre objectif hebdomadaire, qui est la **disponibilité hebdomadaire** de votre profil (3 séances par défaut si elle n'est pas renseignée). Les quatre dernières semaines sont affichées, ainsi que le nombre de semaines terminées où l'objectif a été atteint (à partir de la semaine de votre première séance).
+
+### 10.2 Charge d'entraînement
+
+Méthode session-RPE utilisée en préparation physique :
+
+- **charge d'une séance** = effort perçu (1 à 10) × durée en minutes. Les séances enregistrées avant l'ajout de l'effort perçu utilisent une valeur déduite de l'intensité (légère 3, modérée 5, intense 8) ;
+- **ratio** = charge des 7 derniers jours ÷ moyenne hebdomadaire des 28 derniers jours.
+
+| Ratio | Zone | Lecture |
 |---|---|---|
-| 1 | Louveteau | 0 |
-| 2 | Loup Solitaire | 500 |
-| 3 | Chasseur de Meute | 1 500 |
-| 4 | Loup de Guerre | 4 000 |
-| 5 | Beta | 8 000 |
-| 6 | Alpha | 15 000 |
-| 7 | Loup Garou | 30 000 |
+| < 0,8 | Sous-charge | Semaine plus légère que d'habitude (récupération ou baisse de régime) |
+| 0,8 à 1,3 | Zone optimale | Charge alignée sur votre habitude |
+| 1,3 à 1,5 | Charge élevée | Surveillez sommeil et récupération |
+| > 1,5 | Risque de surmenage | Hausse brutale : risque de blessure accru, allégez |
 
-L'XP est calculée à partir de vos séances terminées : 50 XP de base, plus 1 XP par minute (120 max), 10 XP par round et 5 XP par série validée, multipliés selon l'intensité (légère × 0,8, modérée × 1, intense × 1,3), avec un plafond de 400 XP par séance. Chaque analyse sparring terminée ajoute 30 XP.
+Le ratio n'est affiché qu'après **trois semaines** d'historique (« Calibrage » avant cela). Après une longue interruption, la zone indique une sous-charge.
 
-### 10.2 Badges (à venir)
+### 10.3 Records personnels
 
-Neuf badges sont définis mais ne sont pas encore affichés dans l'application. Exemples : Première Lune (1er entraînement), Feu de Meute (7 jours consécutifs), Crocs Acérés (100 coups), Prédateur (50 entraînements), Regard du Loup (10 analyses sparring), Pleine Lune (rang Loup Garou).
+- Pour chaque exercice : la série validée la plus lourde (plus de répétitions à charge égale), avec sa date ;
+- plus grand nombre de rounds et plus gros volume sur une séance ;
+- plus longue série de jours consécutifs d'entraînement.
 
-### 10.3 Streaks
+En fin de séance, les records battus sont affichés avec la marque précédente. Une première tentative sur un exercice n'est pas un record : il faut une marque antérieure à battre.
 
-Jours consécutifs d'entraînement calculés à partir de l'historique des séances.
+### 10.4 Camp de préparation
 
-### 10.4 Persistance
+Si votre profil contient une **date d'objectif** (et éventuellement un **événement cible**), l'application affiche le compte à rebours (J-24). Les **8 semaines** précédant la date forment le camp : semaine en cours (ex. « Semaine 5 sur 8 ») et nombre de séances depuis son début. Avant le camp, sa date de début est indiquée. Une date passée n'est plus affichée.
 
-- L'**XP**, le **rang**, la **série de jours** et le **nombre de séances** sont recalculés à partir de la base de données : ils sont identiques sur tous vos appareils et ne peuvent pas être modifiés localement.
-- Supprimer une séance (abandon) retire aussi son XP.
+### 10.5 Série en cours
+
+Jours consécutifs d'entraînement jusqu'à aujourd'hui ; la série reste valable jusqu'à la fin de la journée suivant la dernière séance.
+
+### 10.6 Persistance
+
+Tous les indicateurs sont recalculés à partir de la base de données : ils sont identiques sur tous vos appareils. Abandonner une séance la retire de la constance, de la charge et des records. Modifier votre disponibilité ou votre date d'objectif dans le profil met les indicateurs à jour.
 
 ---
 
@@ -310,9 +323,9 @@ Lorsqu'une fonctionnalité quota est épuisée ou réservée à un plan supérie
 
 ---
 
-## 12. Meutes (groupes)
+## 12. Teams (groupes)
 
-Les **meutes** sont des groupes communautaires d'utilisateurs.
+Les **teams** sont des groupes communautaires d'utilisateurs (tables `meutes` en base de données).
 
 ### 12.1 Rôles
 
@@ -324,14 +337,14 @@ Les **meutes** sont des groupes communautaires d'utilisateurs.
 
 ### 12.2 Actions
 
-- Créer une meute ;
-- Inviter des membres (invitations en attente visibles sur la carte meute) ;
+- Créer une team ;
+- Inviter des membres (invitations en attente visibles sur la carte Team) ;
 - Consulter le flux d'activités du groupe ;
 - Accepter ou refuser une invitation.
 
 ### 12.3 Activités
 
-Les activités de meute (`meute_activities`) enregistrent les événements du groupe. Certaines activités communautaires globales sont déclenchées automatiquement (ex. séance terminée → `community_activities`).
+Les activités de team (`meute_activities`) enregistrent les événements du groupe. Certaines activités communautaires globales sont déclenchées automatiquement (ex. séance terminée → `community_activities`).
 
 ---
 

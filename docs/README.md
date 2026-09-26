@@ -10,7 +10,7 @@ Index de la documentation opérationnelle et utilisateur du projet **KOREV Perfo
 
 | Document | Description |
 |---|---|
-| [Manuel utilisateur](user/MANUEL_UTILISATEUR.md) | Guide pas à pas : inscription, onboarding, tableau de bord, entraînement, nutrition, Coach IA, analyse sparring, gamification Wolf Pack, abonnements, profil, meutes, rôles admin/coach |
+| [Manuel utilisateur](user/MANUEL_UTILISATEUR.md) | Guide pas à pas : inscription, onboarding, tableau de bord, entraînement, nutrition, Coach IA, analyse sparring, indicateurs de performance, abonnements, profil, teams, rôles admin/coach |
 
 ---
 

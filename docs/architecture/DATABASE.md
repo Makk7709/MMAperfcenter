@@ -110,9 +110,10 @@ Catalogue d'exercices (nom, catégorie, muscle group, etc.).
 | `session_type` | boxing / mma / strength / cardio / custom |
 | `intensity` | light / moderate / intense |
 | `planned_rounds`, `round_seconds`, `rest_seconds` | Plan du minuteur de rounds (facultatif) |
-| `rounds_completed` | Rounds réellement effectués (0–30), source de l'XP |
+| `rounds_completed` | Rounds réellement effectués (0–30) |
+| `perceived_effort` | Effort perçu saisi au bilan (1–10, échelle CR-10), `NULL` pour les séances antérieures |
 
-L'XP et le rang Wolf Pack sont recalculés côté client à partir des séances `completed` et des analyses sparring terminées ; rien n'est stocké.
+Les indicateurs de performance (constance, charge d'entraînement effort × minutes, records, camp) sont recalculés côté client (`src/lib/training/performance.ts`) à partir des séances `completed` et du profil (`weekly_availability`, `goal_deadline`, `target_event`) ; rien n'est stocké.
 
 #### `workout_exercises`
 
@@ -160,7 +161,9 @@ Résultats structurés d'analyse vidéo IA (JSON normalisé, métadonnées disci
 
 ---
 
-### 2.5 Communauté et meutes
+### 2.5 Communauté et teams
+
+Les groupes s'affichent sous le nom « Team » dans l'application ; les tables gardent leur nom historique `meutes`.
 
 #### `meutes`
 
@@ -268,7 +271,8 @@ supabase/migrations/
 ├── 20260526133146_*.sql    # index nutrition_logs(user_id, date)
 ├── …
 ├── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
-└── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
+├── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
+└── 20260926050000_*.sql    # effort perçu des séances (charge d'entraînement)
 ```
 
 ### 6.2 Application

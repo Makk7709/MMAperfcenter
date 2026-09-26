@@ -83,7 +83,7 @@ flowchart TB
 
 | Outil | Périmètre |
 |---|---|
-| Vitest + Testing Library | Unitaires (`src/utils/**`, gamification, sparring schema) |
+| Vitest + Testing Library | Unitaires (`src/utils/**`, `src/lib/**` dont indicateurs de performance, sparring schema) |
 | Playwright | E2E (`e2e/sparring-analysis.spec.ts`) — opt-in CI |
 | Harness Deno | Edge Functions critiques (`tests/edge/`) — exécution manuelle |
 | GitHub Actions | Lint (non bloquant), tests, build sur `main` |
@@ -99,12 +99,13 @@ src/
 ├── pages/              Pages routées (Auth, Index, admin/*, …)
 ├── components/         Composants métier
 │   ├── sparring/       Analyse vidéo IA
-│   ├── gamification/   UI Wolf Pack
-│   ├── workout/        Séances v2
+│   ├── training/       Séance, bilan, indicateurs de performance
+│   ├── workout/        Démarrage de séance (modèles)
 │   ├── admin/          Back-office
 │   └── ui/             Primitives shadcn-ui
 ├── hooks/              État et accès Supabase
-├── utils/              Logique pure (sparring, gamification, retry)
+├── lib/                Logique pure (dates, nutrition, séance, performance)
+├── utils/              Logique pure (sparring, retry)
 └── integrations/supabase/
     ├── client.ts       Client Supabase (source unique config)
     └── types.ts        Types générés PostgreSQL
@@ -114,7 +115,7 @@ src/
 
 | Couche | Responsabilité |
 |---|---|
-| `utils/` | Logique pure, testable (XP, validation JSON sparring, extraction frames) |
+| `utils/` | Logique pure, testable (charge d'entraînement, records, validation JSON sparring, extraction frames) dans `lib/` et `utils/` |
 | `hooks/` | État React, appels Supabase, cache React Query |
 | `components/` | Rendu UI, orchestration utilisateur |
 | `pages/` | Composition de pages, routage |
@@ -131,7 +132,6 @@ Défini dans `src/App.tsx` :
 
 - `QueryClientProvider` (TanStack Query)
 - `AuthProvider` (`useAuth`)
-- `GamificationProvider` (partiel, via `useGamification`)
 
 ---
 
@@ -306,7 +306,7 @@ Configuration UI : `FEATURE_CONFIG` dans `src/hooks/useFeatureAccess.tsx`.
 | Module | Fichiers clés | Description |
 |---|---|---|
 | Pipeline sparring | `videoFrameExtractor.ts`, `sparringAnalysisSchema.ts`, `analyze-sparring/` | Extraction client → vision LLM tool calling → validation |
-| Wolf Pack | `utils/gamification/wolfPack.ts`, `useGamification.tsx` | 7 rangs, 9 badges, XP, streaks |
+| Indicateurs de performance | `lib/training/performance.ts`, `components/training/PerformanceOverview.tsx` | Constance, charge effort × minutes (ratio 7 j / 28 j), records, camp de 8 semaines |
 | Gating multi-plans | `useFeatureAccess.tsx`, migrations feature_usage | Quotas atomiques PostgreSQL |
 
 ---
@@ -316,7 +316,6 @@ Configuration UI : `FEATURE_CONFIG` dans `src/hooks/useFeatureAccess.tsx`.
 | Point | Détail |
 |---|---|
 | Hébergement frontend | Non versionné dans le dépôt (TBD) |
-| XP gamification | Persistance `localStorage` (non synchronisée multi-appareils) |
 | RAG vectoriel | Table `documents` typée mais non utilisée — voir [`SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md) |
 | Multi-organisations B2B | Scaffold dormant (`organizations*`) — non exposé |
 | Mapping Stripe | `product_id → plan` dupliqué entre `check-subscription` et `stripe-webhook` |

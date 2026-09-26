@@ -61,13 +61,13 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Vérifier l'application des 33 migrations dans l'ordre chronologique (`supabase/migrations/`).
+Vérifier l'application des 34 migrations dans l'ordre chronologique (`supabase/migrations/`).
 
 **Ordre de mise en production du durcissement `20260925220000_security_hardening.sql`** : migration → Edge Functions → frontend, dans la même fenêtre. Les nouvelles fonctions appellent `consume_feature_quota` (créée par la migration), et l'ancien frontend incrémente encore `ai_coach` côté client, ce que la migration refuse désormais.
 
 **`20260926010000_private_training_videos_and_feed_privacy.sql`** rend le bucket `training-videos` privé et convertit `training_videos.video_url` (URL publique → chemin d'objet). Le nouveau frontend lit des URLs signées ; l'ancien frontend ne peut plus lire les vidéos uploadées une fois la migration appliquée : déployer le frontend dans la même fenêtre.
 
-**`20260926030000_training_sessions.sql`** ajoute les colonnes de séance (`session_type`, `intensity`, rounds) et `workout_journal.workout_id`. Le frontend 0.10 les lit et les écrit : sans la migration, le carnet, le panneau de séance et le rang ne se chargent plus. Appliquer la migration avant ou avec le frontend ; elle est sans effet sur l'ancien frontend.
+**`20260926030000_training_sessions.sql`** ajoute les colonnes de séance (`session_type`, `intensity`, rounds) et `workout_journal.workout_id`. Le frontend 0.10 les lit et les écrit : sans la migration, le carnet, le panneau de séance et les indicateurs ne se chargent plus. Appliquer la migration avant ou avec le frontend ; elle est sans effet sur l'ancien frontend.
 
 **`20260926040000_nutrition_journal_limits.sql`** borne les valeurs du journal alimentaire, des objectifs et du carnet (contraintes `CHECK … NOT VALID` : seules les nouvelles lignes et les modifications sont contrôlées). Pour repérer d'éventuelles lignes anciennes hors bornes avant un `VALIDATE CONSTRAINT` :
 
@@ -79,6 +79,8 @@ WHERE calories NOT BETWEEN 0 AND 20000 OR protein_g NOT BETWEEN 0 AND 2000
 ```
 
 Redéployer la fonction `ai-coach` avec le frontend 0.10.1 (elle lit désormais séances, nutrition, carnet et analyses sparring ; le fichier partagé `_shared/coach-context.ts` est embarqué au déploiement).
+
+**`20260926050000_session_effort.sql`** ajoute `workouts.perceived_effort` (1–10). Le frontend 0.11 le lit pour les indicateurs de performance et l'écrit en fin de séance : sans la migration, le panneau d'entraînement affiche « indicateurs indisponibles » et l'enregistrement d'une séance échoue. Appliquer la migration avant ou avec le frontend, puis redéployer `ai-coach` (effort et charge transmis au coach ; sans la colonne, la fonction se replie sur les autres données).
 
 Contrôles après `db push` (SQL editor) :
 

@@ -2,6 +2,25 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/). La version 1.0.0 correspondra à la première mise en production.
 
+## [0.11.0] - 2026-09-26
+
+**Nécessite la migration `20260926050000_session_effort.sql` (en plus de celles de 0.10.x) et le redéploiement de la fonction `ai-coach`.**
+
+### Indicateurs de performance (remplacent la gamification Wolf Pack)
+
+- Les rangs (Louveteau → Loup Garou), l'XP et les badges thématiques sont supprimés.
+- **Constance** : séances de la semaine face à la disponibilité hebdomadaire du profil, sur 4 semaines.
+- **Charge d'entraînement** : effort perçu (1 à 10) × minutes, ratio 7 jours / moyenne 28 jours et zone (sous-charge, optimale, élevée, risque de surmenage), après 3 semaines d'historique.
+- **Records personnels** : charge maximale par exercice, rounds et volume sur une séance, plus longue série ; les records battus s'affichent en fin de séance.
+- **Camp de préparation** : compte à rebours vers la date d'objectif du profil et suivi des 8 semaines qui la précèdent.
+- Le bilan de fin de séance demande l'effort perçu ; l'écran final affiche la charge de la séance au lieu de l'XP.
+- Le coach IA reçoit l'effort de chaque séance et la charge d'entraînement avec son ratio.
+
+### Divers
+
+- Les groupes « Meute » s'appellent désormais « Team » dans l'application.
+- Modifier la disponibilité ou la date d'objectif du profil recalcule immédiatement les indicateurs.
+
 ## [0.10.1] - 2026-09-26
 
 **Nécessite la migration `20260926040000_nutrition_journal_limits.sql` et le redéploiement de la fonction `ai-coach`.**
@@ -81,6 +100,7 @@ Version de pré-lancement : fonctionnellement complète, auditée, non encore d�
 
 - `.htaccess` SPA, en-têtes de sécurité, CSP en mode rapport, compression, procédures de sauvegarde et de retour arrière.
 
+[0.11.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.11.0
 [0.10.1]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.10.1
 [0.10.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.9.0

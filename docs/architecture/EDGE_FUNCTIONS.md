@@ -36,12 +36,12 @@ Assistant conversationnel personnalisé en streaming SSE. Le prompt système int
 
 | Bloc | Source | Fenêtre |
 |---|---|---|
-| Séances | `workouts` terminées (type, intensité, durée, rounds, séries validées, volume) | 28 jours, 10 lignes détaillées |
+| Séances | `workouts` terminées (type, intensité, effort perçu, durée, rounds, séries validées, volume) et charge d'entraînement (7 jours, moyenne hebdomadaire sur 28 jours, ratio et zone si au moins 3 semaines d'historique) | 28 jours, 10 lignes détaillées |
 | Nutrition | `nutrition_logs` par jour, aliments du jour, moyenne, jours sans saisie ; `nutrition_goals` | 7 jours |
 | Carnet | `workout_journal` (ressenti, énergie, pesée, note tronquée à 200 caractères) | 5 dernières entrées |
 | Sparring | `sparring_analyses` terminées : résumé ; scores, points forts et faibles, recommandations **uniquement si l'athlète a été identifié** | 2 dernières |
 
-Toutes les requêtes filtrent sur `user_id` (client service role). Chaque bloc est chargé indépendamment : une requête en échec affiche « données momentanément indisponibles » sans bloquer le coach. Sans la migration `20260926030000`, les séances sont chargées sans type, intensité ni rounds. Le texte saisi par l'utilisateur est mis sur une ligne, tronqué et placé entre « » ; le prompt précise qu'il s'agit de données et non d'instructions.
+Toutes les requêtes filtrent sur `user_id` (client service role). Chaque bloc est chargé indépendamment : une requête en échec affiche « données momentanément indisponibles » sans bloquer le coach. Sans la migration `20260926050000`, les séances sont chargées sans effort perçu (charge déduite de l'intensité) ; sans `20260926030000`, sans type, intensité ni rounds. Le texte saisi par l'utilisateur est mis sur une ligne, tronqué et placé entre « » ; le prompt précise qu'il s'agit de données et non d'instructions.
 
 Le « jour » utilisé (aliments d'aujourd'hui, date des séances) est calculé dans le fuseau horaire envoyé par le navigateur, `Europe/Paris` par défaut ou si le fuseau est inconnu.
 

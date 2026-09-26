@@ -116,7 +116,7 @@ npm run test:run
 npm run test:coverage
 ```
 
-**Périmètre testé :** utilitaires (retry, sparring schema, videoFrameExtractor, gamification wolfPack), quelques composants gamification et workout.
+**Périmètre testé :** utilitaires (retry, sparring schema, videoFrameExtractor), logique pure de `src/lib` (dates, nutrition, séance, indicateurs de performance), dialogue de démarrage de séance.
 
 **Dette connue :** 11 tests en échec dans `StartWorkoutDialogV2.test.tsx` (sélecteurs DOM) — n'affecte pas le build CI.
 
@@ -238,7 +238,7 @@ Playwright **exclu** du pipeline minimal.
 
 | Domaine | Convention |
 |---|---|
-| Organisation | Par domaine fonctionnel (`sparring/`, `gamification/`, `workout/`, `admin/`) |
+| Organisation | Par domaine fonctionnel (`sparring/`, `training/`, `workout/`, `admin/`) |
 | Hooks | Préfixe `use`, accès Supabase centralisé |
 | UI | shadcn-ui dans `components/ui/` (copié, non auto-update) |
 | Logique pure | `utils/` avec tests unitaires |

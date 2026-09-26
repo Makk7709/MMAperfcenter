@@ -2,7 +2,7 @@
 
 Application SaaS d'optimisation sportive dédiée aux arts martiaux mixtes
 et sports de combat : suivi d'entraînement, nutrition, analyse vidéo
-de sparring assistée par IA, gamification, gestion d'équipes (« meutes »),
+de sparring assistée par IA, indicateurs de performance, gestion d'équipes (« teams »),
 monétisation par abonnement.
 
 ## Fonctionnalités
@@ -13,7 +13,8 @@ monétisation par abonnement.
 - **Coach IA** : assistant conversationnel en streaming (modèle Gemini 2.5 Flash).
 - **Statistiques** : tableaux de bord et analyse statistique assistée par IA.
 - **Bibliothèque vidéo** : contenus d'entraînement avec visibilité par plan et rôle (admin/coach).
-- **Gamification « meutes »** : équipes, rôles, activités communautaires.
+- **Indicateurs de performance** : constance hebdomadaire, charge d'entraînement (effort perçu × minutes, ratio 7 j / 28 j), records personnels, camp de préparation.
+- **Teams** : équipes, rôles, activités communautaires.
 - **Abonnements** : Stripe Checkout, portail client, webhook signé, et contrôle d'accès par plan (feature gating) appliqué côté serveur via RLS et fonctions PostgreSQL `SECURITY DEFINER`.
 - **Espace d'administration** : gestion réservée aux rôles `admin`.
 
@@ -91,7 +92,7 @@ jamais figurer dans le dépôt ni dans le bundle.
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
   functions/          Edge Functions Deno (8 fonctions + _shared)
-  migrations/         Migrations SQL versionnées (33 fichiers)
+  migrations/         Migrations SQL versionnées (34 fichiers)
   seed/               Scripts seed paramétrés (non automatiques)
 tests/edge/           Harness Deno pour Edge Functions
 e2e/                  Tests Playwright
