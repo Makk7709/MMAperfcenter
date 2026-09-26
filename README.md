@@ -91,7 +91,7 @@ jamais figurer dans le dépôt ni dans le bundle.
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
   functions/          Edge Functions Deno (8 fonctions + _shared)
-  migrations/         Migrations SQL versionnées (32 fichiers)
+  migrations/         Migrations SQL versionnées (33 fichiers)
   seed/               Scripts seed paramétrés (non automatiques)
 tests/edge/           Harness Deno pour Edge Functions
 e2e/                  Tests Playwright

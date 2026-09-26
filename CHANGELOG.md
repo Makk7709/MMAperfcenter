@@ -2,6 +2,21 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/). La version 1.0.0 correspondra à la première mise en production.
 
+## [0.10.1] - 2026-09-26
+
+**Nécessite la migration `20260926040000_nutrition_journal_limits.sql` et le redéploiement de la fonction `ai-coach`.**
+
+### Coach IA
+
+- Le coach lit désormais vos données réelles, et plus seulement votre profil : séances des 28 derniers jours, nutrition des 7 derniers jours par rapport aux objectifs, 5 dernières entrées du carnet, 2 dernières analyses sparring.
+- Les scores sparring ne lui sont transmis que si l'athlète a été identifié dans la vidéo ; le texte saisi par l'utilisateur lui est présenté comme donnée, jamais comme instruction.
+- Le « jour » suit le fuseau horaire du navigateur ; une source indisponible n'empêche pas le coach de répondre.
+
+### Robustesse des données
+
+- Bornes en base sur le journal alimentaire (calories, macros, nom), les objectifs et le carnet (titre, notes, pesée, ressenti) : un appel direct à l'API ne peut plus enregistrer de valeurs absurdes.
+- Valeurs pour 100 g plafonnées côté application (900 kcal, 100 g par nutriment), y compris pour les fiches Open Food Facts erronées.
+
 ## [0.10.0] - 2026-09-26
 
 Entraînement, carnet et nutrition refondus. **Nécessite la migration `20260926030000_training_sessions.sql`**, à appliquer avant ou avec ce frontend.
@@ -66,5 +81,6 @@ Version de pré-lancement : fonctionnellement complète, auditée, non encore d�
 
 - `.htaccess` SPA, en-têtes de sécurité, CSP en mode rapport, compression, procédures de sauvegarde et de retour arrière.
 
+[0.10.1]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.10.1
 [0.10.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Makk7709/MMAperfcenter/releases/tag/v0.9.0

@@ -185,7 +185,9 @@ Disponible depuis le tableau de bord (colonne gauche) ou via le bouton **Coach I
 ### 8.2 Fonctionnement
 
 - Conversation en **streaming** (réponses progressives) ;
-- Le prompt système intègre votre profil sportif (~30 champs : anthropométrie, expérience martiale, lifestyle, équipement, restrictions) ;
+- Le coach connaît votre profil sportif (~30 champs : anthropométrie, expérience martiale, mode de vie, équipement, restrictions) ;
+- Il lit aussi vos données réelles de l'application à chaque question : séances des 28 derniers jours (type, durée, rounds, séries, volume), nutrition des 7 derniers jours par rapport à vos objectifs, vos 5 dernières entrées de carnet (ressenti, énergie, pesée, notes) et vos 2 dernières analyses sparring. Les scores sparring ne lui sont transmis que si vous avez été identifié dans la vidéo ;
+- Il ne voit que vos propres données et signale ce qui manque plutôt que de l'inventer : plus votre journal est complet, plus ses conseils sont précis ;
 - Modèle utilisé : Gemini 2.5 Flash via passerelle IA externe.
 
 ### 8.3 Quotas

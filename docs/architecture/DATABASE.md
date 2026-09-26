@@ -1,7 +1,7 @@
 # Base de données — KOREV Performance Center
 
 **Version :** 1.0  
-**Migrations :** `supabase/migrations/` (32 fichiers SQL)  
+**Migrations :** `supabase/migrations/` (33 fichiers SQL)  
 **Types générés :** `src/integrations/supabase/types.ts`  
 **Drift résiduel :** [`docs/audit/SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md)
 
@@ -124,7 +124,7 @@ Séries : poids, répétitions, durée, etc.
 
 #### `workout_journal`
 
-Notes d'entraînement par utilisateur et date (ressenti, énergie 1–10, pesée). `workout_id` (facultatif, `ON DELETE SET NULL`) rattache la note à une séance ; une politique RLS restrictive refuse tout lien vers la séance d'un autre utilisateur.
+Notes d'entraînement par utilisateur et date (ressenti, énergie 1–10, pesée). `workout_id` (facultatif, `ON DELETE SET NULL`) rattache la note à une séance ; une politique RLS restrictive refuse tout lien vers la séance d'un autre utilisateur. Bornes (`20260926040000`) : titre 1–200 caractères, notes ≤ 5 000, pesée 20–400 kg, ressenti parmi `excellent`, `good`, `neutral`, `tired`, `bad`.
 
 ---
 
@@ -132,11 +132,13 @@ Notes d'entraînement par utilisateur et date (ressenti, énergie 1–10, pesée
 
 #### `nutrition_logs`
 
-Entrées alimentaires par repas et date. Index composite `(user_id, date)` ajouté en `20260526133146_*.sql`.
+Entrées alimentaires par repas et date (jour local de l'utilisateur, envoyé par le client). Index composite `(user_id, date)` ajouté en `20260526133146_*.sql`. Bornes (`20260926040000`) : nom 1–200 caractères, calories 0–20 000, chaque macro 0–2 000 g.
 
 #### `nutrition_goals`
 
-Objectifs caloriques et macros par utilisateur.
+Objectifs caloriques et macros, une ligne par utilisateur (`user_id` unique, écrite par upsert). Bornes : 500–10 000 kcal, protéines et lipides 0–1 000 g, glucides 0–2 000 g.
+
+Les bornes sont posées en `NOT VALID` : elles s'appliquent aux nouvelles lignes et aux modifications, pas aux lignes antérieures.
 
 ---
 
@@ -265,7 +267,8 @@ supabase/migrations/
 ├── 20260526125359_*.sql    # trigger anti-escalade meute_members
 ├── 20260526133146_*.sql    # index nutrition_logs(user_id, date)
 ├── …
-└── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
+├── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
+└── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
 ```
 
 ### 6.2 Application
