@@ -76,7 +76,9 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Vérifier l'application des 38 migrations dans l'ordre chronologique (`supabase/migrations/`). La production est à `20260526133146` : 10 migrations sont en attente (`20260925220000` à `20260927190000`). `20260927190000_checkout_attempts.sql` doit précéder la nouvelle fonction `create-checkout` (voir `docs/pre-deployment-corrections.md`). Le build frontend exige Node 24 (`.nvmrc`, `nvm use`).
+> **Attention (27/09/2026, 23 h 05 – 23 h 25)** : Lovable a appliqué directement sur la production sept migrations (`20260927210712` à `20260927211916`) qui reprennent, réécrites, l'essentiel des migrations `20260925220000` à `20260927190000`. Rejouées sur une base neuve après les nôtres, elles aboutissent au même état (vérifié par comparaison du schéma et par `supabase/tests/run.sh`). **Ne pas lancer `supabase db push` tel quel** : il rejouerait nos migrations plus anciennes par-dessus. Avant tout déploiement : lire `supabase_migrations.schema_migrations` et comparer le schéma de production avec celui de `run.sh`, appliquer uniquement ce qui manque, puis marquer nos versions comme appliquées avec `supabase migration repair --status applied <version>`.
+
+Vérifier l'application des 45 migrations dans l'ordre chronologique (`supabase/migrations/`). Avant l'intervention Lovable, la production était à `20260526133146`, avec 10 migrations en attente (`20260925220000` à `20260927190000`). `20260927190000_checkout_attempts.sql` doit précéder la nouvelle fonction `create-checkout` (voir `docs/pre-deployment-corrections.md`). Le build frontend exige Node 24 (`.nvmrc`, `nvm use`).
 
 **Ordre de mise en production du durcissement `20260925220000_security_hardening.sql`** : migration → Edge Functions → frontend, dans la même fenêtre. Les nouvelles fonctions appellent `consume_feature_quota` (créée par la migration), et l'ancien frontend incrémente encore `ai_coach` côté client, ce que la migration refuse désormais.
 
@@ -438,7 +440,7 @@ Pipeline actuel (`.github/workflows/ci.yml`) :
 |---|---|---|
 | 0 | Sauvegarde de la base (PITR ou dump) avant `db push`, tag git et archive du `dist/` en ligne | ☐ |
 | 0b | Pré-vol `supabase/preflight/20260927_preflight.sql` : BLOCKER = 0, HIGH examinés, SAVE exportés | ☐ |
-| 1 | Migrations Supabase appliquées (38 fichiers, dernière `20260927190000`) | ☐ |
+| 1 | Migrations Supabase appliquées (45 fichiers, dernière `20260927211916`, voir l’avertissement Lovable §3.1) | ☐ |
 | 2 | Edge Functions déployées (10) | ☐ |
 | 3 | Secrets Supabase configurés (dont `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*`, `ALLOWED_ORIGINS` avec et sans `www`) | ☐ |
 | 4 | Stripe produits/prix live créés | ☐ |

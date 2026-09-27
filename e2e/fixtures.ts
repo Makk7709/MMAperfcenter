@@ -103,6 +103,6 @@ export async function signIn(page: import("@playwright/test").Page) {
     .fill("Test-password-42!");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "MMA Performance", exact: true }),
+    page.getByRole("heading", { name: /^MMA Performance/ }),
   ).toBeVisible();
 }
