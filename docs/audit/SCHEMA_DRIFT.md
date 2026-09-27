@@ -46,7 +46,7 @@ L'Edge Function `supabase/functions/stripe-webhook/index.ts` consomme cette migr
 
 - Le type généré décrit une table `documents (id, content, embedding, metadata)` typique d'une intégration `pg_vector` / RAG.
 - Aucune migration ne crée cette table dans le dépôt.
-- Une migration précédente (`20251210210551_*`) **drop** explicitement une table `Document` (PascalCase) — il est possible que l'ancienne version ait été supprimée mais que la version `lowercase` ait survécu côté serveur, peut-être créée hors migration via un assistant tiers.
+- Une migration précédente (`20251210210550_*`) **drop** explicitement une table `Document` (PascalCase) — il est possible que l'ancienne version ait été supprimée mais que la version `lowercase` ait survécu côté serveur, peut-être créée hors migration via un assistant tiers.
 - Aucun appel `supabase.from('documents')` ni `supabase.rpc('match_documents')` dans `src/`.
 
 ### Décision recommandée

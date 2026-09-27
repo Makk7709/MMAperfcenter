@@ -268,10 +268,10 @@ Compteur quotidien (`user_id`, `feature_name`, `day`) du plafond d'usage raisonn
 
 ```text
 supabase/migrations/
-├── 20250925225543_*.sql    # profiles, auth trigger
-├── 20251010080939_*.sql    # workouts, exercises
-├── 20251205232737_*.sql    # user_roles, app_role
-├── 20251206004851_*.sql    # feature_usage, has_feature_access
+├── 20250925105542_*.sql    # profiles, auth trigger
+├── 20251010080937_*.sql    # workouts, exercises
+├── 20251205232736_*.sql    # user_roles, app_role
+├── 20251206004850_*.sql    # feature_usage, has_feature_access
 ├── 20251205234548_*.sql    # meutes
 ├── 20260525214658_*.sql    # extension profil (22 colonnes)
 ├── 20260525215519_*.sql    # durcissement RLS subscriptions
