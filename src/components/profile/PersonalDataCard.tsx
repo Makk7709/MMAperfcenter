@@ -95,7 +95,7 @@ export function PersonalDataCard() {
               <AlertDialogTitle>Supprimer définitivement votre compte ?</AlertDialogTitle>
               <AlertDialogDescription>
                 Votre abonnement sera résilié immédiatement, sans remboursement de la période en cours.
-                Vos séances, analyses, vidéos, journal et données nutritionnelles seront effacés.
+                Vos séances, analyses, vidéos, journal, données nutritionnelles et contributions à l'analyse du mouvement seront effacés.
                 Cette action est irréversible et demande une connexion de moins de 15 minutes.
                 Tapez {DELETE_CONFIRMATION_WORD} pour confirmer.
               </AlertDialogDescription>

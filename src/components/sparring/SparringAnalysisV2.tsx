@@ -69,6 +69,7 @@ export const SparringAnalysisV2 = () => {
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
   const [currentVideoName, setCurrentVideoName] = useState("");
   const [currentDate, setCurrentDate] = useState(() => new Date().toISOString());
+  const [contribution, setContribution] = useState<{ file: File; analysisId: string } | null>(null);
 
   const [previousAnalyses, setPreviousAnalyses] = useState<AnalysisRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -197,6 +198,7 @@ export const SparringAnalysisV2 = () => {
       setCurrentVideoName(file.name);
       setCurrentVideoUrl(URL.createObjectURL(file));
       setCurrentDate(new Date().toISOString());
+      setContribution(recordId ? { file, analysisId: recordId } : null);
       toast.success("Analyse terminée.");
       await refreshPreviousAnalyses();
     } catch (error) {
@@ -222,6 +224,7 @@ export const SparringAnalysisV2 = () => {
     setCurrentAnalysis(record.analysis);
     setCurrentVideoName(record.video_name);
     setCurrentDate(record.created_at);
+    setContribution(null);
     setShowHistory(false);
     setCurrentVideoUrl(record.video_url ? await convertToSignedUrl(record.video_url, "sparring-videos", 3600) : null);
   };
@@ -230,6 +233,7 @@ export const SparringAnalysisV2 = () => {
     setCurrentAnalysis(null);
     setCurrentVideoUrl(null);
     setCurrentVideoName("");
+    setContribution(null);
   };
 
   let body: JSX.Element;
@@ -251,6 +255,7 @@ export const SparringAnalysisV2 = () => {
         videoName={currentVideoName}
         analysisDate={currentDate}
         onNewAnalysis={closeResults}
+        contribution={contribution}
       />
     );
   } else {

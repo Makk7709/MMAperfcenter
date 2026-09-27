@@ -230,3 +230,190 @@ DO $$ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  quota functions are server-only';
 END $$;
 RESET ROLE;
+
+-- ---- Movement contributions ------------------------------------------------------------
+-- b contributes from their own analysis, c is the filmed partner, a is a stranger to it.
+INSERT INTO public.sparring_analyses (id, user_id, video_url, video_name, status, analysis) VALUES
+ ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b', '', 'b.mp4', 'completed',
+  '{"discipline": "Boxe anglaise",
+    "key_moments": [{"timestamp_seconds": 3, "type": "strike", "fighter": "fighter_1", "description": "Jab"},
+                    {"timestamp_seconds": 7, "type": "takedown", "fighter": "fighter_2", "description": "Amenée"}],
+    "techniques_observed": [{"technique": "Crochet", "fighter": "fighter_2", "quality": "good", "timestamp_seconds": 5}]}'),
+ ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', '', 'a.mp4', 'completed', '{}');
+UPDATE public.profiles SET full_name = 'Bruno Member' WHERE id = '00000000-0000-0000-0000-00000000000b';
+CREATE FUNCTION pg_temp.track(frames int) RETURNS text LANGUAGE sql AS $$
+  SELECT translate(encode(decode(repeat('00', frames * 184), 'hex'), 'base64'), E'\n', '')
+$$;
+GRANT EXECUTE ON FUNCTION pg_temp.track(int) TO authenticated;
+CREATE TABLE pg_temp.invite (token text);
+GRANT ALL ON pg_temp.invite TO authenticated;
+
+SET ROLE authenticated;
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+DO $$ BEGIN
+  PERFORM 1 FROM public.movement_tracks;
+  RAISE EXCEPTION 'FAIL movement tracks readable';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  movement tables are closed to clients';
+END $$;
+DO $$ BEGIN
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), false,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 2, pg_temp.track(2));
+  RAISE EXCEPTION 'FAIL contribution without adult attestation';
+EXCEPTION WHEN invalid_parameter_value THEN RAISE NOTICE 'ok  contribution needs the adult attestation';
+END $$;
+DO $$ BEGIN
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', '2000-01-01', true,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 2, pg_temp.track(2));
+  RAISE EXCEPTION 'FAIL outdated consent accepted';
+EXCEPTION WHEN invalid_parameter_value THEN RAISE NOTICE 'ok  consent must match the current text';
+END $$;
+DO $$ BEGIN
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000002', public.movement_consent_version(), true,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 2, pg_temp.track(2));
+  RAISE EXCEPTION 'FAIL contribution from another user''s analysis';
+EXCEPTION WHEN no_data_found THEN RAISE NOTICE 'ok  only your own analyses can be contributed';
+END $$;
+DO $$ BEGIN
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 3, pg_temp.track(2));
+  RAISE EXCEPTION 'FAIL track size mismatch accepted';
+EXCEPTION WHEN invalid_parameter_value THEN RAISE NOTICE 'ok  track size must match its dimensions';
+END $$;
+DO $$ BEGIN
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 2, pg_temp.track(2), NULL,
+    '[{"kind": "technique", "index": 1, "verdict": "correct"}]');
+  RAISE EXCEPTION 'FAIL correction of an unknown label accepted';
+EXCEPTION WHEN invalid_parameter_value THEN RAISE NOTICE 'ok  corrections must target a PRISM label';
+END $$;
+INSERT INTO pg_temp.invite
+SELECT public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+  1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 2, pg_temp.track(2), pg_temp.track(2),
+  '[{"kind": "moment", "index": 1, "verdict": "incorrect"}]') ->> 'invite_token';
+SELECT pg_temp.expect('contributor sees the contribution with its labels',
+  (SELECT role || ' ' || partner_status || ' ' || label_count || ' ' || correction_count FROM public.my_movement_contributions()),
+  'contributor pending 3 1');
+SELECT pg_temp.expect('contributor cannot accept their own invitation',
+  (SELECT status FROM public.get_movement_invite((SELECT token FROM pg_temp.invite))), 'own');
+
+RESET ROLE;
+CREATE TABLE pg_temp.contribution AS SELECT id FROM public.movement_contributions;
+GRANT SELECT ON pg_temp.contribution TO authenticated;
+SELECT pg_temp.expect('labels come from the stored analysis, per person',
+  (SELECT string_agg(l->>'kind' || ':' || coalesce(l->>'subject', '?'), ',') FROM public.movement_contributions c,
+     jsonb_array_elements(c.prism_labels) l),
+  'moment:contributor,moment:partner,technique:partner');
+SELECT pg_temp.expect('partner movement waits for their consent',
+  (SELECT count(*) FROM public.movement_tracks WHERE subject = 'partner' AND subject_user_id IS NULL), 1::bigint);
+SET ROLE authenticated;
+
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}';
+SELECT pg_temp.expect('partner sees who invites them',
+  (SELECT status || ' ' || contributor_name || ' ' || discipline FROM public.get_movement_invite((SELECT token FROM pg_temp.invite))),
+  'pending Bruno Boxe anglaise');
+SELECT pg_temp.expect('a wrong token reveals nothing',
+  (SELECT status || coalesce(contributor_name, '') FROM public.get_movement_invite('nope')), 'unavailable');
+RESET ROLE;
+UPDATE public.profiles SET age = 16 WHERE id = '00000000-0000-0000-0000-00000000000c';
+SET ROLE authenticated;
+DO $$ BEGIN
+  PERFORM public.accept_movement_invite((SELECT token FROM pg_temp.invite), public.movement_consent_version(), true);
+  RAISE EXCEPTION 'FAIL minor partner accepted';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  minors cannot consent';
+END $$;
+RESET ROLE;
+UPDATE public.profiles SET age = 30 WHERE id = '00000000-0000-0000-0000-00000000000c';
+SET ROLE authenticated;
+SELECT public.accept_movement_invite((SELECT token FROM pg_temp.invite), public.movement_consent_version(), true);
+SELECT pg_temp.expect('partner sees the movement they consented to',
+  (SELECT role || ' ' || partner_status || ' ' || coalesce(label_count::text, '-') FROM public.my_movement_contributions()),
+  'partner consented -');
+SELECT pg_temp.expect('partner exports only their own track',
+  (SELECT string_agg(subject, ',') FROM public.my_movement_tracks()), 'partner');
+DO $$ BEGIN
+  PERFORM public.accept_movement_invite((SELECT token FROM pg_temp.invite), public.movement_consent_version(), true);
+  RAISE EXCEPTION 'FAIL invitation used twice';
+EXCEPTION WHEN no_data_found THEN RAISE NOTICE 'ok  an invitation is used once';
+END $$;
+SELECT public.withdraw_movement_contribution((SELECT id FROM public.my_movement_contributions()));
+SELECT pg_temp.expect('partner withdrawal keeps nothing of theirs',
+  (SELECT count(*) FROM public.my_movement_contributions()), 0::bigint);
+
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+SELECT pg_temp.expect('contributor sees the partner withdrew',
+  (SELECT partner_status FROM public.my_movement_contributions()), 'withdrawn');
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+DO $$ BEGIN
+  PERFORM public.withdraw_movement_contribution((SELECT id FROM pg_temp.contribution));
+  RAISE EXCEPTION 'FAIL stranger withdrew a contribution';
+EXCEPTION WHEN no_data_found THEN RAISE NOTICE 'ok  strangers cannot withdraw a contribution';
+END $$;
+DO $$ BEGIN
+  PERFORM public.purge_movement_contributions();
+  RAISE EXCEPTION 'FAIL client can purge';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  purge is server-only';
+END $$;
+
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+SELECT public.withdraw_movement_contribution((SELECT id FROM public.my_movement_contributions()));
+SELECT pg_temp.expect('contributor withdrawal deletes everything',
+  (SELECT count(*) FROM public.my_movement_contributions()), 0::bigint);
+DO $$
+DECLARE i int;
+BEGIN
+  FOR i IN 1..10 LOOP
+    PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+      1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 1, pg_temp.track(1));
+  END LOOP;
+  PERFORM public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+    1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 1, pg_temp.track(1));
+  RAISE EXCEPTION 'FAIL 11th contribution of the day';
+EXCEPTION WHEN program_limit_exceeded THEN RAISE NOTICE 'ok  10 contributions a day';
+END $$;
+
+RESET ROLE;
+DELETE FROM public.movement_contributions;
+SET ROLE authenticated;
+TRUNCATE pg_temp.invite;
+INSERT INTO pg_temp.invite
+SELECT public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+  2::smallint, 'mediapipe-pose-23-v1', 10::smallint, 1, pg_temp.track(1), pg_temp.track(1)) ->> 'invite_token';
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+SELECT public.decline_movement_invite((SELECT token FROM pg_temp.invite));
+SELECT pg_temp.expect('contributor cannot decline for their partner',
+  (SELECT partner_status FROM public.my_movement_contributions()), 'pending');
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}';
+SELECT public.decline_movement_invite((SELECT token FROM pg_temp.invite));
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+SELECT pg_temp.expect('declined invitation erases the partner movement at once',
+  (SELECT partner_status FROM public.my_movement_contributions()), 'expired');
+SELECT pg_temp.expect('declined invitation cannot be accepted',
+  (SELECT status FROM public.get_movement_invite((SELECT token FROM pg_temp.invite))), 'unavailable');
+TRUNCATE pg_temp.invite;
+INSERT INTO pg_temp.invite
+SELECT public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+  2::smallint, 'mediapipe-pose-23-v1', 10::smallint, 1, pg_temp.track(1), pg_temp.track(1)) ->> 'invite_token';
+RESET ROLE;
+DELETE FROM public.movement_contributions WHERE partner_status = 'expired';
+UPDATE public.movement_contributions SET invite_expires_at = now() - interval '1 minute';
+SET request.jwt.claims = '{"role":"service_role"}';
+SELECT pg_temp.expect('purge drops an unanswered partner track', public.purge_movement_contributions(), 1);
+SELECT pg_temp.expect('unanswered invitation expires',
+  (SELECT partner_status || ' ' || (invite_token_hash IS NULL) FROM public.movement_contributions), 'expired true');
+
+-- A partner who deletes their account takes their movement with them.
+DELETE FROM public.movement_contributions;
+SET ROLE authenticated;
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+TRUNCATE pg_temp.invite;
+INSERT INTO pg_temp.invite
+SELECT public.contribute_movement('30000000-0000-0000-0000-000000000001', public.movement_consent_version(), true,
+  1::smallint, 'mediapipe-pose-23-v1', 10::smallint, 1, pg_temp.track(1), pg_temp.track(1)) ->> 'invite_token';
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}';
+SELECT public.accept_movement_invite((SELECT token FROM pg_temp.invite), public.movement_consent_version(), true);
+RESET ROLE;
+DELETE FROM auth.users WHERE id = '00000000-0000-0000-0000-00000000000c';
+SELECT pg_temp.expect('deleted partner account leaves only the contributor track',
+  (SELECT string_agg(t.subject, ',') || ' ' || c.partner_status FROM public.movement_contributions c
+     JOIN public.movement_tracks t ON t.contribution_id = c.id GROUP BY c.partner_status),
+  'contributor withdrawn');
