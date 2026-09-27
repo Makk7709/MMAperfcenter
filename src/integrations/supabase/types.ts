@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      checkout_attempts: {
+        Row: {
+          lock_token: string | null
+          locked_until: string | null
+          params: Json | null
+          request_id: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          lock_token?: string | null
+          locked_until?: string | null
+          params?: Json | null
+          request_id?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          lock_token?: string | null
+          locked_until?: string | null
+          params?: Json | null
+          request_id?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       community_activities: {
         Row: {
           activity_type: string
@@ -97,6 +124,27 @@ export type Database = {
           muscle_groups?: string[] | null
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      feature_daily_usage: {
+        Row: {
+          day: string
+          feature_name: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          day: string
+          feature_name: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          feature_name?: string
+          usage_count?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -1020,6 +1068,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_checkout_lock: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: boolean
+      }
       check_organization_quota: {
         Args: { org_id: string }
         Returns: {
@@ -1052,6 +1104,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_daily_feature_cap: { Args: { _feature: string }; Returns: number }
       get_feature_limit: {
         Args: {
           _feature: string
@@ -1066,6 +1119,38 @@ export type Database = {
       get_meute_member_role: {
         Args: { _meute_id: string; _user_id: string }
         Returns: string
+      }
+      get_my_team_invitations: {
+        Args: never
+        Returns: {
+          id: string
+          invited_at: string
+          invited_by_name: string
+          meute_id: string
+          meute_name: string
+        }[]
+      }
+      get_team_activities: {
+        Args: { _limit?: number; _meute_id: string }
+        Returns: {
+          activity_type: string
+          created_at: string
+          description: string
+          display_name: string
+          id: string
+          user_id: string
+        }[]
+      }
+      get_team_members: {
+        Args: { _meute_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
       }
       get_user_id_by_stripe_customer: {
         Args: { p_stripe_customer_id: string }
@@ -1091,6 +1176,10 @@ export type Database = {
         Returns: undefined
       }
       increment_video_views: { Args: { video_id: string }; Returns: undefined }
+      invite_team_member: {
+        Args: { _email: string; _meute_id: string }
+        Returns: string
+      }
       is_meute_member: {
         Args: { _meute_id: string; _user_id: string }
         Returns: boolean
@@ -1115,8 +1204,16 @@ export type Database = {
         }[]
       }
       public_display_name: { Args: { _user_id: string }; Returns: string }
-      refund_feature_quota: {
+      refund_daily_feature_usage: {
         Args: { _feature: string; _user_id: string }
+        Returns: undefined
+      }
+      refund_feature_quota: {
+        Args: { _feature: string; _monthly?: boolean; _user_id: string }
+        Returns: undefined
+      }
+      release_checkout_lock: {
+        Args: { p_token: string; p_user_id: string }
         Returns: undefined
       }
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
