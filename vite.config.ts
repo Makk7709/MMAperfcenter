@@ -36,7 +36,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
   return {
     server: { host: "127.0.0.1", port: 8080 },
-    plugins: [react(), requireEnv(env), siteUrlInHtml(env)],
+    // Only production builds must fail; preview/dev builds get env at runtime.
+    plugins: [react(), mode === "production" && requireEnv(env), siteUrlInHtml(env)].filter(Boolean) as Plugin[],
     resolve: {
       alias: { "@": path.resolve(__dirname, "./src") },
     },
