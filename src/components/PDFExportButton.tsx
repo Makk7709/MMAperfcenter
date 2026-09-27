@@ -133,7 +133,7 @@ export const PDFExportButton = ({ content, title = "Programme d'entraînement" }
       doc.setTextColor(180, 180, 180);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text("Performance Center • Coach IA", pageWidth / 2, 35, { align: "center" });
+      doc.text("MMA Performance Center • Coach IA", pageWidth / 2, 35, { align: "center" });
 
       // Program title
       const programTitle = detectProgramType(content);

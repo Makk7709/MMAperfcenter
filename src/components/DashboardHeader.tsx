@@ -49,7 +49,7 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
         >
           <KorevLogo className="h-9" />
           <span className="hidden flex-col items-start border-l border-border/70 pl-3 sm:flex">
-            <span className="korev-eyebrow text-[10px] text-korev-gold/90">Performance Center</span>
+            <span className="korev-eyebrow text-[10px] text-korev-gold/90">MMA Performance Center</span>
             <span className="text-xs text-muted-foreground">Bonjour {userName}</span>
           </span>
         </button>
