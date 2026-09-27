@@ -959,6 +959,7 @@ export type Database = {
           intensity: string | null
           name: string
           perceived_effort: number | null
+          planned_minutes: number | null
           planned_rounds: number | null
           rest_seconds: number | null
           round_seconds: number | null
@@ -979,6 +980,7 @@ export type Database = {
           intensity?: string | null
           name: string
           perceived_effort?: number | null
+          planned_minutes?: number | null
           planned_rounds?: number | null
           rest_seconds?: number | null
           round_seconds?: number | null
@@ -999,6 +1001,7 @@ export type Database = {
           intensity?: string | null
           name?: string
           perceived_effort?: number | null
+          planned_minutes?: number | null
           planned_rounds?: number | null
           rest_seconds?: number | null
           round_seconds?: number | null
@@ -1111,11 +1114,13 @@ export type Database = {
           similarity: number
         }[]
       }
+      public_display_name: { Args: { _user_id: string }; Returns: string }
       refund_feature_quota: {
         Args: { _feature: string; _user_id: string }
         Returns: undefined
       }
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
+      session_type_label: { Args: { _session_type: string }; Returns: string }
       sync_stripe_subscription: {
         Args: {
           p_cancel_at_period_end: boolean
