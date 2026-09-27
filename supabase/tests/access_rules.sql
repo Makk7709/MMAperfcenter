@@ -160,8 +160,8 @@ EXCEPTION WHEN check_violation THEN RAISE NOTICE 'ok  name length enforced';
 END $$;
 
 RESET ROLE;
-INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-0000000000d1', 'long@test.fr');
-INSERT INTO public.profiles (id, email, full_name) VALUES ('00000000-0000-0000-0000-0000000000d1', 'long@test.fr', repeat('n', 150));
+INSERT INTO auth.users (id, email, raw_user_meta_data)
+VALUES ('00000000-0000-0000-0000-0000000000d1', 'long@test.fr', jsonb_build_object('full_name', repeat('n', 150)));
 SELECT pg_temp.expect('sign-up with a long name is truncated, not refused',
   (SELECT char_length(full_name) FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000d1'), 100);
 
