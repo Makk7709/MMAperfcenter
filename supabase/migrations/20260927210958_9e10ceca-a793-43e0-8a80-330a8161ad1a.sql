@@ -1,0 +1,4 @@
+DO $$ DECLARE f text; BEGIN
+FOREACH f IN ARRAY ARRAY['sync_stripe_subscription','mark_webhook_processed','is_webhook_processed','get_user_id_by_stripe_customer','create_notification','increment_organization_usage','reset_monthly_organization_quotas','check_organization_quota','handle_new_user','handle_new_user_subscription','handle_new_meute','create_community_activity_on_workout','prevent_role_escalation'] LOOP
+  EXECUTE (SELECT string_agg(format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, authenticated; GRANT EXECUTE ON FUNCTION %s TO service_role;', p.oid::regprocedure, p.oid::regprocedure), ' ') FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname=f);
+END LOOP; END $$;
