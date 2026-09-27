@@ -6,7 +6,7 @@ import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { deleteAccount, DELETE_CONFIRMATION_WORD, downloadJson, exportAccountData } from "@/lib/accountData";
+import { deleteAccount, DeleteAccountError, DELETE_CONFIRMATION_WORD, downloadJson, exportAccountData } from "@/lib/accountData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,9 +50,22 @@ export function PersonalDataCard() {
       toast.success("Votre compte a été supprimé");
       navigate("/auth", { replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "La suppression du compte a échoué");
       setDeleting(false);
+      if (error instanceof DeleteAccountError && error.code === "REAUTH_REQUIRED") {
+        toast.error(error.message, {
+          duration: 10_000,
+          action: { label: "Se reconnecter", onClick: () => void reauthenticate() },
+        });
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : "La suppression du compte a échoué");
     }
+  };
+
+  const reauthenticate = async () => {
+    queryClient.clear();
+    await supabase.auth.signOut({ scope: "local" });
+    navigate("/auth", { replace: true, state: { from: { pathname: "/profile" } } });
   };
 
   return (
@@ -83,7 +96,8 @@ export function PersonalDataCard() {
               <AlertDialogDescription>
                 Votre abonnement sera résilié immédiatement, sans remboursement de la période en cours.
                 Vos séances, analyses, vidéos, journal et données nutritionnelles seront effacés.
-                Cette action est irréversible. Tapez {DELETE_CONFIRMATION_WORD} pour confirmer.
+                Cette action est irréversible et demande une connexion de moins de 15 minutes.
+                Tapez {DELETE_CONFIRMATION_WORD} pour confirmer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Input

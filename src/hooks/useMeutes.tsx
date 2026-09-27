@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -10,172 +10,121 @@ interface Meute {
   owner_id: string;
   avatar_url: string | null;
   created_at: string;
-  member_count?: number;
 }
 
-interface MeuteMember {
+// Team data comes from server functions: profiles are private, so only a
+// display name (never an e-mail) is shared with teammates.
+export interface MeuteMember {
   id: string;
-  meute_id: string;
   user_id: string;
   role: string;
-  status: string;
   joined_at: string | null;
-  invited_at: string;
-  profile?: {
-    full_name: string | null;
-    email: string | null;
-    avatar_url: string | null;
-  };
+  display_name: string | null;
+  avatar_url: string | null;
 }
 
-interface MeuteActivity {
+export interface MeuteActivity {
   id: string;
-  meute_id: string;
   user_id: string;
   activity_type: string;
   description: string;
   created_at: string;
-  profile?: {
-    full_name: string | null;
-    avatar_url: string | null;
-  };
+  display_name: string | null;
 }
 
 interface MeuteInvitation {
   id: string;
   meute_id: string;
-  status: string;
-  meute_name?: string;
+  meute_name: string;
+  invited_by_name: string | null;
 }
+
+const INVITE_RESULTS: Record<string, { ok: boolean; title: string; description?: string }> = {
+  sent: {
+    ok: true,
+    title: "Invitation envoyée",
+    description: "Si un compte KOREV existe avec cette adresse, la personne la verra dans sa Team.",
+  },
+  already_member: { ok: false, title: "Déjà membre", description: "Cette personne fait déjà partie de la team." },
+  already_invited: { ok: false, title: "Invitation en attente", description: "Une invitation lui a déjà été envoyée." },
+  too_many_pending: {
+    ok: false,
+    title: "Trop d'invitations en attente",
+    description: "Attendez que certaines invitations soient acceptées ou refusées.",
+  },
+};
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const useMeutes = () => {
   const { user } = useAuth();
   const [meutes, setMeutes] = useState<Meute[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<MeuteInvitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedMeute, setSelectedMeute] = useState<Meute | null>(null);
   const [meuteMembers, setMeuteMembers] = useState<MeuteMember[]>([]);
   const [meuteActivities, setMeuteActivities] = useState<MeuteActivity[]>([]);
 
-  const loadMeutes = async () => {
+  const loadMeutes = useCallback(async () => {
     if (!user) return;
-    
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from("meutes")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       setMeutes(data || []);
+      setLoadError(false);
     } catch (error) {
-      console.error("Error loading meutes:", error);
+      console.error("Error loading teams:", error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const loadPendingInvitations = async () => {
+  const loadPendingInvitations = useCallback(async () => {
     if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("meute_members")
-        .select(`
-          id,
-          meute_id,
-          status,
-          meutes (name)
-        `)
-        .eq("user_id", user.id)
-        .eq("status", "pending");
-
-      if (error) throw error;
-      
-      const invitations = (data || []).map(inv => ({
-        id: inv.id,
-        meute_id: inv.meute_id,
-        status: inv.status,
-        meute_name: (inv.meutes as { name: string } | null)?.name
-      }));
-      
-      setPendingInvitations(invitations);
-    } catch (error) {
+    const { data, error } = await supabase.rpc("get_my_team_invitations");
+    if (error) {
       console.error("Error loading invitations:", error);
+      return;
     }
-  };
+    setPendingInvitations(data || []);
+  }, [user]);
 
-  const loadMeuteMembers = async (meuteId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("meute_members")
-        .select(`
-          *,
-          profiles:user_id (full_name, email, avatar_url)
-        `)
-        .eq("meute_id", meuteId)
-        .eq("status", "accepted");
-
-      if (error) throw error;
-      
-      const members = (data || []).map(m => ({
-        ...m,
-        profile: m.profiles as unknown as MeuteMember["profile"]
-      }));
-      
-      setMeuteMembers(members);
-    } catch (error) {
-      console.error("Error loading members:", error);
-    }
-  };
-
-  const loadMeuteActivities = async (meuteId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("meute_activities")
-        .select(`
-          *,
-          profiles:user_id (full_name, avatar_url)
-        `)
-        .eq("meute_id", meuteId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      
-      const activities = (data || []).map(a => ({
-        ...a,
-        profile: a.profiles as unknown as MeuteActivity["profile"]
-      }));
-      
-      setMeuteActivities(activities);
-    } catch (error) {
-      console.error("Error loading activities:", error);
-    }
-  };
+  const loadMeuteDetails = useCallback(async (meuteId: string) => {
+    const [members, activities] = await Promise.all([
+      supabase.rpc("get_team_members", { _meute_id: meuteId }),
+      supabase.rpc("get_team_activities", { _meute_id: meuteId, _limit: 20 }),
+    ]);
+    if (members.error) console.error("Error loading members:", members.error);
+    else setMeuteMembers(members.data || []);
+    if (activities.error) console.error("Error loading activities:", activities.error);
+    else setMeuteActivities(activities.data || []);
+  }, []);
 
   const createMeute = async (name: string, description?: string) => {
     if (!user) return null;
-    
     try {
       const { data, error } = await supabase
         .from("meutes")
         .insert({
-          name,
-          description,
-          owner_id: user.id
+          name: name.trim(),
+          description: description?.trim() || null,
+          owner_id: user.id,
         })
         .select()
         .single();
-
       if (error) throw error;
-      
-      toast.success("Team créée !", { description: `"${name}" est prête` });
+
+      toast.success("Team créée !", { description: `"${name.trim()}" est prête` });
       await loadMeutes();
       return data;
     } catch (error) {
-      console.error("Error creating meute:", error);
+      console.error("Error creating team:", error);
       toast.error("Erreur lors de la création de la team");
       return null;
     }
@@ -183,57 +132,22 @@ export const useMeutes = () => {
 
   const inviteMember = async (meuteId: string, userEmail: string) => {
     if (!user) return false;
-    
-    try {
-      // Find user by email in profiles
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("email", userEmail.toLowerCase())
-        .single();
+    const email = userEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) {
+      toast.error("Adresse e-mail invalide");
+      return false;
+    }
 
-      if (profileError || !profileData) {
-        toast.error("Utilisateur non trouvé", { description: "Vérifiez l'email" });
-        return false;
-      }
-
-      // Check if already a member
-      const { data: existingMember } = await supabase
-        .from("meute_members")
-        .select("id, status")
-        .eq("meute_id", meuteId)
-        .eq("user_id", profileData.id)
-        .single();
-
-      if (existingMember) {
-        if (existingMember.status === "accepted") {
-          toast.error("Déjà membre", { description: "Cet utilisateur est déjà dans la team" });
-        } else {
-          toast.error("Invitation en attente", { description: "Une invitation a déjà été envoyée" });
-        }
-        return false;
-      }
-
-      const { error } = await supabase
-        .from("meute_members")
-        .insert({
-          meute_id: meuteId,
-          user_id: profileData.id,
-          invited_by: user.id,
-          role: "member",
-          status: "pending"
-        });
-
-      if (error) throw error;
-      
-      toast.success("Invitation envoyée!", { description: `${profileData.full_name || userEmail} a été invité` });
-      await loadMeuteMembers(meuteId);
-      return true;
-    } catch (error) {
+    const { data, error } = await supabase.rpc("invite_team_member", { _meute_id: meuteId, _email: email });
+    if (error) {
       console.error("Error inviting member:", error);
       toast.error("Erreur lors de l'invitation");
       return false;
     }
+    const result = INVITE_RESULTS[data] ?? INVITE_RESULTS.sent;
+    if (result.ok) toast.success(result.title, { description: result.description });
+    else toast.error(result.title, { description: result.description });
+    return result.ok;
   };
 
   const respondToInvitation = async (invitationId: string, accept: boolean) => {
@@ -242,55 +156,48 @@ export const useMeutes = () => {
         .from("meute_members")
         .update({
           status: accept ? "accepted" : "declined",
-          joined_at: accept ? new Date().toISOString() : null
+          joined_at: accept ? new Date().toISOString() : null,
         })
         .eq("id", invitationId);
-
       if (error) throw error;
-      
+
       toast.success(accept ? "Bienvenue dans la team !" : "Invitation déclinée");
-      await loadPendingInvitations();
-      await loadMeutes();
+      await Promise.all([loadPendingInvitations(), loadMeutes()]);
     } catch (error) {
       console.error("Error responding to invitation:", error);
-      toast.error("Erreur");
+      toast.error("Impossible de répondre à l'invitation");
     }
   };
 
   const leaveMeute = async (meuteId: string) => {
     if (!user) return;
-    
     try {
       const { error } = await supabase
         .from("meute_members")
         .delete()
         .eq("meute_id", meuteId)
         .eq("user_id", user.id);
-
       if (error) throw error;
-      
+
       toast.success("Vous avez quitté la team");
+      setSelectedMeute(null);
       await loadMeutes();
     } catch (error) {
-      console.error("Error leaving meute:", error);
-      toast.error("Erreur");
+      console.error("Error leaving team:", error);
+      toast.error("Impossible de quitter la team");
     }
   };
 
   const deleteMeute = async (meuteId: string) => {
     try {
-      const { error } = await supabase
-        .from("meutes")
-        .delete()
-        .eq("id", meuteId);
-
+      const { error } = await supabase.from("meutes").delete().eq("id", meuteId);
       if (error) throw error;
-      
+
       toast.success("Team supprimée");
       setSelectedMeute(null);
       await loadMeutes();
     } catch (error) {
-      console.error("Error deleting meute:", error);
+      console.error("Error deleting team:", error);
       toast.error("Erreur lors de la suppression");
     }
   };
@@ -300,19 +207,19 @@ export const useMeutes = () => {
       loadMeutes();
       loadPendingInvitations();
     }
-  }, [user]);
+  }, [user, loadMeutes, loadPendingInvitations]);
 
   useEffect(() => {
-    if (selectedMeute) {
-      loadMeuteMembers(selectedMeute.id);
-      loadMeuteActivities(selectedMeute.id);
-    }
-  }, [selectedMeute]);
+    setMeuteMembers([]);
+    setMeuteActivities([]);
+    if (selectedMeute) loadMeuteDetails(selectedMeute.id);
+  }, [selectedMeute, loadMeuteDetails]);
 
   return {
     meutes,
     pendingInvitations,
     loading,
+    loadError,
     selectedMeute,
     setSelectedMeute,
     meuteMembers,
@@ -322,6 +229,6 @@ export const useMeutes = () => {
     respondToInvitation,
     leaveMeute,
     deleteMeute,
-    refreshMeutes: loadMeutes
+    refreshMeutes: loadMeutes,
   };
 };

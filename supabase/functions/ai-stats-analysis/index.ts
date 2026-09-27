@@ -1,8 +1,9 @@
 import { subDays } from "https://esm.sh/date-fns@3.6.0";
-import { streamChatCompletion } from "../_shared/ai-gateway.ts";
+import { aiModel, streamChatCompletion } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorResponse, preflight, streamResponse } from "../_shared/http.ts";
 import { consumeQuota, refundQuota } from "../_shared/quota.ts";
+import { watchStreamContent } from "../_shared/sse-watch.ts";
 
 const dailyAverage = (sum: number, days: number) => (days > 0 ? Math.round(sum / days) : 0);
 
@@ -165,13 +166,15 @@ Deno.serve(async (req) => {
     try {
       const systemPrompt = await buildAnalysisPrompt(supabase, user.id);
       const stream = await streamChatCompletion({
-        model: "google/gemini-2.5-flash",
+        model: aiModel("fast"),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: "Analyse ma progression et donne-moi des recommandations personnalisées pour atteindre mes objectifs." },
         ],
       });
-      return streamResponse(req, stream);
+      return streamResponse(req, watchStreamContent(stream, async (hadContent) => {
+        if (!hadContent) await refundQuota(supabase, ticket);
+      }));
     } catch (e) {
       await refundQuota(supabase, ticket);
       throw e;

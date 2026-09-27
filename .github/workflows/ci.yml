@@ -37,12 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint is run with `continue-on-error: true` while the legacy debt
-      # documented in docs/audit/TYPESCRIPT_STRICTNESS_ROADMAP.md is being
-      # absorbed phase by phase. Failing lint MUST become blocking at phase 1.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
+
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.app.json
 
       - name: Unit tests (Vitest)
         run: npm run test:run
@@ -53,3 +52,39 @@ jobs:
       # Playwright is deliberately excluded from this minimal pipeline:
       # it requires a running dev server + browsers and is documented as
       # opt-in (`npm run test:e2e`) until a dedicated e2e job is added.
+
+  edge-functions:
+    name: Edge functions (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type check
+        run: deno check supabase/functions/*/index.ts
+      - name: Tests
+        run: deno test --allow-env --allow-net=none tests/edge
+
+  database:
+    name: Migrations and access rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replay migrations and check access rules
+        run: ./supabase/tests/run.sh

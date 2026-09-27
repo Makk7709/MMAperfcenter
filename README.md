@@ -61,7 +61,7 @@ jamais figurer dans le dépôt ni dans le bundle.
 
 ## Edge Functions
 
-8 fonctions Deno sous `supabase/functions/` :
+10 fonctions Deno sous `supabase/functions/` :
 
 | Fonction | Rôle | `verify_jwt` |
 |---|---|---|
@@ -73,6 +73,8 @@ jamais figurer dans le dépôt ni dans le bundle.
 | `customer-portal` | Accès au portail client Stripe | true |
 | `fetch-mma-results` | Récupération de résultats MMA | false |
 | `stripe-webhook` | Réception des webhooks Stripe (signature HMAC) | false |
+| `delete-account` | Effacement du compte (Stripe, fichiers, Auth) | true |
+| `admin-users` | Back-office administrateur | true |
 
 ## Scripts
 
@@ -91,8 +93,8 @@ jamais figurer dans le dépôt ni dans le bundle.
 ```text
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
-  functions/          Edge Functions Deno (8 fonctions + _shared)
-  migrations/         Migrations SQL versionnées (34 fichiers)
+  functions/          Edge Functions Deno (10 fonctions + _shared)
+  migrations/         Migrations SQL versionnées (37 fichiers)
   seed/               Scripts seed paramétrés (non automatiques)
 tests/edge/           Harness Deno pour Edge Functions
 e2e/                  Tests Playwright

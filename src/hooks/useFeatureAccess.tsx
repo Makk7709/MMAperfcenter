@@ -160,11 +160,13 @@ export interface FeatureAccessResult {
 
 export const useFeatureAccess = () => {
   const { user } = useAuth();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, loading: subscriptionLoading, isKnown } = useSubscription();
   const { isAdmin, isCoach, isLoading: rolesLoading } = useUserRole();
   const [usageCache, setUsageCache] = useState<Record<string, number>>({});
 
   const isPrivileged = isAdmin || isCoach;
+  // Until the subscription is read, 'free' below is a placeholder, not the plan.
+  const planKnown = isPrivileged || isKnown;
   const currentPlan: PlanType = isPrivileged
     ? 'sensei'
     : ((subscription?.plan as PlanType) || 'free');
@@ -229,7 +231,9 @@ export const useFeatureAccess = () => {
       }
     }
 
-    // Fallback local si RPC indisponible
+    // Fallback local si RPC indisponible. Sans plan connu, on laisse passer :
+    // le serveur applique de toute façon le quota.
+    if (!planKnown) return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
     const limit = config.limits[currentPlan];
     const isUnlimited = limit === -1;
     if (isUnlimited) return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
@@ -239,7 +243,7 @@ export const useFeatureAccess = () => {
       return { hasAccess: currentUsage < limit, currentUsage, limit, isUnlimited: false, remainingUsage: Math.max(0, limit - currentUsage), requiredPlan };
     }
     return { hasAccess: true, currentUsage: 0, limit: -1, isUnlimited: true, remainingUsage: -1, requiredPlan };
-  }, [user, currentPlan, getFeatureUsage, isPrivileged]);
+  }, [user, currentPlan, getFeatureUsage, isPrivileged, planKnown]);
 
   const runFeatureWithTracking = useCallback(async (feature: FeatureKey): Promise<{ allowed: boolean; newUsage: number; access: FeatureAccessResult }> => {
     const access = await checkAccess(feature);
@@ -266,6 +270,7 @@ export const useFeatureAccess = () => {
 
   return {
     currentPlan,
+    planKnown,
     isPrivileged,
     loading: subscriptionLoading || rolesLoading,
     checkAccess,

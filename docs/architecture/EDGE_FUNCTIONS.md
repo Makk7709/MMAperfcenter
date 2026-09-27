@@ -63,7 +63,7 @@ Stream SSE (`text/event-stream`) relayé depuis la passerelle IA.
 
 ### Modèle
 
-`google/gemini-2.5-flash` via passerelle externe.
+`aiModel("fast")` : `AI_MODEL_FAST`, par défaut `google/gemini-2.5-flash`, via passerelle externe. Délai de 30 s avant le premier octet ; plafond de 200 messages par jour (429 `DAILY_LIMIT_REACHED`).
 
 ### Appel client
 
@@ -93,7 +93,7 @@ Stream SSE Markdown.
 
 ### Modèle
 
-`google/gemini-2.5-flash`.
+`aiModel("fast")` (`AI_MODEL_FAST`, par défaut `google/gemini-2.5-flash`). Consomme un message Coach IA, remboursé si la réponse est vide.
 
 ### Appel client
 
@@ -135,8 +135,10 @@ JSON normalisé conforme au schéma sparring ; persistance `sparring_analyses`. 
 
 ### Modèles
 
-- Défaut : `google/gemini-2.5-pro` ;
-- `qualityMode='fast'` : `google/gemini-2.5-flash`.
+- Défaut : `aiModel("pro")` (`AI_MODEL_PRO`, par défaut `google/gemini-2.5-pro`) ;
+- `qualityMode='fast'` : `aiModel("fast")` (`AI_MODEL_FAST`, par défaut `google/gemini-2.5-flash`).
+
+Plafond de 20 analyses par jour et par compte, tous plans confondus.
 
 ### Appel client
 
@@ -160,7 +162,8 @@ JWT requis. Client Supabase initialisé avec anon key + token utilisateur.
 
 | Champ | Type | Description |
 |---|---|---|
-| `priceId` | string | ID prix Stripe (ex. `price_1SQSL1DLrTr0qdOpfIx50iSu`) |
+| `plan` | `pro` \| `elite` \| `sensei` | Plan choisi ; le prix est résolu côté serveur (`STRIPE_PRICE_*` en live). L'ancien champ `priceId` reste accepté s'il figure au catalogue |
+| `withdrawalWaiver` | `true` | Renonciation au droit de rétractation cochée ; sinon 400 `WITHDRAWAL_WAIVER_REQUIRED`. Horodatée dans les métadonnées Stripe (`withdrawal_waiver_at`) |
 
 ### Sortie
 
@@ -196,7 +199,7 @@ Objet subscription mis à jour.
 
 ### Mapping plan
 
-`product_id → plan` codé en dur (free/pro/elite/sensei) — **dupliqué** avec `stripe-webhook` (centralisation `_shared/` prévue).
+`planFromSubscription` (`_shared/stripe.ts`), partagé avec `stripe-webhook` : secrets `STRIPE_PRODUCT_*` / `STRIPE_PRICE_*` en live, IDs de test sinon. Un produit inconnu lève une erreur au lieu de renvoyer `free`.
 
 ### Appel client
 
@@ -281,11 +284,11 @@ Aucune (`verify_jwt = false`) — endpoint public.
 
 ### Sortie
 
-Tableau d'articles normalisés (titre, lien, source, date).
+Tableau d'articles normalisés (titre, lien, source, date ISO). Les articles sans date valide sont écartés. Résultat gardé 10 minutes en mémoire, et appels simultanés regroupés (un résultat vide n'est pas mis en cache). Flux limités à 2 Mo.
 
 ### Appel client
 
-`src/components/MMANewsBanner.tsx`, `src/components/MMAResultsFeed.tsx`.
+`src/components/MMANewsBanner.tsx`.
 
 ---
 
@@ -305,6 +308,8 @@ Tableau d'articles normalisés (titre, lien, source, date).
 |---|---|---|
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe | create-checkout, check-subscription, customer-portal, stripe-webhook |
 | `STRIPE_WEBHOOK_SECRET` | Secret signature webhook (`whsec_…`) | stripe-webhook |
+| `STRIPE_PRICE_PRO` / `_ELITE` / `_SENSEI` | Prix live (obligatoires avec `sk_live_`) | create-checkout, check-subscription, stripe-webhook |
+| `STRIPE_PRODUCT_PRO` / `_ELITE` / `_SENSEI` | Produits live (obligatoires avec `sk_live_`) | check-subscription, stripe-webhook |
 
 ### 10.3 Passerelle IA
 
@@ -313,6 +318,8 @@ Tableau d'articles normalisés (titre, lien, source, date).
 | `AI_GATEWAY_URL` | URL endpoint (obligatoire, pas de valeur par défaut) | ai-coach, ai-stats-analysis, analyze-sparring |
 | `AI_GATEWAY_API_KEY` | Bearer token | Idem |
 | `LEGACY_AI_GATEWAY_KEY` | Fallback rétrocompatible | Idem |
+| `AI_MODEL_FAST` | Modèle rapide (défaut `google/gemini-2.5-flash`) | Idem |
+| `AI_MODEL_PRO` | Modèle complet (défaut `google/gemini-2.5-pro`) | analyze-sparring |
 
 > **Important :** Ces secrets sont configurés dans le **Dashboard Supabase → Edge Functions → Secrets**, jamais dans `.env` client ni le dépôt.
 

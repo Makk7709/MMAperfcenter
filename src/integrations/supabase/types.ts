@@ -1063,6 +1063,38 @@ export type Database = {
         Args: { _meute_id: string; _user_id: string }
         Returns: string
       }
+      get_my_team_invitations: {
+        Args: never
+        Returns: {
+          id: string
+          invited_at: string
+          invited_by_name: string | null
+          meute_id: string
+          meute_name: string
+        }[]
+      }
+      get_team_activities: {
+        Args: { _limit?: number; _meute_id: string }
+        Returns: {
+          activity_type: string
+          created_at: string
+          description: string
+          display_name: string | null
+          id: string
+          user_id: string
+        }[]
+      }
+      get_team_members: {
+        Args: { _meute_id: string }
+        Returns: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string
+          joined_at: string | null
+          role: string
+          user_id: string
+        }[]
+      }
       get_user_id_by_stripe_customer: {
         Args: { p_stripe_customer_id: string }
         Returns: string
@@ -1087,6 +1119,10 @@ export type Database = {
         Returns: undefined
       }
       increment_video_views: { Args: { video_id: string }; Returns: undefined }
+      invite_team_member: {
+        Args: { _email: string; _meute_id: string }
+        Returns: string
+      }
       is_meute_member: {
         Args: { _meute_id: string; _user_id: string }
         Returns: boolean

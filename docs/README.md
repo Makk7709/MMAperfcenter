@@ -20,7 +20,7 @@ Index de la documentation opérationnelle et utilisateur du projet **KOREV Perfo
 |---|---|
 | [Architecture](architecture/ARCHITECTURE.md) | Vue d'ensemble système, stack, flux de données, sécurité (RLS, auth), intégrations externes |
 | [Base de données](architecture/DATABASE.md) | Schéma relationnel, tables principales, RLS, fonctions SQL, migrations, drift résiduel |
-| [Edge Functions](architecture/EDGE_FUNCTIONS.md) | Catalogue des 8 fonctions Deno, authentification, variables d'environnement, contrats |
+| [Edge Functions](architecture/EDGE_FUNCTIONS.md) | Catalogue des 10 fonctions Deno, authentification, variables d'environnement, contrats |
 
 ---
 

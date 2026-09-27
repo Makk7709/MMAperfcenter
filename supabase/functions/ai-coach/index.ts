@@ -1,4 +1,4 @@
-import { streamChatCompletion } from "../_shared/ai-gateway.ts";
+import { aiModel, streamChatCompletion } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser } from "../_shared/auth.ts";
 import { formatCoachContext, loadCoachData, quoteUserText, safeTimeZone } from "../_shared/coach-context.ts";
 import { MAX_BODY_BYTES, parseMessages } from "../_shared/coach-messages.ts";
@@ -114,10 +114,9 @@ Deno.serve(async (req) => {
         loadCoachData(supabase, user.id, safeTimeZone(body?.timeZone)),
       ]);
       const stream = await streamChatCompletion({
-        model: "google/gemini-2.5-flash",
+        model: aiModel("fast"),
         messages: [{ role: "system", content: buildSystemPrompt(profile, formatCoachContext(coachData)) }, ...messages],
       });
-      if (!stream) throw new Error("AI gateway returned no body");
       // An empty reply (safety block, mid-stream error) must not cost a credit.
       return streamResponse(req, watchStreamContent(stream, async (hadContent) => {
         if (!hadContent) await refundQuota(supabase, ticket);

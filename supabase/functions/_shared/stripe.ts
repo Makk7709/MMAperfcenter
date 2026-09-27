@@ -5,21 +5,59 @@ import type { ServiceClient } from "./auth.ts";
 export { Stripe };
 
 export type Plan = "free" | "pro" | "elite" | "sensei";
+export type PaidPlan = Exclude<Plan, "free">;
 
-// Single source of truth for Stripe → plan mapping.
-// Update BOTH maps with the live-mode IDs before going live.
-export const PRODUCT_TO_PLAN: Record<string, Exclude<Plan, "free">> = {
-  prod_TNCk7vRlC8fceD: "pro",
-  prod_TNCkyK26dRxZ2p: "elite",
-  prod_TNClwYw2iSTuXI: "sensei",
+export const PAID_PLANS: readonly PaidPlan[] = ["pro", "elite", "sensei"];
+
+// Test-mode catalogue. Live mode reads STRIPE_PRICE_<PLAN> and
+// STRIPE_PRODUCT_<PLAN> (e.g. STRIPE_PRICE_PRO) from the function secrets.
+const TEST_PRICE_IDS: Record<PaidPlan, string> = {
+  pro: "price_1SQSL1DLrTr0qdOpfIx50iSu",
+  elite: "price_1SQSLMDLrTr0qdOpffTBpoJL",
+  sensei: "price_1SQSM0DLrTr0qdOpYtZFR50d",
+};
+const TEST_PRODUCT_IDS: Record<PaidPlan, string> = {
+  pro: "prod_TNCk7vRlC8fceD",
+  elite: "prod_TNCkyK26dRxZ2p",
+  sensei: "prod_TNClwYw2iSTuXI",
 };
 
-// Prices a client is allowed to check out with. Anything else is rejected.
-export const CHECKOUT_PRICE_TO_PLAN: Record<string, Exclude<Plan, "free">> = {
-  price_1SQSL1DLrTr0qdOpfIx50iSu: "pro",
-  price_1SQSLMDLrTr0qdOpffTBpoJL: "elite",
-  price_1SQSM0DLrTr0qdOpYtZFR50d: "sensei",
-};
+function isLiveMode(): boolean {
+  return (Deno.env.get("STRIPE_SECRET_KEY") ?? "").startsWith("sk_live_");
+}
+
+// A live key with the test catalogue would fail every checkout and map every
+// paid subscription to the free plan: missing live IDs are a configuration error.
+function catalogue(kind: "PRICE" | "PRODUCT"): Record<PaidPlan, string> {
+  const fallback = kind === "PRICE" ? TEST_PRICE_IDS : TEST_PRODUCT_IDS;
+  const ids = {} as Record<PaidPlan, string>;
+  for (const plan of PAID_PLANS) {
+    const configured = Deno.env.get(`STRIPE_${kind}_${plan.toUpperCase()}`)?.trim();
+    if (!configured && isLiveMode()) {
+      throw new Error(`STRIPE_${kind}_${plan.toUpperCase()} is not set (required with a live Stripe key)`);
+    }
+    ids[plan] = configured || fallback[plan];
+  }
+  return ids;
+}
+
+function planOf(kind: "PRICE" | "PRODUCT", id: string | null | undefined): PaidPlan | null {
+  if (!id) return null;
+  const ids = catalogue(kind);
+  return PAID_PLANS.find((plan) => ids[plan] === id) ?? null;
+}
+
+export function isPaidPlan(value: unknown): value is PaidPlan {
+  return typeof value === "string" && (PAID_PLANS as readonly string[]).includes(value);
+}
+
+export function checkoutPriceFor(plan: PaidPlan): string {
+  return catalogue("PRICE")[plan];
+}
+
+export function planFromPriceId(priceId: string | null | undefined): PaidPlan | null {
+  return planOf("PRICE", priceId);
+}
 
 // Stripe statuses that grant access to the paid plan.
 const ENTITLED_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing"]);
@@ -32,10 +70,16 @@ export function createStripe(): Stripe {
   return new Stripe(key, { apiVersion: "2025-08-27.basil" });
 }
 
-export function planFromSubscription(sub: Stripe.Subscription): Plan {
-  const product = sub.items?.data?.[0]?.price?.product;
+// Throws on an unknown product/price: silently mapping a paying customer to
+// the free plan would hide the misconfiguration (the webhook is retried by
+// Stripe once the catalogue is fixed).
+export function planFromSubscription(sub: Stripe.Subscription): PaidPlan {
+  const price = sub.items?.data?.[0]?.price;
+  const product = price?.product;
   const productId = typeof product === "string" ? product : product?.id;
-  return (productId && PRODUCT_TO_PLAN[productId]) || "free";
+  const plan = planOf("PRODUCT", productId) ?? planOf("PRICE", price?.id);
+  if (!plan) throw new Error(`Unknown Stripe product ${productId ?? "?"} / price ${price?.id ?? "?"} on ${sub.id}`);
+  return plan;
 }
 
 // Since API version 2025-03-31.basil the billing period lives on each

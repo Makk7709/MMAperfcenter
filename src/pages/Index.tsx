@@ -13,6 +13,7 @@ import { SparringShowcase } from "@/components/SparringShowcase";
 import { SparringAnalysisFAB } from "@/components/SparringAnalysisFAB";
 import { PerformanceSummary } from "@/components/training/PerformanceOverview";
 import Footer from "@/components/Footer";
+import { WidgetBoundary } from "@/components/WidgetBoundary";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,7 +30,7 @@ import {
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { isPaid: isPremium } = useSubscription();
+  const { isPaid: isPremium, isKnown: planKnown } = useSubscription();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nutrition");
   const [scanRequested, setScanRequested] = useState(false);
@@ -38,10 +39,14 @@ const Index = () => {
   const tabsRef = useRef<HTMLDivElement>(null);
   const { data: trainingProgress, isError: trainingProgressError } = useTrainingProgress();
 
-  const openScanner = () => {
-    setActiveTab("nutrition");
-    setScanRequested(true);
+  const openTab = (tab: string) => {
+    setActiveTab(tab);
     tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const openScanner = () => {
+    setScanRequested(true);
+    openTab("nutrition");
   };
 
   const scrollToAICoach = () => {
@@ -108,7 +113,7 @@ const Index = () => {
                 <span className="relative z-10">Coach IA MMA</span>
               </Button>
               
-              {!isPremium && (
+              {planKnown && !isPremium && (
                 <Button 
                   size="lg"
                   className="bg-gradient-primary hover:opacity-90 shadow-glow"
@@ -124,15 +129,21 @@ const Index = () => {
       </section>
 
       {/* MMA News Banner — entre Hero et Sparring */}
-      <MMANewsBanner />
+      <WidgetBoundary label={false}>
+        <MMANewsBanner />
+      </WidgetBoundary>
 
       {/* Sparring Showcase Section */}
-      <SparringShowcase />
+      <WidgetBoundary label={false}>
+        <SparringShowcase />
+      </WidgetBoundary>
       <div className="container px-4 py-12">
         {/* Quick Stats with subtle gold accents */}
         <section className="mb-10 relative">
           <div className="absolute -top-6 left-0 right-0 h-px bg-gradient-gold-accent" />
-          <QuickStatsCards />
+          <WidgetBoundary label="Le résumé">
+            <QuickStatsCards />
+          </WidgetBoundary>
         </section>
 
         {/* Main Dashboard */}
@@ -140,17 +151,23 @@ const Index = () => {
           {/* Left Column - AI Coach & Actions */}
           <div className="lg:col-span-1 space-y-6">
             <div ref={aiCoachRef}>
-              <AICoachChat />
+              <WidgetBoundary label="Le Coach IA">
+                <AICoachChat />
+              </WidgetBoundary>
             </div>
             
-            <PerformanceSummary progress={trainingProgress} error={trainingProgressError} />
+            <WidgetBoundary label="La performance">
+              <PerformanceSummary progress={trainingProgress} error={trainingProgressError} />
+            </WidgetBoundary>
 
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-primary opacity-5 rounded-lg blur" />
-              <QuickActions onSwitchTab={setActiveTab} onScan={openScanner} />
+              <QuickActions onSwitchTab={openTab} onScan={openScanner} />
             </div>
             
-            <MeuteCard />
+            <WidgetBoundary label="La Team">
+              <MeuteCard />
+            </WidgetBoundary>
           </div>
 
           {/* Center/Right Columns - Main Tracking */}

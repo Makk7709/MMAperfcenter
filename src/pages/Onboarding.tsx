@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,26 +9,15 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile, disciplineOptions, type Profile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import {
   User, Scale, Ruler, Target, Dumbbell, ArrowRight, ArrowLeft,
-  Sparkles, Brain, Calendar, Trophy, Heart, Moon, Activity, MapPin, SkipForward
+  Sparkles, Brain, Calendar, Trophy, Heart, Moon, Activity, MapPin, SkipForward, LogOut
 } from "lucide-react";
 
-const DISCIPLINES = [
-  { value: "mma", label: "MMA" },
-  { value: "boxe", label: "Boxe Anglaise" },
-  { value: "muay-thai", label: "Muay Thai" },
-  { value: "kickboxing", label: "Kickboxing" },
-  { value: "jiu-jitsu", label: "Jiu-Jitsu Brésilien" },
-  { value: "judo", label: "Judo" },
-  { value: "karate", label: "Karaté" },
-  { value: "taekwondo", label: "Taekwondo" },
-  { value: "lutte", label: "Lutte" },
-  { value: "krav-maga", label: "Krav Maga" },
-  { value: "autre", label: "Autre discipline" },
-];
+const DISCIPLINES = disciplineOptions;
 
 const GOALS = [
   { value: "perte-poids", label: "Perdre du poids", icon: "⚖️" },
@@ -65,49 +54,107 @@ const COMMON_INJURIES = [
 
 const SECONDARY_DISC_OPTIONS = DISCIPLINES.filter(d => d.value !== "autre");
 
+const emptyForm = {
+  // step 1
+  full_name: "",
+  gender: "",
+  age: "",
+  // step 2
+  weight: "",
+  height: "",
+  // step 3
+  fitness_level: "",
+  martial_arts_discipline: "",
+  // step 4
+  goals: [] as string[],
+  primary_goal: "",
+  goal_deadline: "",
+  target_event: "",
+  // step 5 expérience martiale
+  years_practice: "",
+  belt_rank: "",
+  secondary_disciplines: [] as string[],
+  competition_level: "",
+  competitions_count: "",
+  // step 6 physique avancé
+  body_fat_percent: "",
+  waist_cm: "",
+  morphotype: "",
+  handedness: "",
+  injuries: [] as string[],
+  // step 7 lifestyle
+  sleep_hours: "7",
+  stress_level: 5,
+  weekly_availability: "",
+  preferred_session_duration: "",
+  training_location: "",
+  equipment: [] as string[],
+  dietary_restrictions: [] as string[],
+};
+
+type OnboardingForm = typeof emptyForm;
+
+const text = (v: string | number | null | undefined, fallback = "") => (v ?? fallback).toString();
+
+const formFromProfile = (p: Profile): OnboardingForm => ({
+  full_name: text(p.full_name),
+  gender: text(p.gender),
+  age: text(p.age),
+  weight: text(p.weight),
+  height: text(p.height),
+  fitness_level: text(p.fitness_level),
+  martial_arts_discipline: text(p.martial_arts_discipline),
+  goals: p.goals ?? [],
+  primary_goal: text(p.primary_goal),
+  goal_deadline: text(p.goal_deadline),
+  target_event: text(p.target_event),
+  years_practice: text(p.years_practice),
+  belt_rank: text(p.belt_rank),
+  secondary_disciplines: p.secondary_disciplines ?? [],
+  competition_level: text(p.competition_level),
+  competitions_count: text(p.competitions_count),
+  body_fat_percent: text(p.body_fat_percent),
+  waist_cm: text(p.waist_cm),
+  morphotype: text(p.morphotype),
+  handedness: text(p.handedness),
+  injuries: p.injuries ?? [],
+  sleep_hours: text(p.sleep_hours, emptyForm.sleep_hours),
+  stress_level: p.stress_level ?? emptyForm.stress_level,
+  weekly_availability: text(p.weekly_availability),
+  preferred_session_duration: text(p.preferred_session_duration),
+  training_location: text(p.training_location),
+  equipment: p.equipment ?? [],
+  dietary_restrictions: p.dietary_restrictions ?? [],
+});
+
+const REQUIRED_STEPS = [1, 2, 3, 4];
+
+const isStepValid = (s: number, f: OnboardingForm) => {
+  switch (s) {
+    case 1: return !!f.full_name && !!f.gender && !!f.age;
+    case 2: return !!f.weight && !!f.height;
+    case 3: return !!f.fitness_level && !!f.martial_arts_discipline;
+    case 4: return f.goals.length > 0;
+    // 5,6,7 = optionnels
+    default: return true;
+  }
+};
+
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { profile, loading: profileLoading, error: profileError, refreshProfile } = useProfile();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    // step 1
-    full_name: "",
-    gender: "",
-    age: "",
-    // step 2
-    weight: "",
-    height: "",
-    // step 3
-    fitness_level: "",
-    martial_arts_discipline: "",
-    // step 4
-    goals: [] as string[],
-    primary_goal: "",
-    goal_deadline: "",
-    target_event: "",
-    // step 5 expérience martiale
-    years_practice: "",
-    belt_rank: "",
-    secondary_disciplines: [] as string[],
-    competition_level: "",
-    competitions_count: "",
-    // step 6 physique avancé
-    body_fat_percent: "",
-    waist_cm: "",
-    morphotype: "",
-    handedness: "",
-    injuries: [] as string[],
-    // step 7 lifestyle
-    sleep_hours: "7",
-    stress_level: 5,
-    weekly_availability: "",
-    preferred_session_duration: "",
-    training_location: "",
-    equipment: [] as string[],
-    dietary_restrictions: [] as string[],
-  });
+  const [formData, setFormData] = useState<OnboardingForm>(emptyForm);
+
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!profile || prefilled.current) return;
+    prefilled.current = true;
+    setFormData(formFromProfile(profile));
+  }, [profile]);
 
   const totalSteps = 7;
   const progress = (step / totalSteps) * 100;
@@ -125,21 +172,13 @@ export default function Onboarding() {
     });
   };
 
-  const canProceed = () => {
-    switch (step) {
-      case 1: return !!formData.full_name && !!formData.gender && !!formData.age;
-      case 2: return !!formData.weight && !!formData.height;
-      case 3: return !!formData.fitness_level && !!formData.martial_arts_discipline;
-      case 4: return formData.goals.length > 0;
-      // 5,6,7 = optionnels
-      default: return true;
-    }
-  };
+  const canProceed = () => isStepValid(step, formData);
+  const requiredComplete = REQUIRED_STEPS.every(s => isStepValid(s, formData));
 
   const isOptionalStep = step >= 5;
 
   const handleSubmit = async () => {
-    if (!user) return;
+    if (!user || !requiredComplete) return;
     setIsLoading(true);
     try {
       const num = (v: string) => v ? Number.parseFloat(v) : null;
@@ -181,7 +220,7 @@ export default function Onboarding() {
       if (error) throw error;
       sessionStorage.setItem("onboarding_completed", "true");
       toast.success("Profil complété ! Bienvenue chez KOREV AI 🥊");
-      setTimeout(() => navigate("/"), 500);
+      navigate("/", { replace: true });
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de la sauvegarde");
@@ -202,9 +241,42 @@ export default function Onboarding() {
   const Meta = stepMeta[step - 1];
   const MetaIcon = Meta.icon;
 
+  const signOutButton = (
+    <Button variant="ghost" size="sm" onClick={() => void signOut()} className="gap-2 text-muted-foreground">
+      <LogOut className="h-4 w-4" /> Se déconnecter
+    </Button>
+  );
+
+  if (!profile && profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-primary">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!profile && profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-primary/20 bg-card/95 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle>Profil indisponible</CardTitle>
+            <CardDescription>Impossible de charger ton profil. Vérifie ta connexion puis réessaie.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap justify-between gap-2">
+            {signOutButton}
+            <Button onClick={() => void refreshProfile()}>Réessayer</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
+        <div className="flex justify-end mb-2">{signOutButton}</div>
+
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
@@ -593,7 +665,7 @@ export default function Onboarding() {
                   </Button>
                 ) : (
                   <Button onClick={handleSubmit}
-                    disabled={isLoading} variant="hero" className="gap-2">
+                    disabled={isLoading || !requiredComplete} variant="hero" className="gap-2">
                     {isLoading ? "Enregistrement..." : (<><Sparkles className="h-4 w-4" /> Terminer</>)}
                   </Button>
                 )}
@@ -602,9 +674,9 @@ export default function Onboarding() {
           </CardContent>
         </Card>
 
-        {step >= 4 && (
+        {step >= 4 && step < totalSteps && (
           <div className="text-center mt-4">
-            <Button variant="link" onClick={handleSubmit} disabled={isLoading}
+            <Button variant="link" onClick={handleSubmit} disabled={isLoading || !requiredComplete}
               className="text-muted-foreground hover:text-foreground">
               Enregistrer et passer le reste plus tard
             </Button>

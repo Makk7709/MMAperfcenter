@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import type { AuthError } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,45 @@ const signUpSchema = z.object({
   fullName: z.string().optional(),
 });
 
+const INVALID_CREDENTIALS = 'Email ou mot de passe incorrect';
+const EMAIL_NOT_CONFIRMED = 'Confirmez votre adresse e-mail via le lien reçu avant de vous connecter';
+const EMAIL_TAKEN = 'Cet email est déjà utilisé';
+const RATE_LIMITED = 'Trop de tentatives. Patientez quelques minutes avant de réessayer';
+const WEAK_PASSWORD = 'Mot de passe trop faible. Choisissez un mot de passe plus robuste';
+const EMAIL_NOT_AUTHORIZED = "Cette adresse e-mail n'est pas autorisée";
+
+const AUTH_ERROR_BY_CODE: Record<string, string> = {
+  invalid_credentials: INVALID_CREDENTIALS,
+  email_not_confirmed: EMAIL_NOT_CONFIRMED,
+  user_already_exists: EMAIL_TAKEN,
+  email_exists: EMAIL_TAKEN,
+  over_email_send_rate_limit: "Trop d'e-mails envoyés. Patientez quelques minutes avant de réessayer",
+  over_request_rate_limit: RATE_LIMITED,
+  weak_password: WEAK_PASSWORD,
+  email_address_not_authorized: EMAIL_NOT_AUTHORIZED,
+};
+
+// Older Auth servers only send the English message, without `code`.
+const authErrorMessage = (error: AuthError, fallback: string): string => {
+  if (error.code && AUTH_ERROR_BY_CODE[error.code]) return AUTH_ERROR_BY_CODE[error.code];
+  const message = error.message.toLowerCase();
+  if (message.includes('invalid login credentials')) return INVALID_CREDENTIALS;
+  if (message.includes('email not confirmed')) return EMAIL_NOT_CONFIRMED;
+  if (message.includes('already registered')) return EMAIL_TAKEN;
+  if (error.status === 429 || message.includes('rate limit') || message.includes('security purposes')) return RATE_LIMITED;
+  if (message.includes('weak password') || message.includes('password should')) return WEAK_PASSWORD;
+  if (message.includes('not authorized')) return EMAIL_NOT_AUTHORIZED;
+  return fallback;
+};
+
+type LocationState = { from?: { pathname?: string; search?: string } } | null;
+
+const redirectTarget = (state: LocationState): string => {
+  const from = state?.from;
+  if (!from?.pathname?.startsWith('/') || from.pathname.startsWith('//') || from.pathname === '/auth') return '/';
+  return from.pathname + (from.search ?? '');
+};
+
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -39,6 +79,7 @@ export default function Auth() {
   });
   const { signIn, signUp, requestPasswordReset } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -57,16 +98,12 @@ export default function Auth() {
       const { error } = await signIn(validation.email, validation.password);
       
       if (error) {
-        if (error.message === 'Invalid login credentials') {
-          toast.error('Email ou mot de passe incorrect');
-        } else {
-          toast.error('Erreur lors de la connexion: ' + error.message);
-        }
+        toast.error(authErrorMessage(error, 'Erreur lors de la connexion. Réessayez dans un instant.'));
         return;
       }
 
       toast.success('Connexion réussie !');
-      navigate('/');
+      navigate(redirectTarget(location.state as LocationState), { replace: true });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -92,11 +129,7 @@ export default function Auth() {
       const { error } = await signUp(validation.email, validation.password, validation.fullName);
       
       if (error) {
-        if (error.message === 'User already registered') {
-          toast.error('Cet email est déjà utilisé');
-        } else {
-          toast.error('Erreur lors de l\'inscription: ' + error.message);
-        }
+        toast.error(authErrorMessage(error, 'Erreur lors de l\'inscription. Réessayez dans un instant.'));
         return;
       }
 
@@ -122,7 +155,11 @@ export default function Auth() {
     setIsLoading(true);
     const { error } = await requestPasswordReset(email.data);
     setIsLoading(false);
-    if (error) console.error('Password reset request failed:', error.message);
+    if (error) {
+      console.error('Password reset request failed:', error.message);
+      toast.error(authErrorMessage(error, 'Impossible d\'envoyer le lien de réinitialisation. Réessayez dans un instant.'));
+      return;
+    }
     // Same message whether or not the account exists (no e-mail enumeration).
     toast.success('Si un compte existe pour cet e-mail, un lien de réinitialisation vient d\'être envoyé.');
     setResetMode(false);

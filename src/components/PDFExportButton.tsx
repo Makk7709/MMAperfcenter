@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown, Loader2, Crown } from "lucide-react";
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { toast } from "sonner";
 import { toDateKey } from "@/lib/dateKey";
 
@@ -103,6 +103,7 @@ export const PDFExportButton = ({ content, title = "Programme d'entraînement" }
     setIsExporting(true);
     
     try {
+      const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({
         orientation: "portrait",
         unit: "mm",

@@ -57,6 +57,8 @@ interface JournalForm {
   weight: string;
 }
 
+const JOURNAL_PAGE = 1000;
+
 const TITLE_MAX = 120;
 const NOTES_MAX = 2000;
 
@@ -85,16 +87,24 @@ const WorkoutJournal = () => {
     queryKey: journalKey(user?.id),
     enabled: !!user,
     queryFn: async (): Promise<JournalEntry[]> => {
-      const { data, error } = await supabase
-        .from("workout_journal")
-        .select(
-          "id, date, title, notes, mood, energy_level, weight_kg, workout:workouts(name, session_type, duration_minutes, total_volume_kg, rounds_completed)",
-        )
-        .eq("user_id", user!.id)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map((row) => ({
+      // The API returns at most 1000 rows per request: read every page.
+      const rows = [];
+      for (let from = 0; ; from += JOURNAL_PAGE) {
+        const { data, error } = await supabase
+          .from("workout_journal")
+          .select(
+            "id, date, title, notes, mood, energy_level, weight_kg, workout:workouts(name, session_type, duration_minutes, total_volume_kg, rounds_completed)",
+          )
+          .eq("user_id", user!.id)
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, from + JOURNAL_PAGE - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < JOURNAL_PAGE) break;
+      }
+      return rows.map((row) => ({
         ...row,
         weight_kg: row.weight_kg === null ? null : Number(row.weight_kg),
         workout: row.workout

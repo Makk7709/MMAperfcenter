@@ -1,3 +1,7 @@
+-- Échoue vite au lieu de bloquer connexions et requêtes derrière un verrou :
+-- en cas d'échec, relancer la migration un peu plus tard.
+SET lock_timeout = '5s';
+
 -- ============================================================================
 -- Bloquants du second audit (2026-09-26)
 --
@@ -10,9 +14,37 @@
 
 -- ---- 1. Vidéos d'entraînement privées --------------------------------------
 -- video_url contient désormais le chemin de l'objet dans le bucket (et non
--- plus une URL publique) : on convertit les lignes existantes.
+-- plus une URL publique) : on convertit les lignes existantes. Une URL peut
+-- porter une query string (?t=…, token signé) et un nom encodé (%20, accents) :
+-- le chemin stocké doit être exactement le nom de l'objet.
+CREATE OR REPLACE FUNCTION pg_temp.korev_url_decode(input text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  result bytea := '';
+  i int := 1;
+BEGIN
+  WHILE i <= length(input) LOOP
+    IF substr(input, i, 1) = '%' AND substr(input, i + 1, 2) ~ '^[0-9A-Fa-f]{2}$' THEN
+      result := result || decode(substr(input, i + 1, 2), 'hex');
+      i := i + 3;
+    ELSE
+      result := result || convert_to(substr(input, i, 1), 'UTF8');
+      i := i + 1;
+    END IF;
+  END LOOP;
+  RETURN convert_from(result, 'UTF8');
+EXCEPTION WHEN others THEN
+  RETURN input;
+END;
+$$;
+
 UPDATE public.training_videos
-SET video_url = substring(video_url FROM '/training-videos/(.+)$')
+SET video_url = pg_temp.korev_url_decode(
+  split_part(split_part(substring(video_url FROM '/training-videos/(.+)$'), '?', 1), '#', 1)
+)
 WHERE video_type = 'upload'
   AND video_url ~ '/training-videos/.+$';
 
@@ -25,6 +57,8 @@ DROP POLICY IF EXISTS "Training video files follow table visibility" ON storage.
 -- lisible que si l'appelant peut voir la vidéo qui le référence. La ligne doit
 -- appartenir au propriétaire du dossier : sans cela, une ligne publique créée
 -- par un coach et pointant vers le fichier premium d'un autre le rendrait public.
+-- Les anciens fichiers déposés hors de <uid>/ restent lisibles si la ligne
+-- appartient à celui qui a déposé le fichier (colonne owner de Storage).
 CREATE POLICY "Training video files follow table visibility"
 ON storage.objects
 FOR SELECT
@@ -36,7 +70,10 @@ USING (
     FROM public.training_videos v
     WHERE v.video_type = 'upload'
       AND v.video_url = objects.name
-      AND v.user_id::text = (storage.foldername(objects.name))[1]
+      AND (
+        v.user_id::text = (storage.foldername(objects.name))[1]
+        OR v.user_id = objects.owner
+      )
   )
 );
 
@@ -184,7 +221,4 @@ BEGIN
 END;
 $$;
 
--- Nettoyage des activités déjà publiées avec une adresse e-mail.
-UPDATE public.community_activities
-SET description = regexp_replace(description, '^\S+@\S+ a terminé: ', 'Un athlète a terminé: ')
-WHERE description ~ '^\S+@\S+ a terminé: ';
+-- Les activités déjà publiées sont réécrites par 20260926070000.

@@ -1,3 +1,7 @@
+-- Échoue vite au lieu de bloquer connexions et requêtes derrière un verrou :
+-- en cas d'échec, relancer la migration un peu plus tard.
+SET lock_timeout = '5s';
+
 -- Effort perçu de la séance (échelle CR-10 de Borg, 1 à 10), saisi au bilan.
 --
 -- Charge d'entraînement d'une séance = effort perçu × durée en minutes

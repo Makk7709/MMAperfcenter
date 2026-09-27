@@ -6,6 +6,9 @@ import { Brain, Sparkles, RefreshCw, Target, TrendingUp, Utensils, Rocket } from
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { consumeSSEStream } from "@/lib/sse";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FeaturePaywall } from "./FeaturePaywall";
 
 const ANALYSIS_ERROR_MESSAGE = "Erreur lors de l'analyse IA";
 
@@ -55,18 +58,24 @@ export function AIStatsAnalysis() {
   const [analysis, setAnalysis] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const { gate, paywallOpen, setPaywallOpen } = useFeatureGate("ai_coach");
+  const { isKnown: planKnown, isPaid } = useSubscription();
 
   const generateAnalysis = async () => {
     setIsLoading(true);
-    setAnalysis("");
 
     try {
+      // L'analyse consomme un crédit Coach IA côté serveur.
+      const allowed = await gate();
+      if (!allowed) return;
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error("Vous devez être connecté");
         return;
       }
 
+      setAnalysis("");
       const reader = await openAnalysisStream(session.access_token);
 
       let analysisText = "";
@@ -87,7 +96,7 @@ export function AIStatsAnalysis() {
   const renderAnalysis = (text: string) => {
     const sections = text.split(/(?=## )/);
     
-    return sections.map((section) => {
+    return sections.map((section, sectionIndex) => {
       if (!section.trim()) return null;
       
       const lines = section.split("\n");
@@ -110,7 +119,7 @@ export function AIStatsAnalysis() {
       }
       
       return (
-        <div key={section} className="mb-6 last:mb-0">
+        <div key={sectionIndex} className="mb-6 last:mb-0">
           {title && (
             <div className={`flex items-center gap-2 mb-3 ${iconColor}`}>
               {icon}
@@ -118,11 +127,11 @@ export function AIStatsAnalysis() {
             </div>
           )}
           <div className="text-muted-foreground space-y-2 pl-7">
-            {content.split("\n").map((line) => {
+            {content.split("\n").map((line, lineIndex) => {
               if (!line.trim()) return null;
               
               return (
-                <p key={line} className="leading-relaxed">
+                <p key={lineIndex} className="leading-relaxed">
                   {renderInline(line.replace(/^\s*-\s*/, "• "))}
                 </p>
               );
@@ -171,6 +180,11 @@ export function AIStatsAnalysis() {
               <p className="text-sm font-normal text-muted-foreground mt-1">
                 Synthèse intelligente de ta progression
               </p>
+              {planKnown && !isPaid && (
+                <p className="text-xs font-normal text-muted-foreground mt-1">
+                  Plan gratuit : chaque analyse utilise 1 message de ton quota Coach IA.
+                </p>
+              )}
             </div>
           </div>
           <Button 
@@ -219,6 +233,7 @@ export function AIStatsAnalysis() {
           </ScrollArea>
         )}
       </CardContent>
+      <FeaturePaywall feature="ai_coach" open={paywallOpen} onOpenChange={setPaywallOpen} />
     </Card>
   );
 }

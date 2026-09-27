@@ -181,11 +181,11 @@ Trigger anti-escalade de privilège (migration `20260526125359_*.sql`).
 
 #### `meute_activities`
 
-Journal d'événements du groupe.
+Journal d'événements du groupe, écrit uniquement par le serveur : séance terminée (trigger `on_workout_completed_team`, 30 par jour et par membre) et arrivée d'un membre (`on_team_member_joined`). Lu via `get_team_activities`.
 
 #### `community_activities`
 
-Flux d'activité communautaire global. Trigger `on_workout_completed` à la fin de séance.
+Flux d'activité global (trigger `on_workout_completed`, 10 par jour et par utilisateur, type de séance uniquement). Lisible par son seul auteur depuis `20260926080000` : aucun écran ne l'affiche.
 
 #### `notifications`
 
@@ -205,6 +205,10 @@ Notifications in-app (lu/non lu).
 
 > **RLS (mai 2026) :** INSERT/UPDATE utilisateur supprimés — écriture via `increment_feature_usage` uniquement.
 
+#### `feature_daily_usage`
+
+Compteur quotidien (`user_id`, `feature_name`, `day`) du plafond d'usage raisonnable : 200 messages Coach IA et 20 analyses PRISM par jour, pour tous les plans et les coachs. Écrit par `consume_feature_quota` (serveur uniquement), 7 jours conservés, fermé au client.
+
 ---
 
 ## 3. Fonctions SQL principales
@@ -213,8 +217,13 @@ Notifications in-app (lu/non lu).
 |---|---|---|
 | `handle_new_user` | Création profil à l'inscription | SECURITY DEFINER |
 | `handle_new_user_subscription` | Abonnement Free par défaut | SECURITY DEFINER |
-| `has_role(_user_id, _role)` | Vérification rôle | SECURITY DEFINER |
-| `has_feature_access(_user_id, _feature)` | Accès fonctionnalité selon plan | SECURITY DEFINER |
+| `has_role(_user_id, _role)` | Vérification rôle (répond `false` pour un autre compte, sauf serveur) | SECURITY DEFINER |
+| `has_feature_access(_user_id, _feature)` | Accès fonctionnalité selon plan (même garde) | SECURITY DEFINER |
+| `korev_private.*` | Versions brutes des 5 fonctions d'autorisation, utilisées par les politiques RLS ; schéma non exposé par l'API | SECURITY DEFINER |
+| `consume_feature_quota` / `refund_feature_quota` | Quota mensuel + plafond quotidien, remboursement (serveur uniquement) | SECURITY DEFINER |
+| `invite_team_member(_meute_id, _email)` | Invitation par e-mail (owner/admin) : `sent`, `already_member`, `already_invited`, `too_many_pending` | SECURITY DEFINER |
+| `get_team_members` / `get_team_activities` / `get_my_team_invitations` | Lecture Team avec nom d'affichage, sans e-mail | SECURITY DEFINER |
+| `public_display_name(uuid)` | Nom publiable (jamais un e-mail), réservé aux triggers | SECURITY DEFINER |
 | `get_feature_usage(_user_id, _feature_name)` | Lecture quota | SECURITY DEFINER |
 | `increment_feature_usage(_user_id, _feature_name)` | Incrément atomique quota | SECURITY DEFINER |
 | `get_feature_limit(_plan, _feature)` | Limite par plan | SECURITY DEFINER |
@@ -222,7 +231,7 @@ Notifications in-app (lu/non lu).
 | `create_community_activity_on_workout` | Activité communautaire auto | Trigger |
 | `handle_new_meute` | Initialisation meute | SECURITY DEFINER |
 | `increment_video_views(_video_id)` | Compteur vues | SECURITY DEFINER |
-| `is_meute_member` / `is_meute_owner` / `get_meute_member_role` | Helpers RLS meutes | SECURITY DEFINER |
+| `is_meute_member` / `is_meute_owner` / `get_meute_member_role` | Helpers RLS meutes (même garde que `has_role`) | SECURITY DEFINER |
 | `is_webhook_processed` / `mark_webhook_processed` | Idempotence Stripe | SECURITY DEFINER |
 | `sync_stripe_subscription(...)` | Sync abonnement depuis webhook | SECURITY DEFINER |
 | `get_user_id_by_stripe_customer` | Résolution customer → user | SECURITY DEFINER |
@@ -237,7 +246,9 @@ Notifications in-app (lu/non lu).
 |---|---|---|
 | `on_auth_user_created` | `auth.users` | INSERT `profiles` |
 | `update_*_updated_at` | Tables principales | MAJ `updated_at` |
-| `on_workout_completed` | `workouts` | INSERT `community_activities` |
+| `on_workout_completed` | `workouts` | INSERT `community_activities` (10/jour) + notification |
+| `on_workout_completed_team` | `workouts` | INSERT `meute_activities` pour chaque team (30/jour) |
+| `on_team_member_joined` | `meute_members` | INSERT `meute_activities` « a rejoint la team » |
 | Anti-escalade privilège | `meute_members` | Empêche élévation de rôle non autorisée |
 
 ---
@@ -274,8 +285,11 @@ supabase/migrations/
 ├── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
 ├── 20260926050000_*.sql    # effort perçu des séances (charge d'entraînement)
 ├── 20260926060000_*.sql    # une seule séance ouverte par utilisateur
-└── 20260926070000_*.sql    # durée visée, exercices protégés, fil sans nom de séance
+├── 20260926070000_*.sql    # durée visée, exercices protégés, fil sans nom de séance, index
+└── 20260926080000_*.sql    # gardes d'autorisation, usage raisonnable IA, Team, longueurs, tables héritées
 ```
+
+Les migrations en attente commencent par `SET lock_timeout = '5s'`. Avant de les appliquer en production, exécuter le pré-vol `supabase/preflight/20260927_preflight.sql` (lecture seule). `supabase/tests/run.sh` les rejoue sur un Postgres vierge et vérifie les règles d'accès (exécuté par la CI).
 
 ### 6.2 Application
 
@@ -315,9 +329,12 @@ Documenté intégralement dans [`SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md).
 | `workouts`, `sets`, `nutrition_*` | `auth.uid() = user_id` | Idem |
 | `subscriptions` | Propre ligne | **Interdit** (service role) |
 | `feature_usage` | Propre ligne | **Interdit** (RPC uniquement) |
-| `meutes` / `meute_members` | Membres via helpers | Selon rôle meute |
+| `meutes` / `meute_members` | Membres via helpers | Selon rôle meute ; invitation via `invite_team_member` |
+| `meute_activities` | Membres | **Interdit** (triggers) |
 | `training_videos` | Visibilité + plan | admin/coach |
-| `community_activities` | Authentifiés | Insert contrôlé |
+| `community_activities` | Auteur | **Interdit** (trigger) |
+| `feature_daily_usage` | **Interdit** | **Interdit** (serveur) |
+| Tables héritées (`documents`, `organizations*`, `render_usage`) | **Interdit** | **Interdit** |
 | `stripe_webhook_events` | Service role | Service role |
 
 ---

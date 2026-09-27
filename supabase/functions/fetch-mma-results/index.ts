@@ -1,6 +1,18 @@
 import { errorResponse, jsonResponse, preflight } from "../_shared/http.ts";
 
 const FEED_TIMEOUT_MS = 5000;
+const MAX_FEED_CHARS = 2_000_000;
+// The endpoint is public (no JWT): results are shared by every caller for
+// 10 minutes so a request never costs more than the cache lookup.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// RSS dates are free text: anything unparsable is dropped rather than sent
+// to clients that call new Date(...).toISOString() on it.
+function isoDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const time = Date.parse(value.trim());
+  return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
+}
 
 // Rendered as <a href> / <img src> by the client: anything that is not a
 // plain http(s) URL (javascript:, data:, ...) is dropped.
@@ -51,13 +63,15 @@ function parseRssItem(itemContent: string, source: string): FightResult | null {
   if (!titleMatch || !link) return null;
 
   const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/.exec(itemContent);
+  const pubDate = isoDate(pubDateMatch?.[1]);
+  if (!pubDate) return null;
   const descMatch = /<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/.exec(itemContent);
   const imageMatch = /<media:thumbnail url="(.*?)"|<enclosure url="(.*?)"/.exec(itemContent);
 
   return {
     title: titleMatch[1] || titleMatch[2] || '',
     link,
-    pubDate: pubDateMatch ? pubDateMatch[1] : new Date().toISOString(),
+    pubDate,
     description: (descMatch ? (descMatch[1] || descMatch[2]) : '').substring(0, 200),
     source,
     imageUrl: safeHttpUrl(imageMatch ? (imageMatch[1] || imageMatch[2]) : undefined),
@@ -68,7 +82,7 @@ async function fetchAndParseRSS(feed: RSSFeed): Promise<FightResult[]> {
   try {
     const response = await fetch(feed.url, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const xmlText = await response.text();
+    const xmlText = (await response.text()).slice(0, MAX_FEED_CHARS);
 
     // Parse XML manually (simple parser)
     const items: FightResult[] = [];
@@ -90,17 +104,35 @@ async function fetchAndParseRSS(feed: RSSFeed): Promise<FightResult[]> {
   }
 }
 
+let cache: { at: number; results: FightResult[] } | null = null;
+let inFlight: Promise<FightResult[]> | null = null;
+
+async function loadResults(): Promise<FightResult[]> {
+  const allResults = await Promise.all(RSS_FEEDS.map(feed => fetchAndParseRSS(feed)));
+  return allResults
+    .flat()
+    .sort((a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate))
+    .slice(0, 20);
+}
+
+async function cachedResults(): Promise<FightResult[]> {
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.results;
+  inFlight ??= loadResults()
+    .then((results) => {
+      // An outage of every feed must not pin an empty list for 10 minutes.
+      if (results.length > 0) cache = { at: Date.now(), results };
+      return results.length > 0 ? results : cache?.results ?? [];
+    })
+    .finally(() => { inFlight = null; });
+  return inFlight;
+}
+
 Deno.serve(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
   try {
-    const allResults = await Promise.all(RSS_FEEDS.map(feed => fetchAndParseRSS(feed)));
-
-    const combinedResults = allResults
-      .flat()
-      .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-      .slice(0, 20);
+    const combinedResults = await cachedResults();
 
     return jsonResponse(req, { results: combinedResults }, 200, {
       'Cache-Control': 'public, max-age=600',

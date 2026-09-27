@@ -93,6 +93,10 @@ L'Edge Function `supabase/functions/stripe-webhook/index.ts` consomme cette migr
 
 ---
 
+## 4 bis. Fermeture au client (`20260926080000`)
+
+En attendant la décision de suppression, la migration `20260926080000_access_guards_fair_use_and_team.sql` active la RLS et retire tous les droits `anon` / `authenticated` sur `documents`, `organizations`, `organization_members`, `organization_invitations` et `render_usage` lorsqu'elles existent. Le serveur (service role) y garde accès. Le pré-vol (M05) les liste.
+
 ## 5. Validation finale
 
 Après remédiation :

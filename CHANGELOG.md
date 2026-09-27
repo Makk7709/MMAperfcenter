@@ -4,9 +4,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+**Nécessite les migrations `20260925220000` à `20260926080000` (après le pré-vol `supabase/preflight/20260927_preflight.sql`), le redéploiement de toutes les Edge Functions et les nouveaux secrets `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*` (live). Voir `docs/development/DEPLOYMENT.md` §3.1.**
+
 ### Ajouté
 
-- Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, et sur les pages ouvertes depuis un e-mail ou un paiement.
+- Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, en mode économie de données ou sur connexion lente, et sur les pages ouvertes depuis un e-mail (confirmation d'inscription comprise) ou un paiement.
+- Team : invitation par e-mail qui fonctionne (la recherche de profil était bloquée par la sécurité), noms des membres et des activités, invitations reçues avec le nom de l'invitant, notification « Invitation Team », confirmation avant de supprimer ou de quitter une team.
+- Paiement : case de renonciation au droit de rétractation avant le paiement, horodatée chez Stripe. Page de paiement réussi qui vérifie réellement l'activation.
+- Icônes de l'application, carte de partage (réseaux sociaux), manifeste, page 404 en français.
+- CI : tests des Edge Functions, rejeu des migrations et tests des règles d'accès de la base ; lint bloquant.
+
+### Sécurité
+
+- Le rôle, le plan et les teams d'un autre compte ne peuvent plus être sondés via l'API.
+- Plafond quotidien d'usage de l'IA pour tous les plans (200 messages Coach IA, 20 analyses PRISM par jour).
+- Le fil communautaire n'est plus lisible par les autres membres, et ne contient plus d'e-mail ni de nom de séance.
+- Suppression de compte : connexion de moins de 15 minutes exigée.
+- Stripe : IDs de prix et produits live en secrets serveur ; un produit inconnu n'enregistre plus un abonné payant en plan gratuit. Événements Stripe conservés sans données personnelles. Corps du webhook limité en taille.
+- Longueurs maximales des textes libres, tables héritées fermées au client, plus de dépôt dans l'ancien bucket de sparring.
 
 ### Corrigé
 
@@ -33,6 +48,29 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - Séance : la durée visée choisie au démarrage est enregistrée et affichée pendant la séance (**migration `20260926070000_session_details_and_feed.sql`**).
 - Fil communautaire : seul le type de séance est publié (« a terminé une séance de boxe »), plus le nom saisi, qui reste privé. Initiales correctes pour les prénoms contenant un « a ».
 - Base : supprimer un exercice du catalogue qui figure dans des séances est refusé au lieu d'effacer l'historique de tous les utilisateurs ; une activité de team ne peut viser que ses propres séances.
+- Tableau de bord : une actualité MMA sans date valide ne fait plus planter la page ; chaque widget a sa propre protection d'erreur. La tuile Combat fait défiler jusqu'aux onglets.
+- Nutrition : la recherche d'aliments se lance sur Entrée ou « Chercher » (Open Food Facts bloque la recherche au fil de la frappe), avec cache et message clair en cas de limite atteinte.
+- IA : délai de 30 s sur la passerelle au lieu d'une attente infinie ; modèles configurables (`AI_MODEL_FAST`, `AI_MODEL_PRO`).
+- Abonnement : un échec de lecture ne fait plus passer un abonné payant pour gratuit (réessais, écran « Réessayer » sur la page Tarifs et dans les paywalls).
+- Onboarding : formulaire pré-rempli, plus de boucle ni d'écrasement du profil ; déconnexion possible.
+- Connexion : retour à la page demandée après authentification ; messages d'erreur Supabase en français ; échec de « mot de passe oublié » signalé.
+- Minuteur de rounds : plus de dérive quand l'onglet est en arrière-plan ; sons de fin de phase.
+- Coach IA : défilement automatique pendant la réponse ; le bouton d'analyse sparring ne masque plus « Envoyer ».
+- PRISM : le kickboxing et la boxe thaï ne sont plus analysés avec les règles de la boxe anglaise.
+- Carnet : plus de coupure silencieuse à 1000 entrées.
+- Notifications en temps réel, limitées aux siennes.
+- Catalogue : les exercices ajoutés ne créent plus de doublons de casse (« Tirage Vertical », « Box Jumps »…).
+
+### Performance
+
+- Pages chargées à la demande ; scanner de code-barres et export PDF chargés au premier usage. Bibliothèques séparées en fichiers mis en cache entre deux versions.
+- Vidéo d'introduction réduite à 1,4 Mo.
+- Index ajoutés (clés étrangères, analyses sparring, teams, fil).
+- `www` redirigé vers le domaine nu ; le build échoue si la configuration Supabase manque.
+
+### Retiré
+
+- `framer-motion`, `bun.lockb` et des composants inutilisés (`MMAResultsFeed`, `CommunityActivity`, `PricingCard`).
 
 ## [0.11.0] - 2026-09-26
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Check, Trash2 } from "lucide-react";
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -26,17 +27,20 @@ export const NotificationsPopover = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const userId = user?.id;
+  // The header renders this component more than once (desktop and mobile):
+  // each instance needs its own realtime channel.
+  const instanceId = useId();
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
+    if (!userId) return;
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -47,20 +51,21 @@ export const NotificationsPopover = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
     loadNotifications();
 
-    // Subscribe to new notifications
     const channel = supabase
-      .channel("notifications-changes")
+      .channel(`notifications-${userId}-${instanceId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "notifications",
+          filter: `user_id=eq.${userId}`,
         },
         () => {
           loadNotifications();
@@ -71,7 +76,7 @@ export const NotificationsPopover = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId, instanceId, loadNotifications]);
 
   const markAsRead = async (id: string) => {
     try {

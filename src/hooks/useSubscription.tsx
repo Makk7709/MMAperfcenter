@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { toast } from 'sonner';
 
 export type SubscriptionPlan = 'free' | 'pro' | 'elite' | 'sensei';
 
@@ -65,7 +64,8 @@ export const useSubscription = () => {
     queryKey: ['subscription', user?.id],
     enabled: !!user,
     staleTime: 60_000,
-    queryFn: async (): Promise<Subscription | null> => {
+    retry: 2,
+    queryFn: async (): Promise<Subscription> => {
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
@@ -74,8 +74,7 @@ export const useSubscription = () => {
 
       if (error) {
         console.error('Error fetching subscription:', error);
-        toast.error('Erreur lors du chargement de l\'abonnement');
-        return null;
+        throw error;
       }
 
       // La ligne est créée par le trigger d'inscription ; les écritures client
@@ -85,13 +84,17 @@ export const useSubscription = () => {
   });
 
   const { refetch } = query;
-  const refreshSubscription = useCallback(async () => {
-    await refetch();
+  const refreshSubscription = useCallback(async (): Promise<Subscription | null> => {
+    const { data } = await refetch();
+    return data ?? null;
   }, [refetch]);
 
   return {
+    // null while loading or after a failed load: not the same as the free plan.
     subscription: query.data ?? null,
     loading: query.isLoading,
+    isError: query.isError && !query.data,
+    isKnown: query.data !== undefined,
     isPaid: isPaidSubscription(query.data),
     refreshSubscription,
   };

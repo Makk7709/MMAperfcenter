@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Crown, Flame, Shield, Users } from 'lucide-react';
 import { useSubscription, PLAN_FEATURES, PLAN_PRICES } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,14 +13,15 @@ import { toast } from 'sonner';
 import { readFunctionError } from '@/lib/functionError';
 
 // No yearly Stripe prices exist yet: enabling this without adding yearly
-// price IDs (front + CHECKOUT_PRICE_TO_PLAN) would bill the monthly price.
+// prices to create-checkout would bill the monthly price.
 const YEARLY_BILLING_ENABLED = false;
 
 const Pricing = () => {
   const navigate = useNavigate();
-  const { subscription, loading } = useSubscription();
+  const { subscription, loading, isError, refreshSubscription } = useSubscription();
   const [isYearly, setIsYearly] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
+  const [withdrawalWaiver, setWithdrawalWaiver] = useState(false);
 
   const plans = [
     {
@@ -29,7 +31,7 @@ const Pricing = () => {
       description: 'Pour découvrir l\'app',
       monthlyPrice: 0,
       yearlyPrice: 0,
-      priceId: null,
+      paid: false,
       features: PLAN_FEATURES.free,
       cta: 'Gratuit',
     },
@@ -40,7 +42,7 @@ const Pricing = () => {
       description: 'Pour les pratiquants réguliers',
       monthlyPrice: PLAN_PRICES.pro.monthly,
       yearlyPrice: PLAN_PRICES.pro.yearly,
-      priceId: 'price_1SQSL1DLrTr0qdOpfIx50iSu',
+      paid: true,
       features: PLAN_FEATURES.pro,
       cta: 'Passer à Pro',
       popular: true,
@@ -52,7 +54,7 @@ const Pricing = () => {
       description: 'Pour les athlètes avancés',
       monthlyPrice: PLAN_PRICES.elite.monthly,
       yearlyPrice: PLAN_PRICES.elite.yearly,
-      priceId: 'price_1SQSLMDLrTr0qdOpffTBpoJL',
+      paid: true,
       features: PLAN_FEATURES.elite,
       cta: 'Passer à Elite',
     },
@@ -63,14 +65,14 @@ const Pricing = () => {
       description: 'Pour les coachs et clubs',
       monthlyPrice: PLAN_PRICES.sensei.monthly,
       yearlyPrice: PLAN_PRICES.sensei.yearly,
-      priceId: 'price_1SQSM0DLrTr0qdOpYtZFR50d',
+      paid: true,
       features: PLAN_FEATURES.sensei,
       cta: 'Passer à Senseï',
     },
   ];
 
-  const handleSubscribe = async (priceId: string | null, planId: string) => {
-    if (!priceId) {
+  const handleSubscribe = async (paid: boolean, planId: string) => {
+    if (!paid) {
       toast.info('Vous êtes déjà sur le plan gratuit');
       return;
     }
@@ -80,10 +82,16 @@ const Pricing = () => {
       return;
     }
 
+    if (!withdrawalWaiver) {
+      toast.error("Cochez la demande d'accès immédiat avant de payer");
+      document.getElementById('withdrawal-waiver')?.focus();
+      return;
+    }
+
     try {
       setLoadingCheckout(planId);
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId }
+        body: { plan: planId, withdrawalWaiver: true }
       });
 
       if (error) throw error;
@@ -120,6 +128,19 @@ const Pricing = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Chargement...</p>
+      </div>
+    );
+  }
+
+  // Without the current plan, a paying member would see "free" as current and could pay twice.
+  if (isError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-muted-foreground">Impossible de charger votre abonnement.</p>
+        <div className="flex gap-2">
+          <Button onClick={() => void refreshSubscription()}>Réessayer</Button>
+          <Button variant="outline" onClick={() => navigate('/')}>Retour</Button>
+        </div>
       </div>
     );
   }
@@ -215,7 +236,7 @@ const Pricing = () => {
                   <Button
                     className="w-full"
                     variant={plan.popular ? 'default' : 'outline'}
-                    onClick={() => handleSubscribe(plan.priceId, plan.id)}
+                    onClick={() => handleSubscribe(plan.paid, plan.id)}
                     disabled={isCurrentPlan || loadingCheckout === plan.id}
                   >
                     {isCurrentPlan ? 'Plan actuel' : plan.cta}
@@ -226,7 +247,21 @@ const Pricing = () => {
           })}
         </div>
 
-        {subscription?.plan !== 'free' && (
+        <div className="mt-8 mx-auto max-w-2xl flex items-start gap-3 rounded-lg border border-border/60 bg-card/40 p-4">
+          <Checkbox
+            id="withdrawal-waiver"
+            checked={withdrawalWaiver}
+            onCheckedChange={(checked) => setWithdrawalWaiver(checked === true)}
+            className="mt-0.5"
+          />
+          <Label htmlFor="withdrawal-waiver" className="text-sm font-normal leading-relaxed text-muted-foreground">
+            Je demande l'accès immédiat à mon abonnement et je renonce expressément à mon droit de
+            rétractation de 14 jours dès son activation. J'accepte les{' '}
+            <Link to="/legal" className="underline text-foreground">conditions générales de vente</Link>.
+          </Label>
+        </div>
+
+        {subscription && subscription.plan !== 'free' && (
           <div className="mt-12 text-center">
             <Button
               variant="outline"

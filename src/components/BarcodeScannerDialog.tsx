@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  BrowserMultiFormatReader,
-  type IScannerControls,
-} from "@zxing/browser";
+import type { IScannerControls } from "@zxing/browser";
 import { toast } from "sonner";
 import { Loader2, ScanLine, X } from "lucide-react";
 import {
@@ -92,20 +89,25 @@ export const BarcodeScannerDialog = ({
     handlingRef.current = false;
     setCameraError(false);
 
-    new BrowserMultiFormatReader()
-      .decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        video,
-        (result) => {
-          if (!result || handlingRef.current) return;
-          handlingRef.current = true;
-          stop();
-          void lookup(result.getText()).then((done) => {
-            if (!done && !cancelled) setAttempt((n) => n + 1);
-          });
-        },
-      )
+    // Loaded on first scan: the decoder is too large for the initial bundle.
+    import("@zxing/browser")
+      .then(({ BrowserMultiFormatReader }) => {
+        if (cancelled) return null;
+        return new BrowserMultiFormatReader().decodeFromConstraints(
+          { video: { facingMode: "environment" } },
+          video,
+          (result) => {
+            if (!result || handlingRef.current) return;
+            handlingRef.current = true;
+            stop();
+            void lookup(result.getText()).then((done) => {
+              if (!done && !cancelled) setAttempt((n) => n + 1);
+            });
+          },
+        );
+      })
       .then((controls) => {
+        if (!controls) return;
         if (cancelled) controls.stop();
         else controlsRef.current = controls;
       })

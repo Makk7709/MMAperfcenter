@@ -1,3 +1,7 @@
+-- Échoue vite au lieu de bloquer connexions et requêtes derrière un verrou :
+-- en cas d'échec, relancer la migration un peu plus tard.
+SET lock_timeout = '5s';
+
 -- ============================================================================
 -- Durcissement sécurité pré-lancement (audit du 2026-09-25)
 --

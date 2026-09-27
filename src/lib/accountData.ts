@@ -88,10 +88,16 @@ export function downloadJson(filename: string, payload: unknown): void {
 
 export const DELETE_CONFIRMATION_WORD = 'SUPPRIMER';
 
+export class DeleteAccountError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+  }
+}
+
 export async function deleteAccount(confirm: string): Promise<void> {
   const { error } = await supabase.functions.invoke('delete-account', { body: { confirm } });
   if (error) {
-    const { message } = await readFunctionError(error, 'La suppression du compte a échoué');
-    throw new Error(message);
+    const { message, code } = await readFunctionError(error, 'La suppression du compte a échoué');
+    throw new DeleteAccountError(message, code);
   }
 }

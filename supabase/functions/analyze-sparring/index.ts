@@ -1,4 +1,4 @@
-import { assertGatewayOk, getAiGatewayKey, getAiGatewayUrl } from "../_shared/ai-gateway.ts";
+import { aiModel, assertGatewayOk, getAiGatewayKey, getAiGatewayUrl } from "../_shared/ai-gateway.ts";
 import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
 import { errorResponse, jsonResponse, preflight, PublicError, readJsonBody } from "../_shared/http.ts";
@@ -9,10 +9,8 @@ import { consumeQuota, refundQuota } from "../_shared/quota.ts";
 // ============================================
 
 const AI_CONFIG = {
-  // gemini-2.5-pro = bien meilleure vision multimodale que flash
-  // qualityMode "fast" bascule sur flash pour économiser des crédits
-  modelPro: 'google/gemini-2.5-pro',
-  modelFast: 'google/gemini-2.5-flash',
+  // Modèle « pro » (meilleure vision multimodale) par défaut ; qualityMode
+  // "fast" bascule sur le modèle rapide pour économiser des crédits.
   maxTokens: 8000,
   temperature: 0.15,
   maxFrames: 60, // 60 frames = ~2x plus de couverture temporelle (était 32)
@@ -249,19 +247,6 @@ interface DisciplineProfile {
 function getDisciplineProfile(discipline?: string): DisciplineProfile {
   const d = (discipline || '').toLowerCase().trim();
 
-  if (['boxe', 'boxe anglaise', 'boxing', 'english boxing'].some(k => d.includes(k))) {
-    return {
-      label: 'Boxe anglaise',
-      focus: 'Uniquement poings (jab, cross, hook, uppercut). PAS de coups de pied, PAS de grappling, PAS de takedown.',
-      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
-      rules: [
-        'kicks_thrown / kicks_landed / leg_strikes / takedowns_* DOIVENT être 0 (interdits en boxe).',
-        'grappling = 0 et NON pertinent: ne pas évaluer cette dimension.',
-        'Focus: travail des poings, jeu de jambes, esquives, garde, enchaînements.',
-      ],
-    };
-  }
-
   if (['kickboxing', 'kick-boxing', 'k1', 'k-1'].some(k => d.includes(k))) {
     return {
       label: 'Kickboxing',
@@ -282,6 +267,20 @@ function getDisciplineProfile(discipline?: string): DisciplineProfile {
       rules: [
         'grappling = compétences de CLINCH (contrôle, projections debout, genoux en clinch), pas de sol.',
         'takedowns_* peut refléter sweeps/dumps issus du clinch.',
+      ],
+    };
+  }
+
+  // After kickboxing and Muay Thai: "kickboxing" and "boxe thai" contain "boxing" / "boxe".
+  if (['boxe', 'boxe anglaise', 'boxing', 'english boxing'].some(k => d.includes(k))) {
+    return {
+      label: 'Boxe anglaise',
+      focus: 'Uniquement poings (jab, cross, hook, uppercut). PAS de coups de pied, PAS de grappling, PAS de takedown.',
+      applicableMetrics: ['striking', 'defense', 'cardio', 'technique'],
+      rules: [
+        'kicks_thrown / kicks_landed / leg_strikes / takedowns_* DOIVENT être 0 (interdits en boxe).',
+        'grappling = 0 et NON pertinent: ne pas évaluer cette dimension.',
+        'Focus: travail des poings, jeu de jambes, esquives, garde, enchaînements.',
       ],
     };
   }
@@ -717,7 +716,7 @@ async function updateAnalysis(
 
 async function runAnalysis(input: SparringRequest, deadline: number) {
   const profile = getDisciplineProfile(input.discipline);
-  const model = input.qualityMode === 'fast' ? AI_CONFIG.modelFast : AI_CONFIG.modelPro;
+  const model = aiModel(input.qualityMode === 'fast' ? 'fast' : 'pro');
   const selectedFrames = selectFrames(input.frames);
   const sampling: Sampling = {
     layout: input.layout,

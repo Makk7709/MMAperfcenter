@@ -20,6 +20,7 @@
 
 import { createServiceClient, type ServiceClient } from "../_shared/auth.ts";
 import { errorMessage } from "../_shared/errors.ts";
+import { PublicError, readTextBody } from "../_shared/http.ts";
 import { createStripe, Stripe, syncSubscriptionRow, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
 const log = (step: string, details?: unknown) => {
@@ -45,11 +46,13 @@ Deno.serve(async (req) => {
   // ---- Signature verification ---------------------------------------------
   const signature = req.headers.get("stripe-signature");
   if (!signature) return json({ error: "Missing signature" }, 400);
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_EVENT_BYTES) {
-    return json({ error: "Payload too large" }, 413);
+  let rawBody: string;
+  try {
+    rawBody = await readTextBody(req, MAX_EVENT_BYTES);
+  } catch (err) {
+    const status = err instanceof PublicError ? err.status : 400;
+    return json({ error: status === 413 ? "Payload too large" : "Invalid body" }, status);
   }
-
-  const rawBody = await req.text();
   let event: Stripe.Event;
   try {
     event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
@@ -98,7 +101,9 @@ Deno.serve(async (req) => {
     const { error: markErr } = await supabase.rpc("mark_webhook_processed", {
       p_event_id: event.id,
       p_event_type: event.type,
-      p_payload: event as unknown as Record<string, unknown>,
+      // Only what is needed to audit a delivery: the full event carries the
+      // customer's name, e-mail and address, kept after account deletion.
+      p_payload: { object_id: (event.data.object as { id?: string }).id ?? null, livemode: event.livemode },
     });
     if (markErr) log("mark_webhook_processed RPC error", { error: markErr.message });
 

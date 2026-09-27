@@ -38,7 +38,7 @@ export const useTrainingVideos = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: videos, isLoading } = useQuery({
+  const { data: videos, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['training-videos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -184,6 +184,9 @@ export const useTrainingVideos = () => {
   return {
     videos,
     isLoading,
+    isError: isError && !videos,
+    isFetching,
+    refetch,
     uploadVideo: uploadVideoMutation.mutate,
     addYoutubeVideo: addYoutubeVideoMutation.mutate,
     deleteVideo: deleteVideoMutation.mutate,

@@ -11,6 +11,14 @@ interface FightResult {
   source: string;
 }
 
+// RSS dates are free text: an unparsable one must drop the label, not throw
+// (formatDistanceToNow throws on Invalid Date and would take the page down).
+function relativeDate(value: string): string | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return formatDistanceToNow(date, { addSuffix: true, locale: fr });
+}
+
 export const MMANewsBanner = () => {
   const [results, setResults] = useState<FightResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,8 +34,12 @@ export const MMANewsBanner = () => {
       
       if (functionError) throw functionError;
       
-      if (data?.results) {
-        setResults(data.results);
+      if (Array.isArray(data?.results)) {
+        setResults(
+          (data.results as FightResult[]).filter(
+            (r) => typeof r?.title === "string" && typeof r?.link === "string" && /^https?:\/\//.test(r.link),
+          ),
+        );
       }
     } catch (err) {
       console.error('Error fetching MMA results:', err);
@@ -56,6 +68,8 @@ export const MMANewsBanner = () => {
           {displayResults.map((result) => (
             <a
               key={result.loopKey}
+              tabIndex={result.loopKey.startsWith("b-") ? -1 : undefined}
+              aria-hidden={result.loopKey.startsWith("b-") ? true : undefined}
               href={result.link}
               target="_blank"
               rel="noopener noreferrer"
@@ -67,12 +81,9 @@ export const MMANewsBanner = () => {
               <span className="text-sm text-foreground/90 group-hover:text-primary">
                 {result.title}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(result.pubDate), { 
-                  addSuffix: true,
-                  locale: fr 
-                })}
-              </span>
+              {relativeDate(result.pubDate) && (
+                <span className="text-xs text-muted-foreground">{relativeDate(result.pubDate)}</span>
+              )}
               <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
               <span className="text-border mx-4">•</span>
             </a>

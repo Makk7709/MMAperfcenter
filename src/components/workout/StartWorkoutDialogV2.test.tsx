@@ -65,7 +65,7 @@ describe('StartWorkoutDialogV2 - Rendering', () => {
   it('should render cancel button', () => {
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    expect(screen.getByRole('button', { name: /annuler|cancel|fermer/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^annuler$/i })).toBeInTheDocument();
   });
 });
 
@@ -350,7 +350,7 @@ describe('StartWorkoutDialogV2 - Cancel/Close', () => {
     const user = userEvent.setup();
     render(<StartWorkoutDialogV2 {...defaultProps} />);
     
-    const cancelBtn = screen.getByRole('button', { name: /annuler|cancel|fermer/i });
+    const cancelBtn = screen.getByRole('button', { name: /^annuler$/i });
     await user.click(cancelBtn);
     
     expect(mockOnOpenChange).toHaveBeenCalledWith(false);
@@ -381,7 +381,7 @@ describe('StartWorkoutDialogV2 - Cancel/Close', () => {
     const input = screen.getByLabelText(/nom de la séance/i);
     await user.type(input, 'Test');
     
-    const cancelBtn = screen.getByRole('button', { name: /annuler|cancel|fermer/i });
+    const cancelBtn = screen.getByRole('button', { name: /^annuler$/i });
     await user.click(cancelBtn);
     
     expect(mockOnStartWorkout).not.toHaveBeenCalled();
@@ -414,7 +414,7 @@ describe('StartWorkoutDialogV2 - Loading State', () => {
   it('should disable cancel button when loading', () => {
     render(<StartWorkoutDialogV2 {...defaultProps} loading={true} />);
     
-    const cancelBtn = screen.getByRole('button', { name: /annuler|cancel|fermer/i });
+    const cancelBtn = screen.getByRole('button', { name: /^annuler$/i });
     expect(cancelBtn).toBeDisabled();
   });
 });

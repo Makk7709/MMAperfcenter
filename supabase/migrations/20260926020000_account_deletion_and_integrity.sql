@@ -1,3 +1,7 @@
+-- Échoue vite au lieu de bloquer connexions et requêtes derrière un verrou :
+-- en cas d'échec, relancer la migration un peu plus tard.
+SET lock_timeout = '5s';
+
 -- ============================================================================
 -- Audit hostile pré-déploiement (2026-09-26)
 --

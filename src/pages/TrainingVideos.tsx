@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { Loader2, Video, Play, Filter } from "lucide-react";
+import { AlertTriangle, Loader2, Video, Play, Filter } from "lucide-react";
 import { VideoCard } from "@/components/VideoCard";
 import { useTrainingVideos } from "@/hooks/useTrainingVideos";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default function TrainingVideos() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [techniqueFilter, setTechniqueFilter] = useState<string>("all");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("recent");
-  const { videos, isLoading } = useTrainingVideos();
+  const { videos, isLoading, isError: loadError, isFetching: retrying, refetch } = useTrainingVideos();
+  const retry = () => void refetch();
 
   const filteredVideos = videos?.filter(video => {
     const matchesCategory = categoryFilter === "all" || video.category === categoryFilter;
@@ -43,9 +45,11 @@ export default function TrainingVideos() {
             </div>
             <div>
               <h1 className="text-3xl font-bold">Vidéothèque</h1>
-              <p className="text-muted-foreground">
-                {videos?.length || 0} vidéos d'entraînement disponibles
-              </p>
+              {!loadError && (
+                <p className="text-muted-foreground">
+                  {videos?.length || 0} vidéos d'entraînement disponibles
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -131,6 +135,18 @@ export default function TrainingVideos() {
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-16 bg-card border rounded-xl">
+            <AlertTriangle className="h-16 w-16 mx-auto text-destructive/60 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Impossible de charger les vidéos</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              Vérifiez votre connexion puis réessayez.
+            </p>
+            <Button variant="outline" onClick={retry} disabled={retrying} className="gap-2">
+              {retrying && <Loader2 className="h-4 w-4 animate-spin" />}
+              Réessayer
+            </Button>
           </div>
         ) : filteredVideos && filteredVideos.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

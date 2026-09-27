@@ -1,3 +1,7 @@
+-- Échoue vite au lieu de bloquer connexions et requêtes derrière un verrou :
+-- en cas d'échec, relancer la migration un peu plus tard.
+SET lock_timeout = '5s';
+
 -- Détails de séance et fil communautaire.
 
 -- ---- 1. Durée visée ------------------------------------------------------------
@@ -55,39 +59,64 @@ WITH CHECK (
 -- ---- 4. Fil communautaire : type de séance, jamais le nom saisi -----------------
 -- Le fil est lu par tous les membres connectés : le nom libre d'une séance
 -- (« rééducation genou », etc.) reste privé, seul son type est publié.
+
+-- Nom publiable d'un membre : un nom qui contient « @ » est presque toujours
+-- une adresse e-mail recopiée par défaut, il n'est jamais publié.
+CREATE OR REPLACE FUNCTION public.public_display_name(_user_id uuid)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT left(nullif(btrim(full_name), ''), 60)
+  FROM public.profiles
+  WHERE id = _user_id AND position('@' IN coalesce(full_name, '')) = 0;
+$$;
+
+CREATE OR REPLACE FUNCTION public.session_type_label(_session_type text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE _session_type
+    WHEN 'boxing' THEN 'séance de boxe'
+    WHEN 'mma' THEN 'séance de MMA'
+    WHEN 'strength' THEN 'séance de musculation'
+    WHEN 'cardio' THEN 'séance de cardio'
+    ELSE 'séance d''entraînement'
+  END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.public_display_name(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.session_type_label(text) FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.create_community_activity_on_workout()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-  v_user_name TEXT;
-  v_label TEXT;
 BEGIN
-  -- Une séance n'est publiée qu'une fois, même si son statut bascule en boucle.
+  -- Une séance n'est publiée qu'une fois, même si son statut bascule en boucle,
+  -- et pas plus de 10 fois par jour et par membre (anti-spam du fil public).
   IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed')
      AND NOT EXISTS (
        SELECT 1 FROM public.community_activities
        WHERE workout_id = NEW.id AND activity_type = 'workout_completed'
-     ) THEN
-    SELECT left(nullif(btrim(full_name), ''), 60) INTO v_user_name
-    FROM public.profiles
-    WHERE id = NEW.user_id;
-
-    v_label := CASE NEW.session_type
-      WHEN 'boxing' THEN 'séance de boxe'
-      WHEN 'mma' THEN 'séance de MMA'
-      WHEN 'strength' THEN 'séance de musculation'
-      WHEN 'cardio' THEN 'séance de cardio'
-      ELSE 'séance d''entraînement'
-    END;
-
+     )
+     AND (
+       SELECT count(*) FROM public.community_activities
+       WHERE user_id = NEW.user_id
+         AND activity_type = 'workout_completed'
+         AND created_at > now() - interval '1 day'
+     ) < 10 THEN
     INSERT INTO public.community_activities (user_id, activity_type, description, workout_id)
     VALUES (
       NEW.user_id,
       'workout_completed',
-      COALESCE(v_user_name, 'Un athlète') || ' a terminé une ' || v_label,
+      COALESCE(public.public_display_name(NEW.user_id), 'Un athlète')
+        || ' a terminé une ' || public.session_type_label(NEW.session_type),
       NEW.id
     );
 
@@ -102,3 +131,23 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- Les activités déjà publiées suivent la même règle.
+UPDATE public.community_activities ca
+SET description = COALESCE(public.public_display_name(ca.user_id), 'Un athlète')
+  || ' a terminé une '
+  || public.session_type_label((SELECT w.session_type FROM public.workouts w WHERE w.id = ca.workout_id))
+WHERE ca.activity_type = 'workout_completed';
+
+UPDATE public.community_activities
+SET description = regexp_replace(description, '[^[:space:]]+@[^[:space:]]+', 'Un athlète', 'g')
+WHERE description ~ '[^[:space:]]+@[^[:space:]]+';
+
+-- ---- 5. Index des clés étrangères interrogées ou supprimées en cascade ----------
+CREATE INDEX IF NOT EXISTS workout_exercises_exercise_id_idx ON public.workout_exercises (exercise_id);
+CREATE INDEX IF NOT EXISTS community_activities_workout_id_idx ON public.community_activities (workout_id);
+CREATE INDEX IF NOT EXISTS community_activities_user_id_idx ON public.community_activities (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS meute_activities_meute_created_idx ON public.meute_activities (meute_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS meute_activities_workout_id_idx ON public.meute_activities (workout_id);
+CREATE INDEX IF NOT EXISTS sparring_analyses_user_created_idx ON public.sparring_analyses (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS meute_members_user_status_idx ON public.meute_members (user_id, status);

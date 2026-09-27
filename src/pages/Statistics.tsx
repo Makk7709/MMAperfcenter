@@ -1,12 +1,13 @@
 import { fromDateKey, lastDateKeys, startOfDayDaysAgo, timestampToDateKey } from "@/lib/dateKey";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { AIStatsAnalysis } from "@/components/AIStatsAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { TrendingUp, Flame } from "lucide-react";
+import { TrendingUp, Flame, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -44,6 +45,7 @@ export default function Statistics() {
   const [loading, setLoading] = useState(true);
   const [workoutStats, setWorkoutStats] = useState<WorkoutDayStat[]>([]);
   const [nutritionStats, setNutritionStats] = useState<NutritionDayStat[]>([]);
+  const [loadError, setLoadError] = useState(false);
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
 
@@ -51,28 +53,37 @@ export default function Statistics() {
     await signOut();
   };
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-
-    loadStatistics();
-  }, [user, navigate]);
-
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
+    setLoadError(false);
 
     const last7Days = lastDateKeys(7);
 
-    // Load workout stats
-    const { data: workouts } = await supabase
-      .from('workouts')
-      .select('completed_at, duration_minutes, total_volume_kg, calories_burned')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .gte('completed_at', startOfDayDaysAgo(6))
-      .order('completed_at', { ascending: true });
+    const [workoutsRes, nutritionRes] = await Promise.all([
+      supabase
+        .from('workouts')
+        .select('completed_at, duration_minutes, total_volume_kg, calories_burned')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', startOfDayDaysAgo(6))
+        .order('completed_at', { ascending: true }),
+      supabase
+        .from('nutrition_logs')
+        .select('date, calories, protein_g, carbs_g, fat_g')
+        .eq('user_id', user.id)
+        .gte('date', last7Days[0])
+        .order('date', { ascending: true }),
+    ]);
+
+    if (workoutsRes.error || nutritionRes.error) {
+      console.error('Error loading statistics:', workoutsRes.error ?? nutritionRes.error);
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    const workouts = workoutsRes.data;
+    const nutrition = nutritionRes.data;
 
     // Group by day
     const workoutByDay = last7Days.map(date => {
@@ -91,14 +102,6 @@ export default function Statistics() {
 
     setWorkoutStats(workoutByDay);
 
-    // Load nutrition stats
-    const { data: nutrition } = await supabase
-      .from('nutrition_logs')
-      .select('date, calories, protein_g, carbs_g, fat_g')
-      .eq('user_id', user.id)
-      .gte('date', last7Days[0])
-      .order('date', { ascending: true });
-
     // Group by day
     const nutritionByDay = last7Days.map(date => {
       const dayNutrition = nutrition?.filter(n => n.date === date) || [];
@@ -114,7 +117,16 @@ export default function Statistics() {
 
     setNutritionStats(nutritionByDay);
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    void loadStatistics();
+  }, [user, navigate, loadStatistics]);
 
   if (loading) {
     return (
@@ -154,6 +166,18 @@ export default function Statistics() {
         {/* AI Analysis Section */}
         <AIStatsAnalysis />
 
+        {loadError ? (
+          <Card className="liquid-glass-solid border-0">
+            <CardContent className="p-8 text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-muted-foreground">Impossible de charger vos statistiques.</p>
+              <Button className="mt-4" variant="outline" onClick={() => void loadStatistics()}>
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+        <>
         {/* Weekly Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="liquid-glass-solid border-0">
@@ -265,6 +289,8 @@ export default function Statistics() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </>
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,14 @@ describe("shouldPlayIntro", () => {
     expect(shouldPlayIntro({ ...base, reducedMotion: true })).toBe(false);
   });
 
+  it("skips data saver and slow connections", () => {
+    expect(shouldPlayIntro({ ...base, constrainedNetwork: true })).toBe(false);
+  });
+
+  it("skips the landing from a sign-up confirmation link", () => {
+    expect(shouldPlayIntro({ ...base, fromAuthLink: true })).toBe(false);
+  });
+
   it("skips pages reached from an email or payment link", () => {
     expect(shouldPlayIntro({ ...base, pathname: "/payment-success" })).toBe(false);
     expect(shouldPlayIntro({ ...base, pathname: "/reset-password" })).toBe(false);

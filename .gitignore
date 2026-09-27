@@ -33,3 +33,7 @@ supabase/.temp
 *.njsproj
 *.sln
 *.sw?
+
+# Test runner output
+test-results
+playwright-report

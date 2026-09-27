@@ -10,7 +10,7 @@ export const SparringAnalysisFAB = () => {
   return (
     <>
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 [body[data-coach-expanded]_&]:hidden">
         {/* Tooltip on hover */}
         <div
           className={`

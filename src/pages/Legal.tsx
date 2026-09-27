@@ -12,7 +12,13 @@ const Legal = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Retour"
+            // Opened from an external link, there is no in-app page to go back to.
+            onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate("/"))}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
@@ -217,10 +223,15 @@ const Legal = () => {
               Conformément à l'article L221-28 du Code de la consommation, le droit de rétractation 
               ne peut être exercé pour les contrats de fourniture de contenu numérique non fourni 
               sur support matériel dont l'exécution a commencé après accord préalable exprès du 
-              consommateur et renoncement exprès à son droit de rétractation.
+              consommateur et renoncement exprès à son droit de rétractation. Cet accord et cette
+              renonciation sont recueillis par une case à cocher obligatoire avant chaque paiement,
+              et horodatés avec la commande.
             </p>
             <p>
-              [CONDITIONS DE REMBOURSEMENT EXCEPTIONNELLES — À définir par KOREV AI]
+              L'abonnement peut être résilié à tout moment depuis l'espace personnel ; la résiliation
+              prend effet à la fin de la période déjà payée, qui reste accessible jusqu'à son terme.
+              Une période commencée n'est pas remboursée, sauf obligation légale. Toute demande
+              particulière peut être adressée à contact@korev-ai.com.
             </p>
 
             <h3 className="text-lg font-semibold text-foreground">7.6 Facturation</h3>
@@ -391,9 +402,11 @@ const Legal = () => {
               Les présentes conditions sont régies par le <strong className="text-foreground">droit français</strong>.
             </p>
             <p>
-              En cas de litige, les parties s'efforceront de trouver une solution amiable. 
-              À défaut d'accord, le litige sera soumis aux tribunaux compétents du ressort 
-              du <strong className="text-foreground">Tribunal de Grenoble</strong> [ou autre juridiction — à préciser].
+              En cas de litige, les parties s'efforceront de trouver une solution amiable.
+              À défaut d'accord, le consommateur peut saisir, à son choix, la juridiction du lieu
+              où il demeurait lors de la conclusion du contrat ou celle du lieu du fait dommageable.
+              Entre professionnels, le litige est soumis aux tribunaux du ressort de la
+              {" "}<strong className="text-foreground">cour d'appel de Grenoble</strong>.
             </p>
           </div>
         </section>

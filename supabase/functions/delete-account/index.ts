@@ -13,6 +13,7 @@ import { errorResponse, jsonResponse, preflight, PublicError, readJsonBody } fro
 import { createStripe, Stripe, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
 
 const CONFIRMATION_WORD = "SUPPRIMER";
+const RECENT_SIGN_IN_MS = 15 * 60 * 1000;
 const USER_FILE_BUCKETS = ["sparring-videos", "training-videos"];
 const TERMINAL_STATUSES = new Set(["canceled", "incomplete_expired"]);
 const LIST_PAGE = 1000;
@@ -83,6 +84,17 @@ Deno.serve(async (req) => {
     const body = (await readJsonBody(req, 1024)) as { confirm?: unknown };
     if (body?.confirm !== CONFIRMATION_WORD) {
       throw new PublicError(`Tapez ${CONFIRMATION_WORD} pour confirmer la suppression`);
+    }
+    // A stolen or forgotten session (shared device, XSS) must not be enough
+    // to erase an account: last_sign_in_at only moves on a real sign-in, not
+    // on token refresh.
+    const lastSignIn = Date.parse(user.last_sign_in_at ?? "");
+    if (!Number.isFinite(lastSignIn) || Date.now() - lastSignIn > RECENT_SIGN_IN_MS) {
+      throw new PublicError(
+        "Par sécurité, reconnectez-vous puis relancez la suppression (connexion de moins de 15 minutes requise).",
+        403,
+        "REAUTH_REQUIRED",
+      );
     }
 
     // 1. Stop billing on every Stripe customer of the account.

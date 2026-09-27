@@ -66,15 +66,26 @@ export const AICoachChat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
   const { gate, paywallOpen, setPaywallOpen } = useFeatureGate('ai_coach');
 
+  // Scrolls the chat viewport only: scrollIntoView would also drag the page
+  // back to the chat on every streamed token.
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const end = endRef.current;
+    const viewport = end?.closest<HTMLElement>("[data-radix-scroll-area-viewport]");
+    if (end && viewport) viewport.scrollTop = viewport.scrollHeight;
   }, [messages]);
+
+  // Read by SparringAnalysisFAB, which would otherwise cover the Send button.
+  useEffect(() => {
+    if (!isExpanded) return;
+    document.body.dataset.coachExpanded = "true";
+    return () => {
+      delete document.body.dataset.coachExpanded;
+    };
+  }, [isExpanded]);
 
   const setMessageContent = (id: string, content: string) => {
     setMessages(prev => prev.map(m => (m.id === id ? { ...m, content } : m)));
@@ -186,7 +197,7 @@ export const AICoachChat = () => {
         "p-0 flex flex-col",
         isExpanded ? "h-[calc(100%-80px)]" : "h-[calc(100%-80px)]"
       )}>
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 p-4">
           {messages.length === 0 ? (
             <div className="text-center py-8">
               <Bot className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
@@ -252,6 +263,7 @@ export const AICoachChat = () => {
               ))}
             </div>
           )}
+          <div ref={endRef} aria-hidden />
         </ScrollArea>
 
         <div className="p-4 border-t">

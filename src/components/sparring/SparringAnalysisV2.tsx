@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile";
+import { disciplineLabel, useProfile } from "@/hooks/useProfile";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { readFunctionError } from "@/lib/functionError";
 import { FeaturePaywall } from "@/components/FeaturePaywall";
@@ -20,6 +20,19 @@ import { ACCEPTED_VIDEO_TYPES, MAX_VIDEO_SIZE_MB, type AnalysisRecord, type Spar
 
 const ATHLETE_STORAGE_KEY = "korev.sparring.athlete";
 const MIN_SHEETS = 3;
+
+// Profile discipline slugs -> SparringUploadPanel values. Unlisted slugs stay on "auto".
+const PANEL_DISCIPLINE: Record<string, string> = {
+  mma: "MMA",
+  boxe: "Boxe anglaise",
+  "muay-thai": "Muay Thai",
+  kickboxing: "Kickboxing",
+  "jiu-jitsu": "BJJ",
+  judo: "Judo",
+  lutte: "Judo",
+  karate: "Karaté",
+  taekwondo: "Taekwondo",
+};
 
 const validateVideoFile = (file: File): string | null => {
   if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) return "Format non supporté. Utilisez MP4, MOV, WebM ou AVI.";
@@ -65,7 +78,8 @@ export const SparringAnalysisV2 = () => {
   const busy = stage !== null;
 
   useEffect(() => {
-    if (profile?.martial_arts_discipline && discipline === "auto") setDiscipline(profile.martial_arts_discipline);
+    const preset = PANEL_DISCIPLINE[profile?.martial_arts_discipline ?? ""];
+    if (preset && discipline === "auto") setDiscipline(preset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.martial_arts_discipline]);
 
@@ -169,7 +183,7 @@ export const SparringAnalysisV2 = () => {
           analysisId: recordId,
           videoName: file.name,
           qualityMode: "pro",
-          discipline: discipline === "auto" ? (profile?.martial_arts_discipline ?? null) : discipline,
+          discipline: discipline === "auto" ? (profile?.martial_arts_discipline ? disciplineLabel(profile.martial_arts_discipline) : null) : discipline,
           athlete: athlete.trim() || undefined,
         },
       });

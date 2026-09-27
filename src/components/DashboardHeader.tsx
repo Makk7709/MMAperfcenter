@@ -92,6 +92,7 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
             size="sm" 
             className="gap-2"
             onClick={() => navigate('/profile')}
+            aria-label="Mon profil"
           >
             <User className="h-4 w-4" />
             <span className="hidden md:inline">Profil</span>
@@ -99,7 +100,7 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
 
           {/* Sign Out */}
           {onSignOut && (
-            <Button variant="ghost" size="sm" onClick={onSignOut} className="gap-2">
+            <Button variant="ghost" size="sm" onClick={onSignOut} className="gap-2" aria-label="Sortir (se déconnecter)">
               <LogOut className="h-4 w-4" />
               <span className="hidden lg:inline">Sortir</span>
             </Button>
@@ -108,7 +109,7 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
           {/* Mobile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="md:hidden">
+              <Button variant="ghost" size="sm" className="md:hidden" aria-label="Menu de navigation">
                 <Menu className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -120,6 +121,10 @@ export const DashboardHeader = ({ userName = "Coach", onSignOut }: DashboardHead
               <DropdownMenuItem onClick={() => navigate("/history")}>
                 <History className="h-4 w-4 mr-2" />
                 Historique
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/journal")}>
+                <BookOpen className="h-4 w-4 mr-2" />
+                Carnet
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/statistics")}>
                 <BarChart3 className="h-4 w-4 mr-2" />

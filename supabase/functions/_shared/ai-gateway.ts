@@ -25,17 +25,46 @@ export function getAiGatewayKey(): string {
   return key;
 }
 
-// Streaming chat completion. Throws a PublicError when the gateway refuses.
-export async function streamChatCompletion(body: Record<string, unknown>): Promise<ReadableStream<Uint8Array> | null> {
-  const response = await fetch(getAiGatewayUrl(), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getAiGatewayKey()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ...body, stream: true }),
-  });
+// Model names change when the provider retires one: they are secrets
+// (AI_MODEL_FAST / AI_MODEL_PRO), so switching needs no redeploy of the code.
+const DEFAULT_MODELS = {
+  fast: "google/gemini-2.5-flash",
+  pro: "google/gemini-2.5-pro",
+} as const;
+
+export function aiModel(kind: keyof typeof DEFAULT_MODELS): string {
+  const name = kind === "fast" ? Deno.env.get("AI_MODEL_FAST") : Deno.env.get("AI_MODEL_PRO");
+  return name?.trim() || DEFAULT_MODELS[kind];
+}
+
+// Time allowed for the gateway to start answering. The stream itself is not
+// bounded here: a long answer keeps flowing after the headers arrive.
+const FIRST_BYTE_TIMEOUT_MS = 30_000;
+
+// Streaming chat completion. Throws a PublicError when the gateway refuses
+// or does not answer in time.
+export async function streamChatCompletion(body: Record<string, unknown>): Promise<ReadableStream<Uint8Array>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FIRST_BYTE_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(getAiGatewayUrl(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getAiGatewayKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...body, stream: true }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    console.error("AI gateway unreachable:", error instanceof Error ? error.message : String(error));
+    throw new PublicError("Le service IA ne répond pas, réessayez dans quelques instants.", 504);
+  } finally {
+    clearTimeout(timer);
+  }
   await assertGatewayOk(response);
+  if (!response.body) throw new Error("AI gateway returned no stream body");
   return response.body;
 }
 

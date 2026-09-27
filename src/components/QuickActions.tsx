@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { StartSessionTrigger } from "@/components/training/StartSessionTrigger";
 
 interface QuickActionsProps {
+  /** Selects a dashboard tab and scrolls the tabs into view (the tiles sit above them on mobile). */
   onSwitchTab?: (tab: string) => void;
   /** Opens the barcode scanner of the nutrition tracker. */
   onScan?: () => void;

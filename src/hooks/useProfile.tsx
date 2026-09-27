@@ -50,11 +50,30 @@ export interface Profile {
   updated_at: string;
 }
 
+// Stored as slugs in profiles.martial_arts_discipline / secondary_disciplines.
+export const disciplineOptions = [
+  { value: "mma", label: "MMA" },
+  { value: "boxe", label: "Boxe Anglaise" },
+  { value: "muay-thai", label: "Muay Thai" },
+  { value: "kickboxing", label: "Kickboxing" },
+  { value: "jiu-jitsu", label: "Jiu-Jitsu Brésilien" },
+  { value: "judo", label: "Judo" },
+  { value: "karate", label: "Karaté" },
+  { value: "taekwondo", label: "Taekwondo" },
+  { value: "lutte", label: "Lutte" },
+  { value: "krav-maga", label: "Krav Maga" },
+  { value: "autre", label: "Autre discipline" },
+];
+
+export const disciplineLabel = (slug: string | null | undefined): string =>
+  disciplineOptions.find((d) => d.value === slug)?.label ?? slug ?? "";
+
 export const useProfile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (user) {
@@ -68,6 +87,7 @@ export const useProfile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      setError(null);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -78,6 +98,7 @@ export const useProfile = () => {
       setProfile(data as unknown as Profile);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      setError(error);
     } finally {
       setLoading(false);
     }
@@ -107,6 +128,7 @@ export const useProfile = () => {
   return {
     profile,
     loading,
+    error,
     updateProfile,
     refreshProfile: fetchProfile,
   };

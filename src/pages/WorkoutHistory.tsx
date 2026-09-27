@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { trainingProgressKey } from "@/hooks/useTraining";
 import { useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
+import { AlertTriangle, Calendar, Clock, Dumbbell, Swords, Trophy, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -57,6 +57,20 @@ interface SparringAnalysisRow {
   analysis: SparringAnalysisData | null;
 }
 
+const HISTORY_LIMIT = 20;
+
+const LoadError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <Card className="liquid-glass-solid border-0">
+    <CardContent className="p-8 text-center">
+      <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+      <p className="text-muted-foreground">{message}</p>
+      <Button className="mt-4" variant="outline" onClick={onRetry}>
+        Réessayer
+      </Button>
+    </CardContent>
+  </Card>
+);
+
 export default function WorkoutHistory() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -64,6 +78,8 @@ export default function WorkoutHistory() {
   const [workouts, setWorkouts] = useState<HistoricalWorkout[]>([]);
   const [sparrings, setSparrings] = useState<SparringAnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [workoutsError, setWorkoutsError] = useState(false);
+  const [sparringsError, setSparringsError] = useState(false);
   const [selectedSparring, setSelectedSparring] = useState<SparringAnalysisRow | null>(null);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
@@ -95,47 +111,50 @@ export default function WorkoutHistory() {
     toast.success("Analyse supprimée");
   };
 
+  const loadHistory = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const [workoutsRes, sparringRes] = await Promise.all([
+      supabase
+        .from("workouts")
+        .select(`
+          *,
+          workout_exercises (
+            exercise:exercises (name),
+            sets (weight_kg, reps, completed)
+          )
+        `)
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(HISTORY_LIMIT),
+      supabase
+        .from("sparring_analyses")
+        .select("id, video_name, video_url, created_at, status, analysis")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(HISTORY_LIMIT),
+    ]);
+
+    if (workoutsRes.error) console.error("Error loading workouts:", workoutsRes.error);
+    else setWorkouts(workoutsRes.data as HistoricalWorkout[]);
+    setWorkoutsError(!!workoutsRes.error);
+
+    if (sparringRes.error) console.error("Error loading sparrings:", sparringRes.error);
+    else setSparrings((sparringRes.data || []) as unknown as SparringAnalysisRow[]);
+    setSparringsError(!!sparringRes.error);
+
+    setLoading(false);
+  }, [user]);
+
   useEffect(() => {
     if (!user) {
       navigate("/auth");
       return;
     }
-
-    const loadHistory = async () => {
-      const [workoutsRes, sparringRes] = await Promise.all([
-        supabase
-          .from("workouts")
-          .select(`
-            *,
-            workout_exercises (
-              exercise:exercises (name),
-              sets (weight_kg, reps, completed)
-            )
-          `)
-          .eq("user_id", user.id)
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("sparring_analyses")
-          .select("id, video_name, video_url, created_at, status, analysis")
-          .eq("user_id", user.id)
-          .eq("status", "completed")
-          .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
-
-      if (workoutsRes.error) console.error("Error loading workouts:", workoutsRes.error);
-      else setWorkouts(workoutsRes.data as HistoricalWorkout[]);
-
-      if (sparringRes.error) console.error("Error loading sparrings:", sparringRes.error);
-      else setSparrings((sparringRes.data || []) as unknown as SparringAnalysisRow[]);
-
-      setLoading(false);
-    };
-
-    loadHistory();
-  }, [user, navigate]);
+    void loadHistory();
+  }, [user, navigate, loadHistory]);
 
   const calculateStats = () => {
     const totalWorkouts = workouts.length;
@@ -176,12 +195,19 @@ export default function WorkoutHistory() {
               <Dumbbell className="h-4 w-4" /> Entraînements
             </TabsTrigger>
             <TabsTrigger value="sparring" className="gap-2">
-              <Swords className="h-4 w-4" /> Sparring ({sparrings.length})
+              <Swords className="h-4 w-4" /> Sparring{!sparringsError && ` (${sparrings.length})`}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="workouts" className="space-y-6">
+            {workoutsError ? (
+              <LoadError message="Impossible de charger vos entraînements." onRetry={() => void loadHistory()} />
+            ) : (
+            <>
             {/* Stats Overview */}
+            {workouts.length >= HISTORY_LIMIT && (
+              <p className="korev-eyebrow">Sur les {HISTORY_LIMIT} dernières séances</p>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="liquid-glass-solid border-0">
                 <CardContent className="p-4 text-center">
@@ -191,13 +217,13 @@ export default function WorkoutHistory() {
               </Card>
               <Card className="liquid-glass-solid border-0">
                 <CardContent className="p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Volume Total</p>
+                  <p className="text-sm text-muted-foreground mb-1">Volume</p>
                   <p className="text-2xl font-bold text-secondary">{stats.totalVolume.toFixed(0)} kg</p>
                 </CardContent>
               </Card>
               <Card className="liquid-glass-solid border-0">
                 <CardContent className="p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Temps Total</p>
+                  <p className="text-sm text-muted-foreground mb-1">Temps</p>
                   <p className="text-2xl font-bold text-accent">{stats.totalTime} min</p>
                 </CardContent>
               </Card>
@@ -301,10 +327,14 @@ export default function WorkoutHistory() {
                 })}
               </div>
             )}
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="sparring" className="space-y-4">
-            {sparrings.length === 0 ? (
+            {sparringsError ? (
+              <LoadError message="Impossible de charger vos analyses de sparring." onRetry={() => void loadHistory()} />
+            ) : sparrings.length === 0 ? (
               <Card className="liquid-glass-solid border-0">
                 <CardContent className="p-8 text-center">
                   <Swords className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

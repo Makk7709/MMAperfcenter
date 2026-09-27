@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProfile, Profile as ProfileType } from "@/hooks/useProfile";
+import { useProfile, Profile as ProfileType, disciplineOptions, disciplineLabel } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,11 @@ const GOALS = [
   { value: "sante", label: "Améliorer ma santé générale", icon: "❤️" },
 ];
 
-const DISCIPLINES = ["mma", "boxe", "muay-thai", "kickboxing", "jiu-jitsu", "judo", "karate", "taekwondo", "lutte", "krav-maga"];
+const SECONDARY_DISCIPLINES = disciplineOptions.filter(d => d.value !== "autre");
+
+// Older profiles stored the discipline as free text ("MMA", "Boxe Anglaise"...).
+const toDisciplineSlug = (v: string) =>
+  disciplineOptions.find(d => d.value === v || d.label.toLowerCase() === v.trim().toLowerCase())?.value ?? v;
 const EQUIPMENT_OPTIONS = ["Sac de frappe", "Pao / focus mitts", "Gants", "Corde à sauter", "Haltères", "Barre & poids", "Élastiques", "Kettlebell", "Cage / ring", "Tatami", "Aucun"];
 const DIETARY_OPTIONS = ["Aucune", "Végétarien", "Vegan", "Sans gluten", "Sans lactose", "Halal", "Casher", "Cétogène"];
 const COMMON_INJURIES = ["Genou", "Épaule", "Dos lombaire", "Cervicales", "Poignet", "Cheville", "Coude", "Hanche"];
@@ -48,8 +52,12 @@ const empty: FD = {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { profile, loading, updateProfile } = useProfile();
+  const { profile, loading, error: profileError, updateProfile, refreshProfile } = useProfile();
   const [formData, setFormData] = useState<FD>(empty);
+  const legacyDiscipline =
+    formData.martial_arts_discipline && !disciplineOptions.some(d => d.value === formData.martial_arts_discipline)
+      ? formData.martial_arts_discipline
+      : null;
 
   useEffect(() => {
     if (profile) {
@@ -60,7 +68,7 @@ const Profile = () => {
         gender: profile.gender || "",
         age: profile.age?.toString() || "",
         fitness_level: profile.fitness_level || "beginner",
-        martial_arts_discipline: profile.martial_arts_discipline || "",
+        martial_arts_discipline: toDisciplineSlug(profile.martial_arts_discipline || ""),
         goals: profile.goals || [],
         body_fat_percent: profile.body_fat_percent?.toString() || "",
         waist_cm: profile.waist_cm?.toString() || "",
@@ -137,12 +145,29 @@ const Profile = () => {
     </div>;
   }
 
+  if (!profile && profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="liquid-glass-solid border-0 w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Profil indisponible</CardTitle>
+            <CardDescription>Impossible de charger ton profil. Vérifie ta connexion puis réessaie.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-between gap-2">
+            <Button variant="outline" onClick={() => navigate("/")}>Retour</Button>
+            <Button onClick={() => void refreshProfile()}>Réessayer</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="liquid-glass-solid border-b border-border sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="hover:bg-primary/10">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="hover:bg-primary/10" aria-label="Retour à l'accueil">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-3">
@@ -279,9 +304,17 @@ const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="discipline">Discipline principale</Label>
-                  <Input id="discipline" value={formData.martial_arts_discipline}
-                    onChange={(e) => set("martial_arts_discipline", e.target.value)}
-                    placeholder="MMA, Boxe, Muay Thai..." />
+                  <Select value={formData.martial_arts_discipline} onValueChange={(v) => set("martial_arts_discipline", v)}>
+                    <SelectTrigger id="discipline"><SelectValue placeholder="Choisis ta discipline" /></SelectTrigger>
+                    <SelectContent>
+                      {disciplineOptions.map(d => (
+                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                      ))}
+                      {legacyDiscipline && (
+                        <SelectItem value={legacyDiscipline}>{legacyDiscipline}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -317,11 +350,17 @@ const Profile = () => {
               <div className="space-y-2">
                 <Label>Disciplines secondaires</Label>
                 <div className="flex flex-wrap gap-2">
-                  {DISCIPLINES.map(d => (
-                    <Button key={d} type="button" size="sm"
-                      variant={formData.secondary_disciplines.includes(d) ? "default" : "outline"}
-                      onClick={() => toggleArr("secondary_disciplines", d)}>{d}</Button>
+                  {SECONDARY_DISCIPLINES.map(d => (
+                    <Button key={d.value} type="button" size="sm"
+                      variant={formData.secondary_disciplines.includes(d.value) ? "default" : "outline"}
+                      onClick={() => toggleArr("secondary_disciplines", d.value)}>{d.label}</Button>
                   ))}
+                  {formData.secondary_disciplines
+                    .filter(v => !SECONDARY_DISCIPLINES.some(d => d.value === v))
+                    .map(v => (
+                      <Button key={v} type="button" size="sm" variant="default"
+                        onClick={() => toggleArr("secondary_disciplines", v)}>{disciplineLabel(v)}</Button>
+                    ))}
                 </div>
               </div>
             </CardContent>

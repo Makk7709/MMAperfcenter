@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,111 +7,118 @@ import { Play, Pause, RotateCcw, Settings, Timer as TimerIcon } from "lucide-rea
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useStopwatch } from "@/hooks/useTimers";
+import { formatClock, roundClock } from "@/lib/training/session";
+import { beep, bell, unlockAudio } from "@/lib/training/sound";
+
+interface TimerConfig {
+  rounds: number;
+  work: number;
+  rest: number;
+}
+
+type TimerDraft = Record<keyof TimerConfig, string>;
+
+const FIELDS: { key: keyof TimerConfig; label: string; min: number; max: number }[] = [
+  { key: "rounds", label: "Nombre de rounds", min: 1, max: 12 },
+  { key: "work", label: "Durée du round (secondes)", min: 30, max: 600 },
+  { key: "rest", label: "Durée du repos (secondes)", min: 15, max: 300 },
+];
+
+const clampText = (text: string, min: number, max: number, fallback: number) => {
+  const n = Number.parseInt(text, 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
+
+const toDraft = (c: TimerConfig): TimerDraft => ({ rounds: String(c.rounds), work: String(c.work), rest: String(c.rest) });
+
+const formatDuration = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s} s`;
+  return s === 0 ? `${m} min` : `${m} min ${String(s).padStart(2, "0")}`;
+};
 
 export const RoundTimer = () => {
-  const [rounds, setRounds] = useState(3);
-  const [roundDuration, setRoundDuration] = useState(180); // 3 minutes en secondes
-  const [restDuration, setRestDuration] = useState(60); // 1 minute en secondes
-  const [currentRound, setCurrentRound] = useState(1);
-  const [timeLeft, setTimeLeft] = useState(roundDuration);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isRest, setIsRest] = useState(false);
+  const [config, setConfig] = useState<TimerConfig>({ rounds: 3, work: 180, rest: 60 });
+  const [draft, setDraft] = useState<TimerDraft>(() => toDraft(config));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  const sw = useStopwatch(null);
+  const state = roundClock(sw.elapsed, { rounds: config.rounds, workSeconds: config.work, restSeconds: config.rest });
+  const isRest = state.phase === "rest";
+  const isDone = state.phase === "done";
+
+  const lastPhase = useRef(`${state.phase}-${state.round}`);
+  const lastSecond = useRef(Math.ceil(state.remaining));
+
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (isRunning && timeLeft === 0) {
-      // Son de fin de round
-      playBeep();
-      
-      if (isRest) {
-        // Fin du repos, passer au round suivant
-        if (currentRound < rounds) {
-          setCurrentRound((prev) => prev + 1);
-          setTimeLeft(roundDuration);
-          setIsRest(false);
-        } else {
-          // Fin de tous les rounds
-          setIsRunning(false);
-          setCurrentRound(1);
-          setTimeLeft(roundDuration);
-          setIsRest(false);
-        }
-      } else if (currentRound < rounds) {
-        // Fin du round, passer au repos
-        setTimeLeft(restDuration);
-        setIsRest(true);
-      } else {
-        // Dernier round terminé
-        setIsRunning(false);
-      }
+    const phaseKey = `${state.phase}-${state.round}`;
+    const second = Math.ceil(state.remaining);
+    if (sw.running) {
+      if (phaseKey !== lastPhase.current) bell();
+      else if (second !== lastSecond.current && second > 0 && second <= 3) beep(660, 120);
     }
+    lastPhase.current = phaseKey;
+    lastSecond.current = second;
+  }, [state.phase, state.round, state.remaining, sw.running]);
 
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft, isRest, currentRound, rounds, roundDuration, restDuration]);
-
-  const playBeep = () => {
-    // Utiliser l'API Web Audio pour créer un bip
-    const audioContext = new (globalThis.AudioContext || (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = 800;
-    oscillator.type = "square";
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
-  };
+  const { running, pause } = sw;
+  useEffect(() => {
+    if (isDone && running) pause();
+  }, [isDone, running, pause]);
 
   const handleStart = () => {
-    setIsRunning(true);
-  };
-
-  const handlePause = () => {
-    setIsRunning(false);
+    unlockAudio();
+    if (isDone) sw.reset();
+    sw.start();
   };
 
   const handleReset = () => {
-    setIsRunning(false);
-    setCurrentRound(1);
-    setTimeLeft(roundDuration);
-    setIsRest(false);
+    sw.reset();
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const handleSettingsOpenChange = (open: boolean) => {
+    if (open) setDraft(toDraft(config));
+    setSettingsOpen(open);
+  };
+
+  const clampField = (key: keyof TimerConfig) => {
+    const field = FIELDS.find((f) => f.key === key)!;
+    setDraft((d) => ({ ...d, [key]: String(clampText(d[key], field.min, field.max, config[key])) }));
+  };
+
+  const applySettings = () => {
+    const next = { ...config };
+    for (const { key, min, max } of FIELDS) next[key] = clampText(draft[key], min, max, config[key]);
+    setConfig(next);
+    sw.reset();
+    setSettingsOpen(false);
   };
 
   const getDotClass = (index: number) => {
-    if (index < currentRound) return "bg-primary";
-    if (index === currentRound - 1) return isRest ? "bg-accent" : "bg-primary animate-pulse";
+    if (index < state.roundsCompleted) return "bg-primary";
+    if (index === state.round - 1 && !isDone) return isRest ? "bg-accent" : "bg-primary animate-pulse";
     return "bg-muted";
   };
 
   const getTimerColorClass = () => {
     if (isRest) return "text-accent";
-    if (timeLeft <= 10 && isRunning) return "text-destructive animate-pulse";
+    if (!isDone && state.remaining <= 10 && sw.running) return "text-destructive animate-pulse";
     return "text-primary";
   };
 
-  const roundDots = Array.from({ length: rounds }, (_, index) => ({ id: `round-${index}`, index }));
+  const startLabel = () => {
+    if (isDone) return "Recommencer";
+    return sw.elapsed > 0 ? "Reprendre" : "Démarrer";
+  };
+
+  const roundDots = Array.from({ length: config.rounds }, (_, index) => ({ id: `round-${index}`, index }));
 
   return (
     <Card className="liquid-glass-solid border-0 p-6">
@@ -120,64 +127,35 @@ export const RoundTimer = () => {
           <TimerIcon className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-lg">Timer Combat</h3>
         </div>
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <Dialog open={settingsOpen} onOpenChange={handleSettingsOpenChange}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" aria-label="Configurer le timer">
               <Settings className="h-4 w-4" />
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="text-primary">Configuration Timer</DialogTitle>
+              <DialogDescription className="sr-only">Nombre de rounds, durée des rounds et du repos.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="rounds">Nombre de rounds</Label>
-                <Input
-                  id="rounds"
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={rounds}
-                  onChange={(e) => setRounds(Number.parseInt(e.target.value, 10) || 1)}
-                  className="bg-input border-border"
-                />
-              </div>
-              <div>
-                <Label htmlFor="roundDuration">Durée du round (secondes)</Label>
-                <Input
-                  id="roundDuration"
-                  type="number"
-                  min="30"
-                  max="600"
-                  value={roundDuration}
-                  onChange={(e) => {
-                    const val = Number.parseInt(e.target.value, 10) || 30;
-                    setRoundDuration(val);
-                    if (!isRunning && !isRest) setTimeLeft(val);
-                  }}
-                  className="bg-input border-border"
-                />
-              </div>
-              <div>
-                <Label htmlFor="restDuration">Durée du repos (secondes)</Label>
-                <Input
-                  id="restDuration"
-                  type="number"
-                  min="15"
-                  max="300"
-                  value={restDuration}
-                  onChange={(e) => setRestDuration(Number.parseInt(e.target.value, 10) || 15)}
-                  className="bg-input border-border"
-                />
-              </div>
-              <Button
-                onClick={() => {
-                  handleReset();
-                  setSettingsOpen(false);
-                }}
-                className="w-full"
-              >
+              {FIELDS.map(({ key, label, min, max }) => (
+                <div key={key}>
+                  <Label htmlFor={`timer-${key}`}>{label}</Label>
+                  <Input
+                    id={`timer-${key}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={min}
+                    max={max}
+                    value={draft[key]}
+                    onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                    onBlur={() => clampField(key)}
+                    className="bg-input border-border"
+                  />
+                </div>
+              ))}
+              <Button onClick={applySettings} className="w-full">
                 Appliquer
               </Button>
             </div>
@@ -189,7 +167,7 @@ export const RoundTimer = () => {
         {/* Round indicator */}
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Round {currentRound} / {rounds}
+            Round {state.round} / {config.rounds}
           </p>
           <div className="flex gap-2 justify-center">
             {roundDots.map((dot) => (
@@ -203,21 +181,26 @@ export const RoundTimer = () => {
 
         {/* Timer display */}
         <div className="relative">
-          <div className={`text-7xl font-bold transition-all ${getTimerColorClass()}`}>
-            {formatTime(timeLeft)}
+          <div role="timer" aria-live="off" className={`text-7xl font-bold transition-all ${getTimerColorClass()}`}>
+            {formatClock(isDone ? 0 : state.remaining)}
           </div>
           {isRest && (
             <p className="text-accent font-semibold text-lg mt-2 animate-pulse">
               REPOS
             </p>
           )}
+          {isDone && (
+            <p className="text-muted-foreground font-semibold text-lg mt-2">
+              TERMINÉ
+            </p>
+          )}
         </div>
 
         {/* Controls */}
         <div className="flex gap-3 justify-center">
-          {isRunning ? (
+          {sw.running ? (
             <Button
-              onClick={handlePause}
+              onClick={() => sw.pause()}
               size="lg"
               variant="secondary"
             >
@@ -231,19 +214,19 @@ export const RoundTimer = () => {
               className="bg-primary hover:bg-primary/80"
             >
               <Play className="h-5 w-5 mr-2" />
-              Démarrer
+              {startLabel()}
             </Button>
           )}
           <Button onClick={handleReset} size="lg" variant="outline">
             <RotateCcw className="h-5 w-5 mr-2" />
-            Reset
+            Réinitialiser
           </Button>
         </div>
 
         {/* Info */}
         <div className="text-sm text-muted-foreground space-y-1">
-          <p>Round: {roundDuration / 60} min</p>
-          <p>Repos: {restDuration} sec</p>
+          <p>Round : {formatDuration(config.work)}</p>
+          <p>Repos : {formatDuration(config.rest)}</p>
         </div>
       </div>
     </Card>

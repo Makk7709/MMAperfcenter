@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useExercises } from "@/hooks/useTraining";
@@ -13,8 +14,13 @@ interface ExercisePickerDialogProps {
   onPick: (exerciseId: string) => void;
 }
 
+// On touch screens, focusing the search field opens the keyboard over the list.
+const hasFinePointer = () => globalThis.matchMedia?.("(pointer: fine)").matches === true;
+
 export function ExercisePickerDialog({ open, onOpenChange, onPick }: ExercisePickerDialogProps) {
-  const { data: exercises = [], isLoading } = useExercises();
+  const { data: exercises = [], isLoading, isError, isFetching, refetch } = useExercises();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const loadFailed = isError && exercises.length === 0;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
 
@@ -37,7 +43,15 @@ export function ExercisePickerDialog({ open, onOpenChange, onPick }: ExercisePic
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] max-w-lg flex-col gap-0 p-0">
+      <DialogContent
+        ref={contentRef}
+        className="flex max-h-[88vh] max-w-lg flex-col gap-0 p-0"
+        onOpenAutoFocus={(e) => {
+          if (hasFinePointer()) return;
+          e.preventDefault();
+          contentRef.current?.focus();
+        }}
+      >
         <DialogHeader className="border-b border-border px-5 pb-4 pt-5">
           <p className="korev-eyebrow">Séance / Exercices</p>
           <DialogTitle className="font-display text-xl uppercase">Ajouter un exercice</DialogTitle>
@@ -45,7 +59,6 @@ export function ExercisePickerDialog({ open, onOpenChange, onPick }: ExercisePic
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Squat, dorsaux, gainage…"
@@ -73,7 +86,15 @@ export function ExercisePickerDialog({ open, onOpenChange, onPick }: ExercisePic
 
         <ul className="min-h-0 flex-1 overflow-y-auto p-2" aria-label="Exercices">
           {isLoading && <li className="p-4 text-sm text-muted-foreground">Chargement…</li>}
-          {!isLoading && filtered.length === 0 && <li className="p-4 text-sm text-muted-foreground">Aucun exercice ne correspond.</li>}
+          {loadFailed && (
+            <li className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm text-muted-foreground">
+              Impossible de charger les exercices.
+              <Button size="sm" variant="outline" onClick={() => void refetch()} disabled={isFetching}>
+                Réessayer
+              </Button>
+            </li>
+          )}
+          {!isLoading && !loadFailed && filtered.length === 0 && <li className="p-4 text-sm text-muted-foreground">Aucun exercice ne correspond.</li>}
           {filtered.map((e) => (
             <li key={e.id}>
               <button

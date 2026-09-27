@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSubscription } from '@/hooks/useSubscription';
 import { 
   Dialog, 
   DialogContent, 
@@ -55,7 +56,8 @@ export const FeaturePaywall = ({
   onAccessGranted 
 }: FeaturePaywallProps) => {
   const navigate = useNavigate();
-  const { currentPlan, checkAccess, runFeatureWithTracking } = useFeatureAccess();
+  const { currentPlan, planKnown, checkAccess, runFeatureWithTracking, loading: planLoading } = useFeatureAccess();
+  const { isError: planError, refreshSubscription } = useSubscription();
   const [accessInfo, setAccessInfo] = useState<{
     hasAccess: boolean;
     currentUsage: number;
@@ -69,18 +71,35 @@ export const FeaturePaywall = ({
   const featureConfig = FEATURE_CONFIG[feature];
   const requiredPlanInfo = accessInfo ? PLAN_INFO[accessInfo.requiredPlan] : null;
 
+  const callbacks = useRef({ onAccessGranted, onOpenChange });
   useEffect(() => {
+    callbacks.current = { onAccessGranted, onOpenChange };
+  });
+
+  useEffect(() => {
+    if (!open) {
+      setAccessInfo(null);
+      setLoading(true);
+      return;
+    }
+    if (planLoading || planError) return;
+
+    let cancelled = false;
     const loadAccessInfo = async () => {
       setLoading(true);
       const info = await checkAccess(feature);
+      if (cancelled) return;
       setAccessInfo(info);
       setLoading(false);
+      if (info.hasAccess && info.isUnlimited) {
+        callbacks.current.onAccessGranted?.();
+        callbacks.current.onOpenChange(false);
+      }
     };
 
-    if (open) {
-      loadAccessInfo();
-    }
-  }, [open, feature, checkAccess]);
+    loadAccessInfo();
+    return () => { cancelled = true; };
+  }, [open, feature, checkAccess, planLoading, planError]);
 
   const handleUpgrade = () => {
     onOpenChange(false);
@@ -99,6 +118,29 @@ export const FeaturePaywall = ({
     }
   };
 
+  if (planError) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{featureConfig.name}</DialogTitle>
+            <DialogDescription>
+              Impossible de vérifier votre abonnement pour le moment. Vérifiez votre connexion puis réessayez.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+              Fermer
+            </Button>
+            <Button onClick={() => void refreshSubscription()} className="flex-1">
+              Réessayer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (loading || !accessInfo) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,10 +153,8 @@ export const FeaturePaywall = ({
     );
   }
 
-  // Si accès autorisé et illimité, fermer le dialog et notifier
+  // Accès illimité : l'effet de chargement notifie et ferme le dialog.
   if (accessInfo.hasAccess && accessInfo.isUnlimited) {
-    onAccessGranted?.();
-    onOpenChange(false);
     return null;
   }
 
@@ -145,13 +185,15 @@ export const FeaturePaywall = ({
 
         <div className="space-y-6 py-4">
           {/* Current Plan Badge */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Votre plan actuel</span>
-            <Badge className={planColors[currentPlan]}>
-              {planIcons[currentPlan]}
-              <span className="ml-1.5">{PLAN_INFO[currentPlan].name}</span>
-            </Badge>
-          </div>
+          {planKnown && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Votre plan actuel</span>
+              <Badge className={planColors[currentPlan]}>
+                {planIcons[currentPlan]}
+                <span className="ml-1.5">{PLAN_INFO[currentPlan].name}</span>
+              </Badge>
+            </div>
+          )}
 
           {/* Usage Progress (for limited features) */}
           {accessInfo.limit > 0 && (

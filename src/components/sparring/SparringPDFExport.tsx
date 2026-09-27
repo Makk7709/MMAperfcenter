@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
 import type { SparringAnalysisData } from "./types";
 import { toDateKey } from "@/lib/dateKey";
 
@@ -19,6 +18,7 @@ export const SparringPDFExport = ({ analysis, videoName, analysisDate }: Sparrin
     setExporting(true);
 
     try {
+      const { jsPDF } = await import("jspdf");
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
