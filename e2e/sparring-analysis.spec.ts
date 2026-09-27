@@ -9,8 +9,10 @@ test("protected dashboard redirects to authentication", async ({ page }) => {
 });
 
 for (const [width, height] of [
+  [320, 568],
   [375, 667],
   [390, 844],
+  [768, 1024],
   [1440, 900],
 ]) {
   test(`authenticated hero keeps both actions visible at ${width}px`, async ({

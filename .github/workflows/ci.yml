@@ -41,7 +41,9 @@ jobs:
         run: npm run lint
 
       - name: Type check
-        run: npx tsc --noEmit -p tsconfig.app.json
+        run: |
+          npx tsc --noEmit -p tsconfig.app.json
+          npx tsc --noEmit -p tsconfig.node.json
 
       - name: Unit tests (Vitest)
         run: npm run test:coverage

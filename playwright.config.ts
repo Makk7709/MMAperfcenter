@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "html",
   use: {
     baseURL,
-    reducedMotion: "reduce",
+    contextOptions: { reducedMotion: "reduce" },
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
