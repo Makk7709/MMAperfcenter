@@ -5,7 +5,13 @@ import {
 import { createCheckoutHandler } from "../../supabase/functions/create-checkout/handler.ts";
 import { PublicError } from "../../supabase/functions/_shared/http.ts";
 
-type Session = { id: string; url: string; status: string; mode: string };
+type Session = {
+  id: string;
+  url: string;
+  status: string;
+  mode: string;
+  subscription?: string;
+};
 function fixture() {
   let locked = false;
   let row: Record<string, unknown> = {
@@ -16,6 +22,7 @@ function fixture() {
   let failSave = false;
   let loseResponse = false;
   let status: string | null = null;
+  const subscriptionStatus = new Map<string, string>();
   const sessions = new Map<string, Session>();
   const keys = new Map<string, Session>();
   const calls: string[] = [];
@@ -57,6 +64,8 @@ function fixture() {
       list: async function* () {
         if (status) yield { status };
       },
+      retrieve: (id: string) =>
+        Promise.resolve({ id, status: subscriptionStatus.get(id) ?? "active" }),
     },
     checkout: {
       sessions: {
@@ -118,6 +127,7 @@ function fixture() {
     subscription: (s: string) => {
       status = s;
     },
+    subscriptionStatus,
     row: () => row,
   };
 }
@@ -182,6 +192,35 @@ Deno.test(
     f.sessions.get("cs_1")!.status = "complete";
     assertEquals((await f.handler(req())).status, 409);
     assertEquals(f.sessions.size, 1);
+  },
+);
+Deno.test(
+  "checkout refuses a paid session whose subscription is still live",
+  async () => {
+    const f = fixture();
+    await f.handler(req());
+    Object.assign(f.sessions.get("cs_1")!, {
+      status: "complete",
+      subscription: "sub_1",
+    });
+    assertEquals((await f.handler(req())).status, 409);
+    assertEquals(f.sessions.size, 1);
+  },
+);
+Deno.test(
+  "checkout lets a customer subscribe again after cancellation",
+  async () => {
+    const f = fixture();
+    await f.handler(req());
+    Object.assign(f.sessions.get("cs_1")!, {
+      status: "complete",
+      subscription: "sub_1",
+    });
+    f.subscriptionStatus.set("sub_1", "canceled");
+    const again = await f.handler(req());
+    assertEquals(again.status, 200);
+    assertEquals(f.sessions.size, 2);
+    assertEquals(f.row().session_id, "cs_2");
   },
 );
 Deno.test(

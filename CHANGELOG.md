@@ -4,7 +4,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
-**Nécessite les migrations `20260925220000` à `20260926080000` (après le pré-vol `supabase/preflight/20260927_preflight.sql`), le redéploiement de toutes les Edge Functions et les nouveaux secrets `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*` (live). Voir `docs/development/DEPLOYMENT.md` §3.1.**
+**Nécessite Node 24 pour le build, les migrations `20260925220000` à `20260927190000` (après le pré-vol `supabase/preflight/20260927_preflight.sql`), le redéploiement de toutes les Edge Functions et les nouveaux secrets `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*` (live). Voir `docs/development/DEPLOYMENT.md` §3.1.**
 
 ### Ajouté
 

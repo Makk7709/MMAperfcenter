@@ -156,11 +156,25 @@ export function createCheckoutHandler(deps: typeof defaults = defaults) {
         attempt = { ...attempt, session_id: session.id };
         await saveAttempt(db, user.id, token, attempt);
       }
-      if (session?.status === "complete")
-        throw new PublicError(
-          "Paiement déjà envoyé. Patiente pendant la confirmation de ton abonnement.",
-          409,
-        );
+      if (session?.status === "complete") {
+        // The attempt row outlives the subscription it paid for.
+        const subId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription?.id;
+        const ended =
+          !!subId &&
+          ["canceled", "incomplete_expired"].includes(
+            (await stripe.subscriptions.retrieve(subId)).status,
+          );
+        if (!ended)
+          throw new PublicError(
+            "Paiement déjà envoyé. Patiente pendant la confirmation de ton abonnement.",
+            409,
+          );
+        session = null;
+        attempt = { request_id: null, params: null, session_id: null };
+      }
 
       const price = deps.checkoutPriceFor(plan);
       const reusable =
