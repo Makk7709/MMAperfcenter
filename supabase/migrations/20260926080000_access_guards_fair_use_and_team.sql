@@ -18,6 +18,8 @@ SET lock_timeout = '5s';
 -- 7. Temps réel : notifications publiées.
 -- 8. Fil communautaire : lisible par son seul auteur tant que l'app ne
 --    l'affiche pas (il exposait identifiants et horaires d'entraînement).
+-- 9. Adhésions Team : invitations visibles de l'invité seul, départ possible,
+--    réponse unique à une invitation.
 --
 -- Idempotent : peut être rejoué sans effet de bord.
 -- ============================================================================
@@ -304,6 +306,27 @@ SET payload = jsonb_build_object(
 )
 WHERE payload ? 'data';
 
+-- À la création du profil (inscription), les textes trop longs sont tronqués
+-- au lieu de faire échouer l'inscription (« Database error saving new user »).
+CREATE OR REPLACE FUNCTION public.clamp_new_profile_text()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.full_name := left(NEW.full_name, 100);
+  NEW.target_event := left(NEW.target_event, 200);
+  NEW.belt_rank := left(NEW.belt_rank, 60);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS clamp_new_profile_text ON public.profiles;
+CREATE TRIGGER clamp_new_profile_text
+BEFORE INSERT ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.clamp_new_profile_text();
+
 -- ---- 5. Tables héritées hors migrations ---------------------------------------
 -- Créées à la main en production, inutilisées par l'app : fermées au client
 -- sans être supprimées (voir docs/audit/SCHEMA_DRIFT.md).
@@ -324,8 +347,10 @@ $$;
 -- profiles n'est lisible que par son titulaire : l'app ne peut ni retrouver un
 -- membre par e-mail ni afficher les noms des coéquipiers sans ces fonctions.
 
--- Réponse identique que le compte existe ou non : une team ne sert pas à
--- tester quelles adresses sont inscrites.
+-- Réponse identique que le compte existe ou non, invité ou non : une team ne
+-- sert pas à tester quelles adresses sont inscrites. Les invitations en attente
+-- ne sont visibles que de l'invité, et chacun envoie au plus 20 invitations par
+-- jour (pas de relais de spam vers les comptes inscrits).
 CREATE OR REPLACE FUNCTION public.invite_team_member(_meute_id uuid, _email text)
 RETURNS text
 LANGUAGE plpgsql
@@ -336,7 +361,6 @@ DECLARE
   v_caller uuid := auth.uid();
   v_target uuid;
   v_status text;
-  v_team_name text;
 BEGIN
   IF v_caller IS NULL THEN
     RAISE EXCEPTION 'not authenticated' USING ERRCODE = '42501';
@@ -349,6 +373,11 @@ BEGIN
 
   IF (SELECT count(*) FROM public.meute_members WHERE meute_id = _meute_id AND status = 'pending') >= 50 THEN
     RETURN 'too_many_pending';
+  END IF;
+
+  IF (SELECT count(*) FROM public.meute_members
+      WHERE invited_by = v_caller AND invited_at > now() - interval '1 day') >= 20 THEN
+    RETURN 'rate_limited';
   END IF;
 
   SELECT id INTO v_target
@@ -366,21 +395,20 @@ BEGIN
 
   IF v_status = 'accepted' THEN
     RETURN 'already_member';
-  ELSIF v_status = 'pending' THEN
-    RETURN 'already_invited';
   ELSIF v_status IS NOT NULL THEN
-    -- Invitation déclinée : pas de relance, la personne a déjà répondu.
+    -- Déjà invitée, ou invitation déclinée : pas de relance.
     RETURN 'sent';
   END IF;
 
   INSERT INTO public.meute_members (meute_id, user_id, invited_by, role, status)
   VALUES (_meute_id, v_target, v_caller, 'member', 'pending');
 
-  SELECT name INTO v_team_name FROM public.meutes WHERE id = _meute_id;
+  -- Sans le nom de la team, choisi librement par l'invitant : il reste
+  -- affiché dans l'app, pas dans une notification.
   PERFORM public.create_notification(
     v_target,
     'Invitation Team',
-    'Tu es invité à rejoindre la team « ' || left(v_team_name, 60) || ' ».',
+    'Tu as reçu une invitation à rejoindre une team. Ouvre l''onglet Team pour répondre.',
     'info'
   );
 
@@ -554,3 +582,62 @@ ON public.community_activities
 FOR SELECT
 TO authenticated
 USING (user_id = auth.uid());
+
+-- ---- 9. Adhésions Team ------------------------------------------------------------
+-- Invitation uniquement par invite_team_member (plafonds, réponse uniforme).
+DROP POLICY IF EXISTS "Owners and admins invite members" ON public.meute_members;
+
+-- Les invitations en attente ou déclinées ne sont visibles que de l'invité :
+-- sinon le propriétaire verrait quelles adresses correspondent à un compte.
+DROP POLICY IF EXISTS "View meute members" ON public.meute_members;
+CREATE POLICY "View meute members"
+ON public.meute_members
+FOR SELECT
+USING (
+  user_id = auth.uid()
+  OR (status = 'accepted'
+      AND (korev_private.is_meute_member(meute_id, auth.uid())
+           OR korev_private.is_meute_owner(meute_id, auth.uid())))
+);
+
+-- Un membre peut quitter une team ; le propriétaire la supprime (il ne peut
+-- pas retirer sa propre adhésion et laisser une team sans propriétaire membre).
+DROP POLICY IF EXISTS "Owners delete members" ON public.meute_members;
+CREATE POLICY "Owners delete members"
+ON public.meute_members
+FOR DELETE
+USING (korev_private.is_meute_owner(meute_id, auth.uid()) AND user_id <> auth.uid());
+
+DROP POLICY IF EXISTS "Members leave their team" ON public.meute_members;
+CREATE POLICY "Members leave their team"
+ON public.meute_members
+FOR DELETE
+USING (user_id = auth.uid() AND role <> 'owner');
+
+-- L'invité répond une seule fois (pending → accepted ou declined) ; la date
+-- d'arrivée est posée par le serveur.
+CREATE OR REPLACE FUNCTION public.guard_membership_status()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF public.is_trusted_caller() OR NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    NEW.joined_at := CASE WHEN public.is_trusted_caller() THEN NEW.joined_at ELSE OLD.joined_at END;
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status <> 'pending' OR NEW.status NOT IN ('accepted', 'declined') THEN
+    RAISE EXCEPTION 'Cette invitation a déjà reçu une réponse' USING ERRCODE = '42501';
+  END IF;
+
+  NEW.joined_at := CASE WHEN NEW.status = 'accepted' THEN now() END;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_membership_status ON public.meute_members;
+CREATE TRIGGER guard_membership_status
+BEFORE UPDATE ON public.meute_members
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_membership_status();

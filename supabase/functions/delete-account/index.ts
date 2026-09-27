@@ -11,6 +11,7 @@
 import { createServiceClient, requireUser, type ServiceClient } from "../_shared/auth.ts";
 import { errorResponse, jsonResponse, preflight, PublicError, readJsonBody } from "../_shared/http.ts";
 import { createStripe, Stripe, USER_ID_METADATA_KEY } from "../_shared/stripe.ts";
+import { sessionSignInMs } from "../_shared/session.ts";
 
 const CONFIRMATION_WORD = "SUPPRIMER";
 const RECENT_SIGN_IN_MS = 15 * 60 * 1000;
@@ -86,9 +87,9 @@ Deno.serve(async (req) => {
       throw new PublicError(`Tapez ${CONFIRMATION_WORD} pour confirmer la suppression`);
     }
     // A stolen or forgotten session (shared device, XSS) must not be enough
-    // to erase an account: last_sign_in_at only moves on a real sign-in, not
-    // on token refresh.
-    const lastSignIn = Date.parse(user.last_sign_in_at ?? "");
+    // to erase an account: the sign-in time of *this* session, not the last
+    // sign-in on any device (last_sign_in_at is only a fallback).
+    const lastSignIn = sessionSignInMs(req) ?? Date.parse(user.last_sign_in_at ?? "");
     if (!Number.isFinite(lastSignIn) || Date.now() - lastSignIn > RECENT_SIGN_IN_MS) {
       throw new PublicError(
         "Par sécurité, reconnectez-vous puis relancez la suppression (connexion de moins de 15 minutes requise).",

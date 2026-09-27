@@ -57,6 +57,10 @@ jobs:
     name: Edge functions (Deno)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # The functions do not use npm: without this Deno reads the frontend
+      # package.json and expects its node_modules.
+      DENO_NO_PACKAGE_JSON: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -86,5 +90,8 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
       - name: Replay migrations and check access rules
         run: ./supabase/tests/run.sh

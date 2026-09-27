@@ -4,6 +4,7 @@ import { assertEquals, assertRejects, assertThrows } from "https://deno.land/std
 import { checkoutPriceFor, isPaidPlan, planFromPriceId, planFromSubscription, type Stripe } from "../../supabase/functions/_shared/stripe.ts";
 import { readJsonBody, readTextBody } from "../../supabase/functions/_shared/http.ts";
 import { aiModel } from "../../supabase/functions/_shared/ai-gateway.ts";
+import { sessionSignInMs } from "../../supabase/functions/_shared/session.ts";
 
 const STRIPE_ENV = [
   "STRIPE_SECRET_KEY",
@@ -39,6 +40,10 @@ Deno.test("stripe: test key uses the test catalogue", withEnv({ STRIPE_SECRET_KE
 
 Deno.test("stripe: live key without live IDs is a configuration error", withEnv({ STRIPE_SECRET_KEY: "sk_live_x" }, () => {
   assertThrows(() => checkoutPriceFor("pro"), Error, "STRIPE_PRICE_PRO");
+}));
+
+Deno.test("stripe: a restricted live key is live too", withEnv({ STRIPE_SECRET_KEY: "rk_live_x" }, () => {
+  assertThrows(() => checkoutPriceFor("elite"), Error, "required with a live Stripe key");
 }));
 
 Deno.test("stripe: live IDs come from the secrets", withEnv({
@@ -83,3 +88,19 @@ Deno.test("ai: model names default and can be overridden", withEnv({}, () => {
   Deno.env.set("AI_MODEL_FAST", "google/gemini-3-flash");
   assertEquals(aiModel("fast"), "google/gemini-3-flash");
 }));
+
+function bearer(claims: unknown): Request {
+  const b64url = (v: unknown) => btoa(JSON.stringify(v)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return new Request("http://x", { headers: { authorization: `Bearer ${b64url({ alg: "HS256" })}.${b64url(claims)}.sig` } });
+}
+
+Deno.test("session: sign-in time comes from the amr claim of this token", () => {
+  const req = bearer({ sub: "u", amr: [{ method: "password", timestamp: 1_700_000_000 }, { method: "otp", timestamp: 1_700_000_500 }] });
+  assertEquals(sessionSignInMs(req), 1_700_000_500_000);
+});
+
+Deno.test("session: no usable amr gives null (caller falls back)", () => {
+  assertEquals(sessionSignInMs(bearer({ sub: "u" })), null);
+  assertEquals(sessionSignInMs(new Request("http://x")), null);
+  assertEquals(sessionSignInMs(new Request("http://x", { headers: { authorization: "Bearer not-a-jwt" } })), null);
+});

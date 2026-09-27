@@ -19,8 +19,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - Le rôle, le plan et les teams d'un autre compte ne peuvent plus être sondés via l'API.
 - Plafond quotidien d'usage de l'IA pour tous les plans (200 messages Coach IA, 20 analyses PRISM par jour).
 - Le fil communautaire n'est plus lisible par les autres membres, et ne contient plus d'e-mail ni de nom de séance.
-- Suppression de compte : connexion de moins de 15 minutes exigée.
-- Stripe : IDs de prix et produits live en secrets serveur ; un produit inconnu n'enregistre plus un abonné payant en plan gratuit. Événements Stripe conservés sans données personnelles. Corps du webhook limité en taille.
+- Suppression de compte : la session en cours doit avoir été ouverte il y a moins de 15 minutes.
+- Team : les invitations ne permettent plus de savoir quelles adresses ont un compte (réponse uniforme, invitations en attente invisibles, 20 par jour, notification sans le nom de la team).
+- Stripe : IDs de prix et produits live en secrets serveur (clés `sk_live_` et restreintes `rk_live_`) ; un produit inconnu n'enregistre plus un abonné payant en plan gratuit. Événements Stripe conservés sans données personnelles. Corps du webhook limité en taille.
 - Longueurs maximales des textes libres, tables héritées fermées au client, plus de dépôt dans l'ancien bucket de sparring.
 
 ### Corrigé
@@ -59,6 +60,10 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - PRISM : le kickboxing et la boxe thaï ne sont plus analysés avec les règles de la boxe anglaise.
 - Carnet : plus de coupure silencieuse à 1000 entrées.
 - Notifications en temps réel, limitées aux siennes.
+- Team : quitter une team fonctionne (la suppression était refusée sans message). Une invitation déclinée ne peut plus être acceptée plus tard.
+- Inscription : un nom de plus de 100 caractères est tronqué au lieu de faire échouer la création du compte.
+- Paiement : impossible d'ouvrir un second abonnement quand le premier est en retard de paiement.
+- Navigateur avec stockage bloqué : l'app ne s'affiche plus en erreur à chaque page.
 - Catalogue : les exercices ajoutés ne créent plus de doublons de casse (« Tirage Vertical », « Box Jumps »…).
 
 ### Performance

@@ -312,7 +312,7 @@ export default function Onboarding() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="full_name">Prénom / Nom de combattant *</Label>
-                  <Input id="full_name" value={formData.full_name}
+                  <Input id="full_name" maxLength={100} value={formData.full_name}
                     onChange={(e) => set("full_name", e.target.value)}
                     placeholder="Ex: Mike Tyson" className="h-12" />
                 </div>
@@ -449,7 +449,7 @@ export default function Onboarding() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="event">Événement cible (optionnel)</Label>
-                        <Input id="event" value={formData.target_event}
+                        <Input id="event" maxLength={200} value={formData.target_event}
                           onChange={(e) => set("target_event", e.target.value)}
                           placeholder="Combat amateur, ceinture..." className="h-12" />
                       </div>
@@ -472,7 +472,7 @@ export default function Onboarding() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="belt">Grade / Ceinture</Label>
-                    <Input id="belt" value={formData.belt_rank}
+                    <Input id="belt" maxLength={60} value={formData.belt_rank}
                       onChange={(e) => set("belt_rank", e.target.value)}
                       placeholder="Bleue, gants jaunes..." className="h-12" />
                   </div>

@@ -193,7 +193,7 @@ const Profile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="full_name">Nom de combattant</Label>
-                  <Input id="full_name" value={formData.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Votre nom" />
+                  <Input id="full_name" maxLength={100} value={formData.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Votre nom" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -325,7 +325,7 @@ const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="belt">Grade / Ceinture</Label>
-                  <Input id="belt" value={formData.belt_rank}
+                  <Input id="belt" maxLength={60} value={formData.belt_rank}
                     onChange={(e) => set("belt_rank", e.target.value)} placeholder="Bleue..." />
                 </div>
                 <div className="space-y-2">
@@ -403,7 +403,7 @@ const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="event">Événement cible</Label>
-                  <Input id="event" value={formData.target_event}
+                  <Input id="event" maxLength={200} value={formData.target_event}
                     onChange={(e) => set("target_event", e.target.value)} placeholder="Combat, ceinture..." />
                 </div>
               </div>

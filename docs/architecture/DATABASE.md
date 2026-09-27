@@ -221,7 +221,7 @@ Compteur quotidien (`user_id`, `feature_name`, `day`) du plafond d'usage raisonn
 | `has_feature_access(_user_id, _feature)` | Accès fonctionnalité selon plan (même garde) | SECURITY DEFINER |
 | `korev_private.*` | Versions brutes des 5 fonctions d'autorisation, utilisées par les politiques RLS ; schéma non exposé par l'API | SECURITY DEFINER |
 | `consume_feature_quota` / `refund_feature_quota` | Quota mensuel + plafond quotidien, remboursement (serveur uniquement) | SECURITY DEFINER |
-| `invite_team_member(_meute_id, _email)` | Invitation par e-mail (owner/admin) : `sent`, `already_member`, `already_invited`, `too_many_pending` | SECURITY DEFINER |
+| `invite_team_member(_meute_id, _email)` | Invitation par e-mail (owner/admin), seul moyen d'inviter : `sent` (compte inconnu, déjà invité ou décliné compris), `already_member`, `too_many_pending` (50 par team), `rate_limited` (20 par jour et par invitant) | SECURITY DEFINER |
 | `get_team_members` / `get_team_activities` / `get_my_team_invitations` | Lecture Team avec nom d'affichage, sans e-mail | SECURITY DEFINER |
 | `public_display_name(uuid)` | Nom publiable (jamais un e-mail), réservé aux triggers | SECURITY DEFINER |
 | `get_feature_usage(_user_id, _feature_name)` | Lecture quota | SECURITY DEFINER |
@@ -329,7 +329,7 @@ Documenté intégralement dans [`SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md).
 | `workouts`, `sets`, `nutrition_*` | `auth.uid() = user_id` | Idem |
 | `subscriptions` | Propre ligne | **Interdit** (service role) |
 | `feature_usage` | Propre ligne | **Interdit** (RPC uniquement) |
-| `meutes` / `meute_members` | Membres via helpers | Selon rôle meute ; invitation via `invite_team_member` |
+| `meutes` / `meute_members` | Membres acceptés via helpers ; invitations en attente visibles de l'invité seul | Invitation via `invite_team_member` ; l'invité répond une fois ; un membre peut partir, le propriétaire retire les autres |
 | `meute_activities` | Membres | **Interdit** (triggers) |
 | `training_videos` | Visibilité + plan | admin/coach |
 | `community_activities` | Auteur | **Interdit** (trigger) |

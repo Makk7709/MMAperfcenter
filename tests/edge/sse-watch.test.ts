@@ -44,3 +44,30 @@ Deno.test("watchStreamContent reports an empty reply", async () => {
 Deno.test("watchStreamContent reads a last line without newline", async () => {
   assertEquals((await run(delta("A").trimEnd())).hadContent, true);
 });
+
+Deno.test("watchStreamContent reports an upstream error before any text", async () => {
+  let calls = 0;
+  let hadContent: boolean | null = null;
+  const failing = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.error(new Error("gateway reset"));
+    },
+  });
+  const watched = watchStreamContent(failing, (had) => {
+    calls++;
+    hadContent = had;
+  });
+  await new Response(watched).text().catch(() => {});
+  assertEquals(hadContent, false);
+  assertEquals(calls, 1);
+});
+
+Deno.test("watchStreamContent reports once when the client cancels", async () => {
+  let calls = 0;
+  const endless = new ReadableStream<Uint8Array>({ pull() {} });
+  const watched = watchStreamContent(endless, () => {
+    calls++;
+  });
+  await watched.cancel("client left");
+  assertEquals(calls, 1);
+});

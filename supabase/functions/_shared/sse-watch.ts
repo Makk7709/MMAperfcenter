@@ -36,16 +36,38 @@ export function watchStreamContent(
     if (hadContent) buffer = "";
   };
 
-  return source.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        scan(text.decode(chunk, { stream: true }));
-        controller.enqueue(chunk);
-      },
-      async flush() {
+  // onEnd runs once, whether the stream ends, fails or is cancelled: an
+  // upstream error before any text must refund like an empty reply.
+  let ended = false;
+  const end = async () => {
+    if (ended) return;
+    ended = true;
+    await onEnd(hadContent);
+  };
+
+  const reader = source.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await reader.read();
+      } catch (error) {
+        await end();
+        controller.error(error);
+        return;
+      }
+      if (result.done) {
         scan(text.decode() + "\n");
-        await onEnd(hadContent);
-      },
-    }),
-  );
+        await end();
+        controller.close();
+        return;
+      }
+      scan(text.decode(result.value, { stream: true }));
+      controller.enqueue(result.value);
+    },
+    async cancel(reason) {
+      await end();
+      await reader.cancel(reason);
+    },
+  });
 }

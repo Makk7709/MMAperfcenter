@@ -7,12 +7,16 @@ import {
   isPaidPlan,
   type PaidPlan,
   planFromPriceId,
+  type Stripe,
   USER_ID_METADATA_KEY,
 } from "../_shared/stripe.ts";
 
 // Recorded on the Stripe session and subscription: proof that the customer
 // asked for immediate access and waived the 14-day withdrawal period.
 const WITHDRAWAL_WAIVER_KEY = "withdrawal_waiver_at";
+
+// A subscription in one of these states still bills (or will retry billing).
+const OPEN_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing", "past_due", "unpaid"]);
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -45,6 +49,18 @@ Deno.serve(async (req) => {
 
     const stripe = createStripe();
     const customerId = await getOrCreateCustomerId(supabase, stripe, user);
+    // The row above says "free" once a payment fails (past_due, unpaid), yet
+    // the Stripe subscription still exists and would be doubled.
+    const { data: existing } = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 20 });
+    const open = existing.find((sub: Stripe.Subscription) => OPEN_STATUSES.has(sub.status));
+    if (open) {
+      throw new PublicError(
+        open.status === "active" || open.status === "trialing"
+          ? "Tu as déjà un abonnement actif : change d'offre depuis « Gérer mon abonnement »."
+          : "Un paiement est en attente sur ton abonnement : mets à jour ton moyen de paiement depuis « Gérer mon abonnement ».",
+        409,
+      );
+    }
     const baseUrl = appBaseUrl(req);
     const waiverAt = new Date().toISOString();
 

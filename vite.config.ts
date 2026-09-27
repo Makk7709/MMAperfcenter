@@ -15,6 +15,9 @@ function requireEnv(env: Record<string, string>): Plugin {
       if (missing.length > 0) {
         throw new Error(`Variables d'environnement manquantes pour le build : ${missing.join(", ")} (voir .env.example)`);
       }
+      for (const key of ["VITE_SITE_URL", "VITE_SENTRY_DSN"]) {
+        if (!env[key]?.trim()) console.warn(`\u26a0 ${key} absent : ${key === "VITE_SITE_URL" ? "cartes de partage en chemins relatifs" : "aucune erreur de production remontée"}.`);
+      }
     },
   };
 }

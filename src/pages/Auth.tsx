@@ -26,7 +26,7 @@ const signInSchema = z.object({
 const signUpSchema = z.object({
   email: emailSchema,
   password: newPasswordSchema,
-  fullName: z.string().optional(),
+  fullName: z.string().max(100, { message: "Nom trop long (100 caractères maximum)" }).optional(),
 });
 
 const INVALID_CREDENTIALS = 'Email ou mot de passe incorrect';
@@ -281,6 +281,7 @@ export default function Auth() {
                       name="fullName"
                       type="text"
                       placeholder="Votre nom complet"
+                      maxLength={100}
                       value={formData.fullName}
                       onChange={handleInputChange}
                     />

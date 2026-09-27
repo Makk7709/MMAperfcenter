@@ -213,7 +213,8 @@ SELECT p.oid::regprocedure AS fn, pg_get_functiondef(p.oid) AS definition, p.pro
 FROM pg_proc p WHERE p.pronamespace='public'::regnamespace AND p.proname IN
   ('get_feature_usage','increment_feature_usage','prevent_role_escalation','create_community_activity_on_workout',
    'consume_feature_quota','refund_feature_quota','is_trusted_caller','create_notification','check_subscription_access',
-   'sync_stripe_subscription','mark_webhook_processed','is_webhook_processed','get_user_id_by_stripe_customer','increment_video_views');
+   'sync_stripe_subscription','mark_webhook_processed','is_webhook_processed','get_user_id_by_stripe_customer','increment_video_views',
+   'has_role','has_feature_access','is_meute_member','is_meute_owner','get_meute_member_role','handle_new_user');
 
 -- B-SAVE-2 (rollback material): policies and FKs that will be altered/dropped.
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check FROM pg_policies

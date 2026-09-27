@@ -58,6 +58,8 @@ flowchart LR
 5. secrets (§4.2) puis `supabase functions deploy` (toutes) ;
 6. build et envoi du frontend (§6).
 
+`supabase db push` n'enveloppe pas les fichiers dans un `BEGIN` explicite : les instructions qui l'exigent (`LOCK TABLE`) sont placées dans un bloc `DO`. La CI applique les migrations avec la CLI Supabase pour reproduire ce comportement.
+
 Chaque migration en attente commence par `SET lock_timeout = '5s'` : si une table est verrouillée (transaction longue), elle échoue vite au lieu de bloquer le trafic. La relancer quelques minutes plus tard ; les migrations sont rejouables.
 
 La CI rejoue toutes les migrations sur un Postgres vierge, deux fois, puis vérifie les règles d'accès (`supabase/tests/run.sh`, lançable en local avec les variables `PG*`).
@@ -96,13 +98,16 @@ Redéployer la fonction `ai-coach` avec le frontend 0.10.1 (elle lit désormais 
 
 - `has_role`, `has_feature_access`, `is_meute_member`, `is_meute_owner` et `get_meute_member_role` ne répondent plus que pour l'appelant lui-même (ou le serveur) : on ne peut plus sonder le rôle ou le plan d'un autre compte. Les versions brutes passent dans le schéma `korev_private` (non exposé par l'API) ; les politiques RLS existantes continuent de fonctionner ;
 - plafond quotidien d'usage raisonnable, y compris pour les plans illimités et les coachs : 200 messages Coach IA et 20 analyses PRISM par jour (`get_daily_feature_cap`). Au-delà : 429 `DAILY_LIMIT_REACHED`. Les administrateurs ne sont pas plafonnés ;
-- Team : invitation par e-mail (`invite_team_member`, même réponse qu'un compte existe ou non), membres et activités avec un nom d'affichage sans e-mail, activités écrites uniquement par le serveur ;
-- longueurs maximales des textes libres (profil, séances, teams, notifications), après troncature des valeurs existantes ;
+- Team :
+  - invitation par e-mail uniquement via `invite_team_member`. La réponse est la même que l'adresse ait un compte ou non, ou soit déjà invitée. Les invitations en attente ne sont visibles que de l'invité. Chacun envoie au plus 20 invitations par jour, et la notification ne reprend pas le nom de la team ;
+  - un membre peut quitter une team, et une invitation déclinée ne peut plus être acceptée ;
+  - membres et activités affichés avec un nom sans e-mail ; activités écrites uniquement par le serveur ;
+- longueurs maximales des textes libres (profil, séances, teams, notifications), après troncature des valeurs existantes. À l'inscription, un nom trop long est tronqué au lieu de faire échouer la création du compte ;
 - `stripe_webhook_events.payload` ne garde que l'identifiant de l'objet ; les tables héritées hors migrations (`documents`, `organizations*`, `render_usage`) sont fermées au client ;
 - le fil communautaire n'est plus lisible que par son auteur (aucun écran ne l'affiche) ;
 - les notifications passent en temps réel (publication `supabase_realtime`).
 
-Le quota de scans de code-barres (plan gratuit) reste une limite **côté client** : il ne protège rien de payant. La recherche d'aliments interroge Open Food Facts directement depuis le navigateur. Leur limite est de 10 recherches par minute et par adresse IP, et la recherche au fil de la frappe est interdite. L'app ne cherche donc que sur Entrée ou sur le bouton « Chercher », met les résultats en cache et limite chaque navigateur à 8 recherches par minute. Un 429 affiche un message clair. Les quotas qui ont un coût (Coach IA, analyse PRISM) sont décomptés côté serveur.
+Le quota de scans de code-barres (plan gratuit) reste une limite **côté client** : il ne protège rien de payant. La recherche d'aliments interroge Open Food Facts directement depuis le navigateur. Leur limite est de 10 recherches par minute et par adresse IP, et la recherche au fil de la frappe est interdite. L'app ne cherche donc que sur Entrée ou sur le bouton « Chercher », met les résultats en cache et limite chaque onglet à 8 recherches par minute. Un 429 affiche un message clair. Les quotas qui ont un coût (Coach IA, analyse PRISM) sont décomptés côté serveur.
 
 Contrôles après `db push` (SQL editor) :
 
@@ -136,6 +141,8 @@ WHERE schemaname = 'public' AND cmd = 'UPDATE' AND with_check IS NULL;
 ```
 
 Les `WARNING` émis pendant la migration signalent une politique attendue mais absente : la corriger à la main.
+
+Dashboard → Settings → API → **Exposed schemas** : garder `public` et `graphql_public` uniquement. Ne jamais y ajouter `korev_private` : ses fonctions répondent pour n'importe quel compte (elles servent aux politiques RLS).
 
 ### 3.2 Post-déploiement
 
@@ -206,7 +213,7 @@ supabase functions deploy admin-users
 
 Toutes les fonctions sont à redéployer avec cette version : `ai-coach`, `ai-stats-analysis`, `analyze-sparring`, `fetch-mma-results`, `stripe-webhook`, `delete-account`, `create-checkout`, `check-subscription` et `customer-portal` ont changé directement ou via `_shared/`.
 
-`delete-account` exige une connexion de moins de 15 minutes (403 `REAUTH_REQUIRED`) : l'app propose alors de se reconnecter.
+`delete-account` exige que la session en cours ait été ouverte il y a moins de 15 minutes (champ `amr` du jeton ; 403 `REAUTH_REQUIRED`) : l'app propose alors de se reconnecter. Une connexion sur un autre appareil ne débloque pas une session ancienne.
 
 `fetch-mma-results` garde les actualités 10 minutes en mémoire et ignore les articles sans date valide.
 
@@ -243,8 +250,8 @@ supabase secrets set STRIPE_PRODUCT_PRO=prod_... STRIPE_PRODUCT_ELITE=prod_... S
 | `LEGACY_AI_GATEWAY_KEY` | Non | Ancien nom de la clé, lu si `AI_GATEWAY_API_KEY` est absent |
 | `SITE_URL` | Oui en production | URLs de retour Stripe (checkout, portail) |
 | `ALLOWED_ORIGINS` | Oui en production | Origines CORS autorisées (liste séparée par des virgules). Sans valeur, toutes les origines sont acceptées (développement). Lister le domaine nu **et** `www` : le `.htaccess` redirige `www` vers le domaine nu, mais une origine absente bloque toutes les fonctions. |
-| `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ELITE`, `STRIPE_PRICE_SENSEI` | **Oui avec une clé `sk_live_`** | Prix mensuels live. Sans eux, le checkout et la synchronisation échouent au lieu d'enregistrer un abonné payant en plan gratuit. En mode test, les IDs de test du code sont utilisés |
-| `STRIPE_PRODUCT_PRO`, `STRIPE_PRODUCT_ELITE`, `STRIPE_PRODUCT_SENSEI` | **Oui avec une clé `sk_live_`** | Produits live correspondants (webhook, `check-subscription`) |
+| `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ELITE`, `STRIPE_PRICE_SENSEI` | **Oui avec une clé live** (`sk_live_` ou restreinte `rk_live_`) | Prix mensuels live. Sans eux, le checkout et la synchronisation échouent au lieu d'enregistrer un abonné payant en plan gratuit. En mode test, les IDs de test du code sont utilisés |
+| `STRIPE_PRODUCT_PRO`, `STRIPE_PRODUCT_ELITE`, `STRIPE_PRODUCT_SENSEI` | **Oui avec une clé live** | Produits live correspondants (webhook, `check-subscription`) |
 | `AI_MODEL_FAST`, `AI_MODEL_PRO` | Non | Modèles de la passerelle. Par défaut `google/gemini-2.5-flash` (coach, analyse de stats, PRISM rapide) et `google/gemini-2.5-pro` (PRISM complet). Permet de changer de modèle sans redéployer le code |
 
 ### 4.3 Vérification post-déploiement
@@ -275,6 +282,8 @@ Quatre plans applicatifs mappés à des produits Stripe :
 
 > Le frontend n'envoie plus d'ID de prix, seulement le plan (`pro`, `elite`, `sensei`) : `create-checkout` choisit le prix côté serveur. En live, créer les 3 produits et prix mensuels dans Stripe et renseigner les secrets `STRIPE_PRICE_*` / `STRIPE_PRODUCT_*` (§4.2) : aucun rebuild du frontend n'est nécessaire.
 >
+> `create-checkout` refuse aussi un paiement si le client Stripe a déjà un abonnement actif, en essai, en retard de paiement (`past_due`) ou impayé : il est renvoyé vers le portail.
+>
 > Avant le paiement, l'utilisateur coche une case de renonciation au droit de rétractation (exécution immédiate du service, article L221-28 du Code de la consommation). `create-checkout` refuse la session sans elle (400 `WITHDRAWAL_WAIVER_REQUIRED`) et horodate l'accord dans les métadonnées Stripe (`withdrawal_waiver_at`) de la session et de l'abonnement. Faire valider le texte par un juriste.
 >
 > Aucun prix annuel n'existe : le choix Mensuel/Annuel est masqué (`YEARLY_BILLING_ENABLED` dans `Pricing.tsx`).
@@ -298,6 +307,8 @@ Dashboard → Settings → Billing → Customer portal, **en mode live** :
 2. « Subscriptions » → autoriser le changement de plan et y ajouter les 3 produits live avec leur prix mensuel. Un abonné actif qui veut changer d'offre y est renvoyé (`create-checkout` refuse un second abonnement) ; sans cette configuration, personne ne peut monter en gamme ;
 3. autoriser l'annulation (fin de période) et la mise à jour du moyen de paiement ;
 4. renseigner les liens vers les CGV et la politique de confidentialité (`https://<domaine-app>/legal`).
+
+Un changement d'offre dans le portail ne repasse pas par la case de renonciation : faire valider par le juriste que l'accord donné au premier paiement couvre les changements d'offre, ou ajouter un texte dans le portail.
 
 ### 5.4 Mapping product → plan
 
@@ -329,7 +340,7 @@ Injecter au moment du build (CI/CD ou plateforme hébergement) :
 | `VITE_SENTRY_DSN` | DSN Sentry production |
 | `VITE_SITE_URL` | `https://<domaine-app>`, sans `/` final (cartes de partage : `og:image`, `og:url`) |
 
-`npm run build` échoue si `VITE_SUPABASE_URL` ou `VITE_SUPABASE_PUBLISHABLE_KEY` manque ou contient encore un `<…>` de l'exemple. Sans `VITE_SENTRY_DSN`, aucune erreur de production n'est remontée.
+Toujours reconstruire `dist/` juste avant l'envoi (le dossier local peut dater d'une version précédente). `npm run build` échoue si `VITE_SUPABASE_URL` ou `VITE_SUPABASE_PUBLISHABLE_KEY` manque ou contient encore un `<…>` de l'exemple. Sans `VITE_SENTRY_DSN`, aucune erreur de production n'est remontée.
 
 ### 6.3 Hébergement
 
@@ -393,7 +404,7 @@ Prérequis pour les fonctionnalités Coach IA, analyse statistique et sparring :
 3. Configurer `AI_GATEWAY_URL` et `AI_GATEWAY_API_KEY` dans les secrets Supabase ;
 4. **Définir un plafond de dépense et une alerte** chez le fournisseur de la passerelle. Le plafond quotidien par compte (200 messages, 20 analyses) borne un abus isolé, pas une montée en charge.
 
-Les appels à la passerelle ont un délai de 30 s avant le premier octet (504 « Le service IA ne répond pas »), et le quota est remboursé si la réponse est vide ou en erreur.
+Les appels à la passerelle ont un délai de 30 s avant le premier octet (504 « Le service IA ne répond pas »). Le quota est remboursé si la réponse est vide, si la passerelle renvoie une erreur ou si le flux est coupé avant le premier mot.
 
 **Points opérationnels non documentés dans le code :**
 

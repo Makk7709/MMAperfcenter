@@ -40,7 +40,15 @@ INSERT INTO public.meutes (id, name, owner_id)
 VALUES ('10000000-0000-0000-0000-000000000001', 'Team Alpha', '00000000-0000-0000-0000-00000000000a');
 SELECT pg_temp.expect('unknown e-mail looks sent', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'nobody@x.fr'), 'sent');
 SELECT pg_temp.expect('e-mail is case-insensitive', public.invite_team_member('10000000-0000-0000-0000-000000000001', ' member@test.FR '), 'sent');
-SELECT pg_temp.expect('second invite', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'member@test.fr'), 'already_invited');
+SELECT pg_temp.expect('second invite looks like the first', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'member@test.fr'), 'sent');
+SELECT pg_temp.expect('owner cannot see who is pending',
+  (SELECT count(*) FROM public.meute_members WHERE meute_id = '10000000-0000-0000-0000-000000000001' AND status = 'pending'), 0::bigint);
+DO $$ BEGIN
+  INSERT INTO public.meute_members (meute_id, user_id, invited_by, role, status)
+  VALUES ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000a', 'member', 'pending');
+  RAISE EXCEPTION 'FAIL direct invitation insert';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  invitations go through invite_team_member';
+END $$;
 SELECT pg_temp.expect('owner invites self', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'owner@test.fr'), 'already_member');
 
 SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}';
@@ -55,8 +63,9 @@ SELECT pg_temp.expect('non-member sees no members',
 SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
 SELECT pg_temp.expect('invitee sees the invitation',
   (SELECT meute_name || ' / ' || invited_by_name FROM public.get_my_team_invitations()), 'Team Alpha / Olive Owner');
-SELECT pg_temp.expect('invitee is notified',
-  (SELECT title FROM public.notifications WHERE user_id = '00000000-0000-0000-0000-00000000000b'), 'Invitation Team');
+SELECT pg_temp.expect('invitee is notified once, without the team name',
+  (SELECT string_agg(message, '|') FROM public.notifications WHERE user_id = '00000000-0000-0000-0000-00000000000b'),
+  'Tu as reçu une invitation à rejoindre une team. Ouvre l''onglet Team pour répondre.');
 UPDATE public.meute_members SET status = 'accepted', joined_at = now()
 WHERE user_id = '00000000-0000-0000-0000-00000000000b' AND meute_id = '10000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect('member names never show an e-mail',
@@ -66,6 +75,13 @@ DO $$ BEGIN
   VALUES ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b', 'custom', 'phishing');
   RAISE EXCEPTION 'FAIL member could write a team activity';
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  team activities are server-written';
+END $$;
+
+DO $$ BEGIN
+  UPDATE public.meute_members SET status = 'pending'
+  WHERE user_id = '00000000-0000-0000-0000-00000000000b' AND meute_id = '10000000-0000-0000-0000-000000000001';
+  RAISE EXCEPTION 'FAIL answered invitation reopened';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  an invitation is answered once';
 END $$;
 
 -- ---- Feed and team activity ------------------------------------------------------------
@@ -91,6 +107,44 @@ SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"
 SELECT pg_temp.expect('others cannot read my feed',
   (SELECT count(*) FROM public.community_activities WHERE user_id = '00000000-0000-0000-0000-00000000000b'), 0::bigint);
 
+-- A third member joins then leaves; a declined invitation cannot be accepted later.
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+SELECT pg_temp.expect('invite stranger', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'stranger@test.fr'), 'sent');
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}';
+UPDATE public.meute_members SET status = 'declined'
+WHERE user_id = '00000000-0000-0000-0000-00000000000c' AND meute_id = '10000000-0000-0000-0000-000000000001';
+DO $$ BEGIN
+  UPDATE public.meute_members SET status = 'accepted'
+  WHERE user_id = '00000000-0000-0000-0000-00000000000c' AND meute_id = '10000000-0000-0000-0000-000000000001';
+  RAISE EXCEPTION 'FAIL declined invitation accepted later';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok  declined invitation stays declined';
+END $$;
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+DELETE FROM public.meute_members
+WHERE user_id = '00000000-0000-0000-0000-00000000000b' AND meute_id = '10000000-0000-0000-0000-000000000001';
+SELECT pg_temp.expect('member can leave',
+  (SELECT count(*) FROM public.meute_members WHERE user_id = '00000000-0000-0000-0000-00000000000b'), 0::bigint);
+SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+DELETE FROM public.meute_members
+WHERE user_id = '00000000-0000-0000-0000-00000000000a' AND meute_id = '10000000-0000-0000-0000-000000000001';
+SELECT pg_temp.expect('owner cannot leave (deletes the team instead)',
+  (SELECT count(*) FROM public.meute_members WHERE user_id = '00000000-0000-0000-0000-00000000000a'), 1::bigint);
+
+-- Invitation rate limit: 20 real invitations a day per inviter.
+RESET ROLE;
+INSERT INTO auth.users (id, email)
+SELECT ('20000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, 'bulk' || i || '@test.fr'
+FROM generate_series(1, 21) i;
+SET ROLE authenticated;
+DO $$
+DECLARE i int; r text;
+BEGIN
+  FOR i IN 1..20 LOOP
+    r := public.invite_team_member('10000000-0000-0000-0000-000000000001', 'bulk' || i || '@test.fr');
+  END LOOP;
+  PERFORM pg_temp.expect('21st invitation of the day', public.invite_team_member('10000000-0000-0000-0000-000000000001', 'bulk21@test.fr'), 'rate_limited');
+END $$;
+
 -- ---- Integrity -------------------------------------------------------------------------
 SET request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
 INSERT INTO public.workouts (user_id, name, status) VALUES ('00000000-0000-0000-0000-00000000000b', 'x', 'active');
@@ -104,6 +158,12 @@ DO $$ BEGIN
   RAISE EXCEPTION 'FAIL 101-character name accepted';
 EXCEPTION WHEN check_violation THEN RAISE NOTICE 'ok  name length enforced';
 END $$;
+
+RESET ROLE;
+INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-0000000000d1', 'long@test.fr');
+INSERT INTO public.profiles (id, email, full_name) VALUES ('00000000-0000-0000-0000-0000000000d1', 'long@test.fr', repeat('n', 150));
+SELECT pg_temp.expect('sign-up with a long name is truncated, not refused',
+  (SELECT char_length(full_name) FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000d1'), 100);
 
 -- ---- AI fair use -----------------------------------------------------------------------
 RESET ROLE;

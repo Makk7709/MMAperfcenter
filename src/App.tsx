@@ -18,16 +18,28 @@ const CHUNK_RELOAD_KEY = "korev_chunk_reload";
 // the page being opened (charts, PDF, scanner and admin stay out of it).
 // After a deploy, a tab left open asks for chunk names that no longer exist:
 // one full reload fetches the new build instead of showing the error screen.
+// Blocked storage (Safari "block all cookies") throws on access: without a
+// flag, no automatic reload rather than a reload loop.
+function reloadFlag(action: "get" | "set" | "clear"): boolean {
+  try {
+    if (action === "get") return sessionStorage.getItem(CHUNK_RELOAD_KEY) !== null;
+    if (action === "set") sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+    else sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function lazyPage(load: () => Promise<{ default: ComponentType }>) {
   return lazy(() =>
     load()
       .then((module) => {
-        sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+        reloadFlag("clear");
         return module;
       })
       .catch((error) => {
-        if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) throw error;
-        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+        if (reloadFlag("get") || !reloadFlag("set")) throw error;
         window.location.reload();
         return new Promise<never>(() => {});
       }),

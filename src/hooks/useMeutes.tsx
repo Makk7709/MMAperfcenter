@@ -46,11 +46,15 @@ const INVITE_RESULTS: Record<string, { ok: boolean; title: string; description?:
     description: "Si un compte KOREV existe avec cette adresse, la personne la verra dans sa Team.",
   },
   already_member: { ok: false, title: "Déjà membre", description: "Cette personne fait déjà partie de la team." },
-  already_invited: { ok: false, title: "Invitation en attente", description: "Une invitation lui a déjà été envoyée." },
   too_many_pending: {
     ok: false,
     title: "Trop d'invitations en attente",
     description: "Attendez que certaines invitations soient acceptées ou refusées.",
+  },
+  rate_limited: {
+    ok: false,
+    title: "Limite d'invitations atteinte",
+    description: "Vous pourrez inviter de nouveaux membres demain.",
   },
 };
 

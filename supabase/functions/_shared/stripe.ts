@@ -22,8 +22,9 @@ const TEST_PRODUCT_IDS: Record<PaidPlan, string> = {
   sensei: "prod_TNClwYw2iSTuXI",
 };
 
+// Secret (sk_) and restricted (rk_) keys both exist in live mode.
 function isLiveMode(): boolean {
-  return (Deno.env.get("STRIPE_SECRET_KEY") ?? "").startsWith("sk_live_");
+  return /^(sk|rk)_live_/.test(Deno.env.get("STRIPE_SECRET_KEY") ?? "");
 }
 
 // A live key with the test catalogue would fail every checkout and map every

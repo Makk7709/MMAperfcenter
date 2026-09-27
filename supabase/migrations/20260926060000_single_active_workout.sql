@@ -10,7 +10,13 @@ SET lock_timeout = '5s';
 -- ouverte la plus récente de chaque utilisateur. Le verrou empêche une séance
 -- démarrée pendant la migration de faire échouer la création de l'index ;
 -- un started_at dans le futur (horloge du téléphone fausse) ne compte pas.
-LOCK TABLE public.workouts IN SHARE ROW EXCLUSIVE MODE;
+-- Dans un bloc DO : la CLI Supabase n'ouvre pas de BEGIN explicite, et
+-- LOCK TABLE seul y est refusé. Le verrou tient jusqu'à la fin de la migration.
+DO $$
+BEGIN
+  LOCK TABLE public.workouts IN SHARE ROW EXCLUSIVE MODE;
+END;
+$$;
 
 -- Anciennes lignes sans statut : ni reprises, ni effacées par « Réinitialiser ».
 UPDATE public.workouts
