@@ -37,3 +37,4 @@ supabase/.temp
 # Test runner output
 test-results
 playwright-report
+coverage

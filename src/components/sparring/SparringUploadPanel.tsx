@@ -140,6 +140,7 @@ export const SparringUploadPanel = ({
           type="file"
           accept={ACCEPTED_VIDEO_TYPES.join(",")}
           className="hidden"
+          onClick={(event) => event.stopPropagation()}
           onChange={(e) => {
             pick(e.target.files?.[0]);
             e.target.value = "";

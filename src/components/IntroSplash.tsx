@@ -3,49 +3,53 @@ import introVideo from "@/assets/intro/korev-intro.mp4";
 import { cn } from "@/lib/utils";
 import { markIntroSeen } from "@/lib/intro";
 
-/** A slow network must not keep the visitor in front of a black screen. */
 const START_TIMEOUT_MS = 4000;
 const MAX_DURATION_MS = 15000;
 const FADE_MS = 700;
 
 export function IntroSplash({ onDone }: { onDone: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [leaving, setLeaving] = useState(false);
-  const [canSkip, setCanSkip] = useState(false);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
-
   const finish = useCallback(() => setLeaving(true), []);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previous =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    // A native modal makes the page inert, contains keyboard focus and exposes
+    // modal semantics without changing the visual appearance of the intro.
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
 
   useEffect(() => {
     markIntroSeen();
     const video = videoRef.current;
     if (!video) return;
-    // iOS only autoplays inline if the element is muted before play().
     video.muted = true;
     video.defaultMuted = true;
-    video.play().catch(finish);
-
     let started = false;
     const onPlaying = () => {
       started = true;
     };
     video.addEventListener("playing", onPlaying);
+    video.play().catch(finish);
     const startTimer = window.setTimeout(() => {
       if (!started) finish();
     }, START_TIMEOUT_MS);
     const maxTimer = window.setTimeout(finish, MAX_DURATION_MS);
-    const skipTimer = window.setTimeout(() => setCanSkip(true), 1000);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") finish();
-    };
-    window.addEventListener("keydown", onKey);
     return () => {
       video.removeEventListener("playing", onPlaying);
       window.clearTimeout(startTimer);
       window.clearTimeout(maxTimer);
-      window.clearTimeout(skipTimer);
-      window.removeEventListener("keydown", onKey);
     };
   }, [finish]);
 
@@ -57,12 +61,16 @@ export function IntroSplash({ onDone }: { onDone: () => void }) {
   }, [leaving]);
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      ref={dialogRef}
       aria-label="Introduction KOREV"
+      onCancel={(event) => {
+        event.preventDefault();
+        finish();
+      }}
       className={cn(
-        "fixed inset-0 z-[200] bg-black transition-opacity ease-out",
-        leaving ? "pointer-events-none opacity-0" : "opacity-100",
+        "fixed inset-0 z-[200] m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-black p-0 transition-opacity ease-out backdrop:bg-transparent",
+        leaving ? "opacity-0" : "opacity-100",
       )}
       style={{ transitionDuration: `${FADE_MS}ms` }}
     >
@@ -82,14 +90,10 @@ export function IntroSplash({ onDone }: { onDone: () => void }) {
       <button
         type="button"
         onClick={finish}
-        tabIndex={canSkip ? 0 : -1}
-        className={cn(
-          "korev-eyebrow absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 border border-white/20 bg-black/40 px-4 py-2 text-white/70 backdrop-blur-sm transition-opacity duration-500 hover:border-korev-gold/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-korev-gold",
-          canSkip ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
+        className="korev-eyebrow absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 border border-white/20 bg-black/40 px-4 py-2 text-white/70 backdrop-blur-sm transition-opacity duration-500 hover:border-korev-gold/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-korev-gold"
       >
         Passer
       </button>
-    </div>
+    </dialog>
   );
 }

@@ -1,64 +1,92 @@
-// ----------------------------------------------------------------------------
-// Harness pour la fonction analyze-sparring.
-//
-// Vérifications :
-//   - payload invalide rejeté (videoUrl manquante, frames vides),
-//   - payload minimal accepté,
-//   - qualityMode "fast" → modèle gemini-2.5-flash ;
-//     qualityMode absent / "pro" → modèle gemini-2.5-pro.
-// ----------------------------------------------------------------------------
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { createSparringHandler } from "../../supabase/functions/analyze-sparring/handler.ts";
+import { PublicError } from "../../supabase/functions/_shared/http.ts";
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-
-interface AnalyzeInput {
-  videoUrl?: string;
-  frames?: string[];
-  qualityMode?: "fast" | "pro";
-  discipline?: string;
+type Deps = NonNullable<Parameters<typeof createSparringHandler>[0]>;
+const valid = {
+  frames: [0, 1, 2].map((timestamp) => ({ base64: "YWJj", timestamp })),
+  totalDuration: 30,
+  qualityMode: "pro",
+};
+function fixture(overrides: Partial<Deps> = {}) {
+  let consumed = 0,
+    refunded = 0,
+    mode = "";
+  const deps = {
+    createServiceClient: () => ({}),
+    requireUser: async () => ({ id: "user" }),
+    consumeQuota: async () => {
+      consumed++;
+      return { counted: true, userId: "user", feature: "sparring_analysis" };
+    },
+    refundQuota: async () => {
+      refunded++;
+    },
+    runAnalysis: async (input: { qualityMode: string }) => {
+      mode = input.qualityMode;
+      return { summary: "Analyse test" };
+    },
+    ...overrides,
+  } as Deps;
+  const handler = createSparringHandler(deps);
+  return {
+    run: (body: unknown) =>
+      handler(
+        new Request("https://edge.test/analyze", {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      ),
+    stats: () => ({ consumed, refunded, mode }),
+  };
 }
-
-function validate(input: AnalyzeInput): { ok: boolean; error?: string } {
-  if (!input.videoUrl || typeof input.videoUrl !== "string") {
-    return { ok: false, error: "missing_videoUrl" };
-  }
-  if (!Array.isArray(input.frames) || input.frames.length === 0) {
-    return { ok: false, error: "no_frames" };
-  }
-  return { ok: true };
-}
-
-function modelFor(input: AnalyzeInput): "google/gemini-2.5-flash" | "google/gemini-2.5-pro" {
-  return input.qualityMode === "fast" ? "google/gemini-2.5-flash" : "google/gemini-2.5-pro";
-}
-
-Deno.test("analyze-sparring rejects payload without videoUrl", () => {
-  const r = validate({ frames: ["a"] });
-  assertEquals(r.ok, false);
-  assertEquals(r.error, "missing_videoUrl");
+Deno.test(
+  "sparring production validation rejects malformed frames and durations before quota",
+  async () => {
+    for (const body of [
+      {},
+      { ...valid, frames: [] },
+      { ...valid, totalDuration: -1 },
+      { ...valid, frames: [{ base64: "!" }, ...valid.frames] },
+    ]) {
+      const f = fixture();
+      assertEquals((await f.run(body)).status, 400);
+      assertEquals(f.stats().consumed, 0);
+    }
+  },
+);
+Deno.test("sparring production handler requires authentication", async () => {
+  const f = fixture({
+    requireUser: () => {
+      throw new PublicError("auth", 401);
+    },
+  });
+  assertEquals((await f.run(valid)).status, 401);
+  assertEquals(f.stats().consumed, 0);
 });
-
-Deno.test("analyze-sparring rejects payload with empty frames", () => {
-  const r = validate({ videoUrl: "https://example.com/v.mp4", frames: [] });
-  assertEquals(r.ok, false);
-  assertEquals(r.error, "no_frames");
+Deno.test(
+  "sparring paid model cannot be forced by a metered client",
+  async () => {
+    const f = fixture();
+    assertEquals((await f.run(valid)).status, 200);
+    assertEquals(f.stats(), { consumed: 1, refunded: 0, mode: "fast" });
+  },
+);
+Deno.test("sparring refuses an exhausted quota before calling AI", async () => {
+  const f = fixture({
+    consumeQuota: () => {
+      throw new PublicError("quota", 402);
+    },
+  });
+  assertEquals((await f.run(valid)).status, 402);
+  assertEquals(f.stats().mode, "");
 });
-
-Deno.test("analyze-sparring accepts a minimal valid payload", () => {
-  const r = validate({ videoUrl: "https://example.com/v.mp4", frames: ["frame-base64"] });
-  assertEquals(r.ok, true);
-  assert(r.error === undefined);
-});
-
-Deno.test("analyze-sparring routes qualityMode fast to gemini-2.5-flash", () => {
-  assertEquals(
-    modelFor({ videoUrl: "x", frames: ["f"], qualityMode: "fast" }),
-    "google/gemini-2.5-flash",
-  );
-});
-
-Deno.test("analyze-sparring defaults to gemini-2.5-pro when no qualityMode", () => {
-  assertEquals(
-    modelFor({ videoUrl: "x", frames: ["f"] }),
-    "google/gemini-2.5-pro",
-  );
+Deno.test("sparring refunds a consumed quota after an AI failure", async () => {
+  const f = fixture({
+    runAnalysis: () => {
+      throw new PublicError("upstream", 503);
+    },
+  });
+  assertEquals((await f.run(valid)).status, 503);
+  assertEquals(f.stats().refunded, 1);
 });

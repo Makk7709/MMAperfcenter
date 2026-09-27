@@ -1,208 +1,125 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, signIn } from "./fixtures";
 
-/**
- * E2E Tests for Sparring Analysis Feature
- * 
- * These tests verify the user flow for video upload and analysis
- */
-
-test.describe('Sparring Analysis', () => {
-  
-  test.beforeEach(async ({ page }) => {
-    // Navigate to the app
-    await page.goto('/');
-  });
-
-  test('should display the app landing page', async ({ page }) => {
-    // Check that the page loads
-    await expect(page).toHaveTitle(/KOREV|MMA|Coach/i);
-  });
-
-  test('should show login page for unauthenticated users', async ({ page }) => {
-    // Look for login/auth elements
-    const authButton = page.getByRole('button', { name: /connexion|login|se connecter/i });
-    const emailInput = page.getByPlaceholder(/email/i);
-    
-    // Should see either login button or email input
-    const hasAuthElements = await authButton.isVisible().catch(() => false) || 
-                           await emailInput.isVisible().catch(() => false);
-    
-    expect(hasAuthElements).toBeTruthy();
-  });
-
+test("protected dashboard redirects to authentication", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/auth/);
+  await expect(
+    page.getByRole("button", { name: "Se connecter", exact: true }),
+  ).toBeVisible();
 });
 
-test.describe('Video Upload UI', () => {
-  
-  test('FAB button should be visible on dashboard', async ({ page }) => {
-    await page.goto('/');
-    
-    // The Sparring Analysis FAB should be visible (if user is on dashboard)
-    // Since user needs to be logged in, we check for public elements
-    const fabButton = page.locator('[data-testid="sparring-fab"]');
-    const analyzeButton = page.getByRole('button', { name: /analyse|sparring|combat/i });
-    
-    // At least one analysis-related element should exist
-    const hasAnalysisUI = await fabButton.isVisible().catch(() => false) ||
-                          await analyzeButton.isVisible().catch(() => false);
-    
-    // This may be false if not logged in - that's expected
-    console.log('Analysis UI visible:', hasAnalysisUI);
+for (const [width, height] of [
+  [375, 667],
+  [390, 844],
+  [1440, 900],
+]) {
+  test(`authenticated hero keeps both actions visible at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await signIn(page);
+    for (const name of ["Coach IA MMA", "Champion Access"]) {
+      const button = page.getByRole("button", { name, exact: true });
+      await expect(button).toBeVisible();
+      const inside = await button.evaluate((el) => {
+        const buttonRect = el.getBoundingClientRect();
+        const hero = el.closest("section")!.getBoundingClientRect();
+        return (
+          buttonRect.top >= hero.top &&
+          buttonRect.bottom <= hero.bottom &&
+          buttonRect.left >= 0 &&
+          buttonRect.right <= innerWidth
+        );
+      });
+      expect(inside).toBe(true);
+    }
   });
+}
 
+test("authenticated analysis dialog exposes the actual upload controls", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page
+    .getByRole("button", { name: /analyser.*sparring/i })
+    .first()
+    .click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Importer une vidéo de sparring" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Comment vous reconnaître")).toBeEditable();
 });
 
-test.describe('Auth Flow', () => {
-  
-  test('should have email input on auth page', async ({ page }) => {
-    await page.goto('/auth');
-    
-    // Should see email input
-    const emailInput = page.getByPlaceholder(/email/i);
-    await expect(emailInput).toBeVisible({ timeout: 10000 });
+test("checkout sends the selected plan only after consent", async ({
+  page,
+  backend,
+}) => {
+  await signIn(page);
+  await page.goto("/pricing");
+  const pay = page.getByRole("button", { name: "Passer à Pro", exact: true });
+  await pay.click();
+  expect(backend.checkoutRequests).toHaveLength(0);
+  await page.locator("#withdrawal-waiver").check();
+  await pay.click();
+  await expect.poll(() => backend.checkoutRequests.length).toBe(1);
+  expect(backend.checkoutRequests[0]).toEqual({
+    plan: "pro",
+    withdrawalWaiver: true,
   });
-
-  test('should have password input on auth page', async ({ page }) => {
-    await page.goto('/auth');
-    
-    // Should see password input (check multiple selectors)
-    const passwordInput = page.locator('input[type="password"]');
-    const passwordPlaceholder = page.getByPlaceholder(/mot de passe|password/i);
-    
-    const hasPasswordField = await passwordInput.isVisible().catch(() => false) ||
-                             await passwordPlaceholder.isVisible().catch(() => false);
-    
-    expect(hasPasswordField).toBeTruthy();
-  });
-
-  test('should have login button on auth page', async ({ page }) => {
-    await page.goto('/auth');
-    
-    // Should see login/submit button
-    const loginButton = page.getByRole('button', { name: /connexion|login|se connecter|submit/i });
-    await expect(loginButton).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should show form validation elements', async ({ page }) => {
-    await page.goto('/auth');
-    
-    // Check that form elements exist
-    const emailInput = page.getByPlaceholder(/email/i);
-    const passwordInput = page.locator('input[type="password"]');
-    const submitButton = page.getByRole('button', { name: /connexion|login|se connecter|submit|envoyer/i });
-    
-    // At least email should be visible
-    await expect(emailInput).toBeVisible({ timeout: 10000 });
-    
-    // Check form exists
-    const hasForm = await passwordInput.isVisible().catch(() => false) ||
-                    await submitButton.isVisible().catch(() => false);
-    
-    console.log('Auth form has password/submit:', hasForm);
-  });
-
+  await expect(page).toHaveURL(/payment-success/);
 });
 
-test.describe('Responsive Design', () => {
-  
-  test('should be responsive on mobile', async ({ page }) => {
-    // Set mobile viewport
-    await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
-    
-    // Page should still render
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('should be responsive on tablet', async ({ page }) => {
-    // Set tablet viewport
-    await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto('/');
-    
-    // Page should still render
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('should be responsive on desktop', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto('/');
-    
-    // Page should still render
-    await expect(page.locator('body')).toBeVisible();
-  });
-
+test("unknown route shows a real 404 message", async ({ page }) => {
+  await page.goto("/nonexistent-page-audit");
+  await expect(
+    page.getByRole("heading", { name: "Page introuvable", exact: true }),
+  ).toBeVisible();
 });
 
-test.describe('Navigation', () => {
-  
-  test('should navigate to auth page', async ({ page }) => {
-    await page.goto('/auth');
-    await expect(page).toHaveURL(/auth/);
-  });
-
-  test('should handle 404 gracefully', async ({ page }) => {
-    await page.goto('/nonexistent-page-12345');
-    
-    // Wait for page to settle
-    await page.waitForLoadState('networkidle');
-    
-    // Should show 404 text, redirect, or still render something
-    const notFoundText = page.getByText(/404|not found|page introuvable|oops/i);
-    const currentUrl = page.url();
-    const isRedirected = currentUrl.includes('auth') || 
-                         currentUrl.includes('login') || 
-                         !currentUrl.includes('nonexistent');
-    
-    const hasNotFound = await notFoundText.isVisible().catch(() => false);
-    const pageLoaded = await page.locator('body').isVisible();
-    
-    // Either shows 404, redirects, or page still renders (React Router handles it)
-    const handled = hasNotFound || isRedirected || pageLoaded;
-    console.log('404 handling - notFound:', hasNotFound, 'redirected:', isRedirected, 'loaded:', pageLoaded);
-    expect(handled).toBeTruthy();
-  });
-
+test("intro keeps keyboard focus inside the modal until skipped", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/auth");
+  const dialog = page.getByRole("dialog", { name: "Introduction KOREV" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Passer" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  expect(
+    await dialog.evaluate((el) => el.contains(document.activeElement)),
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "Email", exact: true }),
+  ).toBeVisible();
 });
 
-test.describe('Performance', () => {
-  
-  test('should load within acceptable time', async ({ page }) => {
-    const startTime = Date.now();
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    const loadTime = Date.now() - startTime;
-    
-    console.log(`Page load time: ${loadTime}ms`);
-    
-    // Should load within 10 seconds
-    expect(loadTime).toBeLessThan(10000);
-  });
-
-  test('should not have console errors on load', async ({ page }) => {
-    const consoleErrors: string[] = [];
-    
-    page.on('console', msg => {
-      if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
-      }
-    });
-    
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    
-    // Filter out known acceptable errors (like missing favicon)
-    const criticalErrors = consoleErrors.filter(err => 
-      !err.includes('favicon') && 
-      !err.includes('404') &&
-      !err.includes('net::ERR')
-    );
-    
-    console.log('Console errors:', criticalErrors);
-    
-    // Should have no critical errors
-    expect(criticalErrors.length).toBe(0);
-  });
-
+test("nutrition persists a manual meal with the portion-adjusted calories", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Ajouter un aliment" });
+  await dialog
+    .getByRole("button", {
+      name: "Saisir les valeurs nutritionnelles moi-même",
+    })
+    .click();
+  await dialog.getByLabel("Aliment", { exact: true }).fill("Riz de test");
+  await dialog.getByLabel("Kcal", { exact: true }).fill("130");
+  await dialog.getByLabel("Protéines", { exact: true }).fill("3");
+  await dialog.getByLabel("Glucides", { exact: true }).fill("28");
+  await dialog.getByLabel("Lipides", { exact: true }).fill("1");
+  await dialog.getByLabel("Quantité consommée").fill("200");
+  await dialog.getByRole("button", { name: "Ajouter au journal" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("progressbar", { name: "Calories consommées" }),
+  ).toHaveAttribute("aria-valuenow", "260");
+  await expect(
+    page.getByRole("button", { name: "Retirer Riz de test" }),
+  ).toBeVisible();
 });
-

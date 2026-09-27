@@ -8,7 +8,7 @@ export default tseslint.config(
   // `supabase/functions/**` and `tests/edge/**` target the Deno runtime
   // (https://deno.land imports) and are linted out-of-band; the project
   // Node ESLint config does not understand those module specifiers.
-  { ignores: ["dist", "supabase/functions/**", "tests/edge/**"] },
+  { ignores: ["dist", "coverage", "playwright-report", "test-results", "supabase/functions/**", "tests/edge/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

@@ -86,6 +86,8 @@ HTMLCanvasElement.prototype.getContext = function(contextId: string) {
         }
         return { data, width, height, colorSpace: 'srgb' };
       }),
+      measureText: vi.fn((text: string) => ({ width: text.length * 8 })),
+      fillText: vi.fn(),
       fillRect: vi.fn(),
       clearRect: vi.fn(),
     } as unknown as CanvasRenderingContext2D;
@@ -174,6 +176,7 @@ Object.defineProperty(HTMLVideoElement.prototype, 'currentTime', {
     const callbacks = videoCallbacks.get(this) || {};
     
     setTimeout(() => {
+      this.dispatchEvent(new Event("seeked"));
       if (callbacks.onseeked) {
         callbacks.onseeked();
       }

@@ -6,7 +6,7 @@ import type { Enums } from "@/integrations/supabase/types";
 import { extractFilePathFromUrl } from "@/utils/storageUtils";
 
 const BUCKET = 'training-videos';
-// Signed URLs outlive the cached list: it is refetched before they expire.
+// Refresh active lists before their signed URLs expire, including idle tabs.
 const SIGNED_URL_TTL_SECONDS = 2 * 60 * 60;
 const LIST_STALE_MS = 60 * 60 * 1000;
 
@@ -30,6 +30,7 @@ export interface TrainingVideo {
   thumbnail_url?: string;
   /** Signed URL for uploaded videos, resolved when the list is loaded. */
   playback_url?: string;
+  playback_expires_at?: number;
   created_at: string;
   updated_at: string;
 }
@@ -39,7 +40,7 @@ export const useTrainingVideos = () => {
   const queryClient = useQueryClient();
 
   const { data: videos, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ['training-videos'],
+    queryKey: ['training-videos', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('training_videos')
@@ -62,12 +63,13 @@ export const useTrainingVideos = () => {
       const urlByPath = new Map(signed.filter(s => s.signedUrl).map(s => [s.path, s.signedUrl]));
       return rows.map(v =>
         v.video_type === 'upload' && v.video_url
-          ? { ...v, playback_url: urlByPath.get(storagePathOf(v.video_url)) }
+          ? { ...v, playback_url: urlByPath.get(storagePathOf(v.video_url)), playback_expires_at: Date.now() + SIGNED_URL_TTL_SECONDS * 1000 }
           : v
       );
     },
     enabled: !!user,
     staleTime: LIST_STALE_MS,
+    refetchInterval: LIST_STALE_MS,
   });
 
   const uploadVideoMutation = useMutation({
@@ -194,3 +196,11 @@ export const useTrainingVideos = () => {
     isAdding: addYoutubeVideoMutation.isPending,
   };
 };
+
+/** Used after an expired media request, without reloading the whole library. */
+export async function renewTrainingVideoUrl(videoUrl: string) {
+  const { data, error } = await supabase.storage.from(BUCKET)
+    .createSignedUrl(storagePathOf(videoUrl), SIGNED_URL_TTL_SECONDS);
+  if (error || !data?.signedUrl) throw error ?? new Error("Lien vidéo indisponible");
+  return { url: data.signedUrl, expiresAt: Date.now() + SIGNED_URL_TTL_SECONDS * 1000 };
+}

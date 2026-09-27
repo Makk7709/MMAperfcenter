@@ -35,7 +35,7 @@ function siteUrlInHtml(env: Record<string, string>): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
   return {
-    server: { host: "::", port: 8080 },
+    server: { host: "127.0.0.1", port: 8080 },
     plugins: [react(), requireEnv(env), siteUrlInHtml(env)],
     resolve: {
       alias: { "@": path.resolve(__dirname, "./src") },

@@ -1,8 +1,4 @@
-// Shared test helpers for Edge Functions harness.
-//
-// These helpers intentionally do NOT import the production functions: each
-// test stubs the minimal contract it needs, so the harness can run without
-// pulling Deno-only ESM imports (Stripe, supabase-js).
+// Shared request/response helpers for offline Edge Function tests.
 
 export type JsonValue =
   | string
