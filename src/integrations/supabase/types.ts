@@ -1004,6 +1004,10 @@ export type Database = {
           status: string
         }[]
       }
+      consume_feature_quota: {
+        Args: { _feature: string; _user_id: string }
+        Returns: string
+      }
       create_notification: {
         Args: {
           p_message: string
@@ -1060,6 +1064,7 @@ export type Database = {
         Args: { _meute_id: string; _user_id: string }
         Returns: boolean
       }
+      is_trusted_caller: { Args: never; Returns: boolean }
       is_webhook_processed: { Args: { p_event_id: string }; Returns: boolean }
       mark_webhook_processed: {
         Args: { p_event_id: string; p_event_type: string; p_payload: Json }
@@ -1073,6 +1078,10 @@ export type Database = {
           metadata: Json
           similarity: number
         }[]
+      }
+      refund_feature_quota: {
+        Args: { _feature: string; _user_id: string }
+        Returns: undefined
       }
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
       sync_stripe_subscription: {
