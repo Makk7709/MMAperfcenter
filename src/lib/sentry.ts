@@ -20,12 +20,6 @@ export function initSentry() {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
     ],
-    beforeSend(event) {
-      // Filtrer les erreurs réseau triviales
-      const msg = event.message || event.exception?.values?.[0]?.value || "";
-      if (/NetworkError|Failed to fetch|Load failed/i.test(msg)) return null;
-      return event;
-    },
   });
 }
 

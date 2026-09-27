@@ -24,6 +24,28 @@ INSERT INTO public.profiles (id, full_name, email) VALUES
 ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name;
 INSERT INTO public.user_roles (user_id, role) VALUES ('00000000-0000-0000-0000-00000000000a', 'admin');
 
+-- Checkout locking and service-only access.
+SELECT pg_temp.expect('authenticated cannot acquire checkout locks',
+  has_function_privilege('authenticated', 'public.acquire_checkout_lock(uuid,uuid)', 'EXECUTE'), false);
+SELECT pg_temp.expect('anonymous cannot read checkout state',
+  has_table_privilege('anon', 'public.checkout_attempts', 'SELECT'), false);
+SELECT pg_temp.expect('authenticated cannot write checkout state',
+  has_table_privilege('authenticated', 'public.checkout_attempts', 'UPDATE'), false);
+SELECT pg_temp.expect('first checkout acquires lock', public.acquire_checkout_lock(
+  '00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000001'), true);
+SELECT pg_temp.expect('parallel checkout is refused', public.acquire_checkout_lock(
+  '00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000002'), false);
+SELECT public.release_checkout_lock('00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect('wrong owner cannot unlock checkout', public.acquire_checkout_lock(
+  '00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000002'), false);
+SELECT public.release_checkout_lock('00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect('checkout can resume after release', public.acquire_checkout_lock(
+  '00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000002'), true);
+UPDATE public.checkout_attempts SET locked_until = now() - interval '1 minute';
+SELECT pg_temp.expect('crashed worker lock expires', public.acquire_checkout_lock(
+  '00000000-0000-0000-0000-00000000000a', '90000000-0000-0000-0000-000000000003'), true);
+DELETE FROM public.checkout_attempts;
+
 -- ---- Authorization helpers --------------------------------------------------------
 SET request.jwt.claims = '{"role":"service_role"}';
 SELECT pg_temp.expect('service reads any role', public.has_role('00000000-0000-0000-0000-00000000000a', 'admin'), true);

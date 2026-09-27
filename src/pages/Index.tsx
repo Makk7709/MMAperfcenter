@@ -72,7 +72,7 @@ const Index = () => {
       
       
       {/* Decorative photography stays inside the existing hero footprint. */}
-      <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
+      <section className="relative overflow-hidden border-b border-border/50 min-h-[max(60vh,450px)]">
         <img
           src={combatHero}
           srcSet={`${combatHeroSmall} 960w, ${combatHero} 1672w`}

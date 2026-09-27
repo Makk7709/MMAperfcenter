@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -41,17 +41,35 @@ jobs:
         run: npm run lint
 
       - name: Type check
-        run: npx tsc --noEmit -p tsconfig.app.json
+        run: |
+          npx tsc --noEmit -p tsconfig.app.json
+          npx tsc --noEmit -p tsconfig.node.json
 
       - name: Unit tests (Vitest)
-        run: npm run test:run
+        run: npm run test:coverage
 
       - name: Build (production)
         run: npm run build
 
-      # Playwright is deliberately excluded from this minimal pipeline:
-      # it requires a running dev server + browsers and is documented as
-      # opt-in (`npm run test:e2e`) until a dedicated e2e job is added.
+  browser-tests:
+    name: Authenticated browser journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-traces
+          path: test-results/
+          retention-days: 7
 
   edge-functions:
     name: Edge functions (Deno)

@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { coveragePercent, formatTimecode, planSheetStarts, sheetGeometry } from "./motionSheetExtractor";
+import { describe, expect, it, vi } from "vitest";
+import {
+  extractMotionSheets,
+  coveragePercent,
+  formatTimecode,
+  planSheetStarts,
+  sheetGeometry,
+} from "./motionSheetExtractor";
 
 describe("planSheetStarts", () => {
   it("spreads sheets over the whole video without passing its end", () => {
@@ -23,7 +29,12 @@ describe("planSheetStarts", () => {
 
 describe("sheetGeometry", () => {
   it("keeps a landscape sheet within the max side", () => {
-    expect(sheetGeometry(1920, 1080, 1280)).toEqual({ cellWidth: 640, cellHeight: 360, width: 1280, height: 720 });
+    expect(sheetGeometry(1920, 1080, 1280)).toEqual({
+      cellWidth: 640,
+      cellHeight: 360,
+      width: 1280,
+      height: 720,
+    });
   });
 
   it("keeps a portrait sheet within the max side", () => {
@@ -33,7 +44,12 @@ describe("sheetGeometry", () => {
   });
 
   it("never upscales a small video", () => {
-    expect(sheetGeometry(320, 240, 1280)).toEqual({ cellWidth: 320, cellHeight: 240, width: 640, height: 480 });
+    expect(sheetGeometry(320, 240, 1280)).toEqual({
+      cellWidth: 320,
+      cellHeight: 240,
+      width: 640,
+      height: 480,
+    });
   });
 });
 
@@ -50,5 +66,47 @@ describe("coveragePercent", () => {
     expect(coveragePercent(48, 0.25, 240)).toBe(20);
     expect(coveragePercent(10, 0.25, 5)).toBe(100);
     expect(coveragePercent(10, 0.25, 0)).toBe(0);
+  });
+});
+
+describe("browser extraction pipeline", () => {
+  it("extracts timecoded sheets and always releases the local video", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:sheet-test");
+    URL.revokeObjectURL = vi.fn();
+    const progress = vi.fn();
+    const preview = vi.fn();
+    const result = await extractMotionSheets(new File(["video"], "round.mp4"), {
+      maxSheets: 2,
+      maxSide: 64,
+      onProgress: progress,
+      onPreview: preview,
+    });
+    expect(result.sheets).toHaveLength(2);
+    expect(result.sheets[0].timestamps).toHaveLength(4);
+    expect(result.sheets[1].timestamps[3]).toBeLessThanOrEqual(result.duration);
+    expect(result.sheets[0].base64).not.toContain("data:");
+    expect(preview).toHaveBeenCalledOnce();
+    expect(progress).toHaveBeenLastCalledWith(2, 2);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:sheet-test");
+  });
+  it("rejects clips below the minimum duration and cleans up", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:short");
+    URL.revokeObjectURL = vi.fn();
+    await expect(
+      extractMotionSheets(new File(["video"], "short.mp4"), {
+        minDuration: 10000,
+      }),
+    ).rejects.toThrow("courte");
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:short");
+  });
+  it("stops on the extraction budget without inventing frames", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:budget");
+    URL.revokeObjectURL = vi.fn();
+    const result = await extractMotionSheets(new File(["video"], "round.mp4"), {
+      timeoutMs: -1,
+    });
+    expect(result.sheets).toHaveLength(0);
+    expect(result.previewDataUrl).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:budget");
   });
 });

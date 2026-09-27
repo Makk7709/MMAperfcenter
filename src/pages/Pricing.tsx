@@ -237,7 +237,7 @@ const Pricing = () => {
                     className="w-full"
                     variant={plan.popular ? 'default' : 'outline'}
                     onClick={() => handleSubscribe(plan.paid, plan.id)}
-                    disabled={isCurrentPlan || loadingCheckout === plan.id}
+                    disabled={isCurrentPlan || loadingCheckout !== null}
                   >
                     {isCurrentPlan ? 'Plan actuel' : plan.cta}
                   </Button>

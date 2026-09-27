@@ -2,7 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Play } from "lucide-react";
-import { TrainingVideo } from "@/hooks/useTrainingVideos";
+import { TrainingVideo, renewTrainingVideoUrl } from "@/hooks/useTrainingVideos";
+import { PrivateVideoPlayer } from "@/components/PrivateVideoPlayer";
 import { useState } from "react";
 import trainingCover from "@/assets/sparring-training-480.webp";
 
@@ -117,13 +118,10 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
               </button>
             )
           ) : video.playback_url ? (
-            <video
-              src={video.playback_url}
-              controls
-              playsInline
-              preload="metadata"
+            <PrivateVideoPlayer
+              initialSource={{ url: video.playback_url, expiresAt: video.playback_expires_at }}
+              renew={() => renewTrainingVideoUrl(video.video_url!)}
               poster={video.thumbnail_url || undefined}
-              className="w-full h-full object-cover"
             />
           ) : null}
         </div>

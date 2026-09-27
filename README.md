@@ -30,7 +30,7 @@ monétisation par abonnement.
 
 ## Démarrage local
 
-Pré-requis : Node.js 20+ et npm.
+Pré-requis : Node.js 24 (`.nvmrc`, `nvm use`) et npm.
 
 ```bash
 git clone <repository-url>
@@ -94,7 +94,7 @@ jamais figurer dans le dépôt ni dans le bundle.
 src/                  Application React (pages, composants, hooks, utils)
 supabase/
   functions/          Edge Functions Deno (10 fonctions + _shared)
-  migrations/         Migrations SQL versionnées (37 fichiers)
+  migrations/         Migrations SQL versionnées (38 fichiers)
   seed/               Scripts seed paramétrés (non automatiques)
 tests/edge/           Harness Deno pour Edge Functions
 e2e/                  Tests Playwright

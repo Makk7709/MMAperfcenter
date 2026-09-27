@@ -179,6 +179,10 @@ export async function getOrCreateCustomerId(supabase: ServiceClient, stripe: Str
   const customer = await stripe.customers.create({
     email: user.email,
     metadata: { [USER_ID_METADATA_KEY]: user.id },
-  });
+  }, { idempotencyKey: `customer-${user.id}` });
+  // Persist before Checkout or a webhook can fail.
+  const { error } = await supabase.from("subscriptions")
+    .update({ stripe_customer_id: customer.id }).eq("user_id", user.id);
+  if (error) throw new Error(`Could not persist Stripe customer: ${error.message}`);
   return customer.id;
 }
