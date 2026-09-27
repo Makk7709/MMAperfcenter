@@ -133,7 +133,7 @@ Notes d'entraînement par utilisateur et date (ressenti, énergie 1–10, pesée
 
 #### `nutrition_logs`
 
-Entrées alimentaires par repas et date (jour local de l'utilisateur, envoyé par le client). Index composite `(user_id, date)` ajouté en `20260526133146_*.sql`. Bornes (`20260926040000`) : nom 1–200 caractères, calories 0–20 000, chaque macro 0–2 000 g.
+Entrées alimentaires par repas et date (jour local de l'utilisateur, envoyé par le client). Index composite `(user_id, date)` ajouté en `20260526133145_*.sql`. Bornes (`20260926040000`) : nom 1–200 caractères, calories 0–20 000, chaque macro 0–2 000 g.
 
 #### `nutrition_goals`
 
@@ -177,7 +177,7 @@ Groupes : nom, description, `owner_id`, avatar.
 | `role` | owner / admin / member |
 | `status` | pending / active |
 
-Trigger anti-escalade de privilège (migration `20260526125359_*.sql`).
+Trigger anti-escalade de privilège (migration `20260526125356_*.sql`).
 
 #### `meute_activities`
 
@@ -273,13 +273,13 @@ supabase/migrations/
 ├── 20251205232737_*.sql    # user_roles, app_role
 ├── 20251206004851_*.sql    # feature_usage, has_feature_access
 ├── 20251205234548_*.sql    # meutes
-├── 20260525214700_*.sql    # extension profil (22 colonnes)
-├── 20260525215520_*.sql    # durcissement RLS subscriptions
-├── 20260526095651_*.sql    # verrou feature_usage
-├── 20260526100900_*.sql    # helpers RLS meutes
+├── 20260525214658_*.sql    # extension profil (22 colonnes)
+├── 20260525215519_*.sql    # durcissement RLS subscriptions
+├── 20260526095650_*.sql    # verrou feature_usage
+├── 20260526100859_*.sql    # helpers RLS meutes
 ├── 20260526120000_*.sql    # stripe_webhook_events + RPCs
-├── 20260526125359_*.sql    # trigger anti-escalade meute_members
-├── 20260526133146_*.sql    # index nutrition_logs(user_id, date)
+├── 20260526125356_*.sql    # trigger anti-escalade meute_members
+├── 20260526133145_*.sql    # index nutrition_logs(user_id, date)
 ├── …
 ├── 20260926030000_*.sql    # séances : type, intensité, rounds ; lien carnet ↔ séance ; exercices combat
 ├── 20260926040000_*.sql    # bornes de valeurs : nutrition, objectifs, carnet
