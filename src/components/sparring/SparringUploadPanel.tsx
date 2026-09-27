@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useRef, useState } from "react";
 import { Clock, ScanEye, Upload, Users, Video } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,7 @@ export const SparringUploadPanel = ({
           disabled && "pointer-events-none opacity-60",
         )}
       >
+        <SectionArtwork kind="analysis" />
         <div aria-hidden className="korev-grid absolute inset-0 -z-10 opacity-70" />
         <div
           aria-hidden

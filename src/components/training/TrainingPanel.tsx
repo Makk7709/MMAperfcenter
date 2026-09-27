@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNowStrict } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,7 +24,8 @@ export function TrainingPanel() {
   return (
     <div className="space-y-4">
       {workout ? (
-        <section className="korev-frame korev-chamfer p-5 [--chamfer:16px] sm:p-6">
+        <section className="korev-frame korev-chamfer relative isolate p-5 [--chamfer:16px] sm:p-6">
+          <SectionArtwork kind="training" />
           <Eyebrow parts={["Séance", "En cours"]} bullet />
           <h3 className="korev-display mt-3 text-3xl">{workout.name}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -36,7 +38,8 @@ export function TrainingPanel() {
           </Button>
         </section>
       ) : (
-        <section className="korev-frame korev-chamfer relative overflow-hidden p-5 [--chamfer:16px] sm:p-6">
+        <section className="korev-frame korev-chamfer relative isolate overflow-hidden p-5 [--chamfer:16px] sm:p-6">
+          <SectionArtwork kind="training" />
           <Eyebrow parts={["Préparation", "Physique"]} bullet />
           <h3 className="korev-display mt-3 text-3xl sm:text-4xl">Une séance, tout suivi.</h3>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">

@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useState, useRef, useCallback } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { QuickStatsCards } from "@/components/QuickStatsCards";
@@ -19,6 +20,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrainingProgress } from "@/hooks/useTraining";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import combatHero from "@/assets/combat-hero.webp";
+import combatHeroSmall from "@/assets/combat-hero-960.webp";
 import { useNavigate } from "react-router-dom";
 import { 
   Brain, 
@@ -32,6 +36,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { isPaid: isPremium, isKnown: planKnown } = useSubscription();
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState("nutrition");
   const [scanRequested, setScanRequested] = useState(false);
   const handleScanHandled = useCallback(() => setScanRequested(false), []);
@@ -41,7 +46,7 @@ const Index = () => {
 
   const openTab = (tab: string) => {
     setActiveTab(tab);
-    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    tabsRef.current?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
   };
 
   const openScanner = () => {
@@ -50,7 +55,7 @@ const Index = () => {
   };
 
   const scrollToAICoach = () => {
-    aiCoachRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    aiCoachRef.current?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "center" });
   };
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
@@ -66,15 +71,28 @@ const Index = () => {
       
       
       
-      {/* Hero Section - Uses video background, no additional image needed */}
+      {/* Decorative photography stays inside the existing hero footprint. */}
       <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
+        <img
+          src={combatHero}
+          srcSet={`${combatHeroSmall} 960w, ${combatHero} 1672w`}
+          sizes="100vw"
+          width={1672}
+          height={941}
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          decoding="async"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[65%_center] md:object-center"
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-background/10" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background" />
         
         {/* Gold accent line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary" />
         
         <div className="relative container px-4 py-20">
-          <div className="max-w-3xl">
+          <div className="max-w-3xl korev-hero-enter">
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-primary tracking-tight mb-2">
                 KOREV AI
@@ -204,8 +222,9 @@ const Index = () => {
               
               <TabsContent value="combat" className="space-y-6">
                 <RoundTimer />
-                <div className="relative overflow-hidden liquid-glass-solid rounded-lg border border-border/50 shadow-card">
+                <div className="relative isolate overflow-hidden liquid-glass-solid rounded-lg border border-border/50 shadow-card">
                   <div className="absolute inset-0 bg-gradient-gold-accent opacity-10" />
+                  <SectionArtwork kind="combat" />
                   <div className="relative text-center py-16 px-6">
                     <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-primary/10 border border-primary/20">
                       <Users className="h-8 w-8 text-primary" />

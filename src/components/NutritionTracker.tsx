@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useEffect, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -127,7 +128,7 @@ export const NutritionTracker = ({ scanRequested = false, onScanHandled }: Nutri
   const weekMax = Math.max(goals.daily_calories, ...week.map((d) => d.calories)) || 1;
 
   return (
-    <section className="liquid-glass-solid space-y-6 p-4 sm:p-6" aria-labelledby="nutrition-title">
+    <section className="liquid-glass-solid isolate space-y-6 p-4 sm:p-6" aria-labelledby="nutrition-title">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="korev-eyebrow">Nutrition de combat</p>
@@ -334,6 +335,7 @@ export const NutritionTracker = ({ scanRequested = false, onScanHandled }: Nutri
           </form>
         </DialogContent>
       </Dialog>
+      <SectionArtwork kind="nutrition" className="h-56" />
     </section>
   );
 };

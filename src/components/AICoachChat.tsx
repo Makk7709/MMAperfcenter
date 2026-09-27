@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,8 @@ export const AICoachChat = () => {
       )}>
         <ScrollArea className="flex-1 p-4">
           {messages.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="relative isolate text-center py-8">
+              <SectionArtwork kind="analysis" />
               <Bot className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground mb-4">
                 Bonjour ! Je suis votre Coach IA personnalisé. Comment puis-je vous aider ?
