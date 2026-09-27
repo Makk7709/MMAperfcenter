@@ -17,6 +17,7 @@ import {
   getOrCreateCustomerId,
   isPaidPlan,
   planFromPriceId,
+  PLANS_ON_SALE,
   type Stripe,
   USER_ID_METADATA_KEY,
 } from "../_shared/stripe.ts";
@@ -34,6 +35,7 @@ const defaults = {
   getOrCreateCustomerId,
   appBaseUrl,
   checkoutPriceFor,
+  plansOnSale: PLANS_ON_SALE,
 };
 
 async function saveAttempt(
@@ -92,6 +94,12 @@ export function createCheckoutHandler(deps: typeof defaults = defaults) {
           ? planFromPriceId(body.priceId)
           : null;
       if (!plan) throw new PublicError("Offre inconnue", 400);
+      if (!deps.plansOnSale.has(plan))
+        throw new PublicError(
+          "Cette offre n'est pas encore disponible.",
+          409,
+          "PLAN_NOT_ON_SALE",
+        );
       if (body?.withdrawalWaiver !== true)
         throw new PublicError(
           "Confirmez la demande d'accès immédiat pour continuer.",

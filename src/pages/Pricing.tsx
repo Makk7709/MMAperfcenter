@@ -7,7 +7,14 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Crown, Flame, Shield, Users } from 'lucide-react';
-import { useSubscription, PLAN_FEATURES, PLAN_PRICES } from '@/hooks/useSubscription';
+import {
+  useSubscription,
+  FAIR_USE_NOTE,
+  PLAN_FEATURES,
+  PLAN_PRICES,
+  PLANS_ON_SALE,
+  type SubscriptionPlan,
+} from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { readFunctionError } from '@/lib/functionError';
@@ -23,7 +30,18 @@ const Pricing = () => {
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [withdrawalWaiver, setWithdrawalWaiver] = useState(false);
 
-  const plans = [
+  const plans: {
+    id: SubscriptionPlan;
+    name: string;
+    icon: typeof Shield;
+    description: string;
+    monthlyPrice: number;
+    yearlyPrice: number;
+    paid: boolean;
+    features: string[];
+    cta: string;
+    popular?: boolean;
+  }[] = [
     {
       id: 'free',
       name: 'Free',
@@ -71,9 +89,14 @@ const Pricing = () => {
     },
   ];
 
-  const handleSubscribe = async (paid: boolean, planId: string) => {
+  const handleSubscribe = async (paid: boolean, planId: SubscriptionPlan) => {
     if (!paid) {
       toast.info('Vous êtes déjà sur le plan gratuit');
+      return;
+    }
+
+    if (!PLANS_ON_SALE.has(planId)) {
+      toast.info('Cette offre sera bientôt disponible');
       return;
     }
 
@@ -181,6 +204,7 @@ const Pricing = () => {
             const Icon = plan.icon;
             const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
             const isCurrentPlan = subscription?.plan === plan.id;
+            const comingSoon = plan.paid && !PLANS_ON_SALE.has(plan.id);
 
             return (
               <Card 
@@ -196,6 +220,12 @@ const Pricing = () => {
                     <Badge className="bg-primary text-primary-foreground font-semibold shadow-md">Plus populaire</Badge>
                   </div>
                 )}
+
+                {comingSoon && !isCurrentPlan && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
+                    <Badge variant="secondary" className="font-semibold shadow-md">Bientôt disponible</Badge>
+                  </div>
+                )}
                 
                 {isCurrentPlan && (
                   <div className="absolute top-3 right-3 z-10">
@@ -205,7 +235,7 @@ const Pricing = () => {
 
 
 
-                <CardHeader className={plan.popular || isCurrentPlan ? 'pt-12' : ''}>
+                <CardHeader className={plan.popular || isCurrentPlan || comingSoon ? 'pt-12' : ''}>
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className="h-6 w-6 text-primary" />
                     <CardTitle>{plan.name}</CardTitle>
@@ -222,6 +252,9 @@ const Pricing = () => {
                 </CardHeader>
 
                 <CardContent>
+                  {comingSoon && (
+                    <p className="mb-3 text-xs text-muted-foreground">Prévu à l'ouverture de l'offre :</p>
+                  )}
                   <ul className="space-y-3">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
@@ -237,15 +270,17 @@ const Pricing = () => {
                     className="w-full"
                     variant={plan.popular ? 'default' : 'outline'}
                     onClick={() => handleSubscribe(plan.paid, plan.id)}
-                    disabled={isCurrentPlan || loadingCheckout !== null}
+                    disabled={isCurrentPlan || comingSoon || loadingCheckout !== null}
                   >
-                    {isCurrentPlan ? 'Plan actuel' : plan.cta}
+                    {isCurrentPlan ? 'Plan actuel' : comingSoon ? 'Bientôt disponible' : plan.cta}
                   </Button>
                 </CardFooter>
               </Card>
             );
           })}
         </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">{FAIR_USE_NOTE}</p>
 
         <div className="mt-8 mx-auto max-w-2xl flex items-start gap-3 rounded-lg border border-border/60 bg-card/40 p-4">
           <Checkbox

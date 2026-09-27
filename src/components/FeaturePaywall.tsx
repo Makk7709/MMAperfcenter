@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscription, FAIR_USE_NOTE, PLANS_ON_SALE } from '@/hooks/useSubscription';
 import { 
   Dialog, 
   DialogContent, 
@@ -42,6 +42,15 @@ const planIcons: Record<PlanType, React.ReactNode> = {
   sensei: <Crown className="h-5 w-5" />,
 };
 
+const PLAN_ORDER: PlanType[] = ['free', 'pro', 'elite', 'sensei'];
+const FAIR_USE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['ai_coach', 'sparring_analysis']);
+
+/** Cheapest plan on sale that lifts the limit; null while none is sold. */
+function upgradeTarget(required: PlanType, current: PlanType): PlanType | null {
+  const floor = Math.max(PLAN_ORDER.indexOf(required), PLAN_ORDER.indexOf(current) + 1);
+  return PLAN_ORDER.slice(floor).find((plan) => PLANS_ON_SALE.has(plan)) ?? null;
+}
+
 const planColors: Record<PlanType, string> = {
   free: 'bg-muted text-muted-foreground',
   pro: 'bg-primary/20 text-primary',
@@ -69,7 +78,8 @@ export const FeaturePaywall = ({
   const [loading, setLoading] = useState(true);
 
   const featureConfig = FEATURE_CONFIG[feature];
-  const requiredPlanInfo = accessInfo ? PLAN_INFO[accessInfo.requiredPlan] : null;
+  const upgradePlan = accessInfo ? upgradeTarget(accessInfo.requiredPlan, currentPlan) : null;
+  const requiredPlanInfo = upgradePlan ? PLAN_INFO[upgradePlan] : null;
 
   const callbacks = useRef({ onAccessGranted, onOpenChange });
   useEffect(() => {
@@ -233,21 +243,12 @@ export const FeaturePaywall = ({
               <ul className="text-sm space-y-1.5">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-primary" />
-                  <span>Accès illimité à {featureConfig.name}</span>
+                  <span>Accès illimité à {featureConfig.name}{FAIR_USE_FEATURES.has(feature) ? ' *' : ''}</span>
                 </li>
-                {accessInfo.requiredPlan === 'sensei' && (
-                  <>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Gestion multi-athlètes</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Export PDF des rapports</span>
-                    </li>
-                  </>
-                )}
               </ul>
+              {FAIR_USE_FEATURES.has(feature) && (
+                <p className="text-xs text-muted-foreground">{FAIR_USE_NOTE}</p>
+              )}
             </div>
           )}
         </div>
@@ -268,10 +269,12 @@ export const FeaturePaywall = ({
               <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
                 Plus tard
               </Button>
-              <Button onClick={handleUpgrade} className="flex-1 bg-gradient-primary">
-                <Crown className="h-4 w-4 mr-2" />
-                {requiredPlanInfo?.cta || 'Passer Premium'}
-              </Button>
+              {requiredPlanInfo && (
+                <Button onClick={handleUpgrade} className="flex-1 bg-gradient-primary">
+                  <Crown className="h-4 w-4 mr-2" />
+                  {requiredPlanInfo.cta}
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>

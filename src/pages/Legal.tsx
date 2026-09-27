@@ -197,6 +197,17 @@ const Legal = () => {
               affichés en euros (EUR), toutes taxes comprises (TTC) pour les particuliers, 
               ou hors taxes (HT) pour les professionnels.
             </p>
+            <p>
+              Seules les formules proposées au paiement sur cette page peuvent être souscrites. Une formule
+              signalée « Bientôt disponible » ne peut pas être achetée ; la liste de ses fonctionnalités est
+              indicative jusqu'à son ouverture.
+            </p>
+            <p>
+              Les mentions « illimité » s'entendent dans le cadre d'un usage personnel et raisonnable :
+              jusqu'à 200 messages au coach IA et 20 analyses vidéo PRISM par jour et par compte. Au-delà,
+              le service reprend le lendemain. Ces plafonds protègent la disponibilité du service pour
+              l'ensemble des utilisateurs.
+            </p>
 
             <h3 className="text-lg font-semibold text-foreground">7.2 Nature de la prestation</h3>
             <p>

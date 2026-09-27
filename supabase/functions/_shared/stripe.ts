@@ -9,6 +9,10 @@ export type PaidPlan = Exclude<Plan, "free">;
 
 export const PAID_PLANS: readonly PaidPlan[] = ["pro", "elite", "sensei"];
 
+// Plans whose advertised features all exist. Keep in sync with
+// PLANS_ON_SALE in src/hooks/useSubscription.tsx and the Customer Portal.
+export const PLANS_ON_SALE: ReadonlySet<PaidPlan> = new Set<PaidPlan>(["pro"]);
+
 // Test-mode catalogue. Live mode reads STRIPE_PRICE_<PLAN> and
 // STRIPE_PRODUCT_<PLAN> (e.g. STRIPE_PRICE_PRO) from the function secrets.
 const TEST_PRICE_IDS: Record<PaidPlan, string> = {
@@ -29,15 +33,17 @@ function isLiveMode(): boolean {
 
 // A live key with the test catalogue would fail every checkout and map every
 // paid subscription to the free plan: missing live IDs are a configuration error.
-function catalogue(kind: "PRICE" | "PRODUCT"): Record<PaidPlan, string> {
+// Plans not on sale may have no live product yet.
+function catalogue(kind: "PRICE" | "PRODUCT"): Partial<Record<PaidPlan, string>> {
   const fallback = kind === "PRICE" ? TEST_PRICE_IDS : TEST_PRODUCT_IDS;
-  const ids = {} as Record<PaidPlan, string>;
+  const ids: Partial<Record<PaidPlan, string>> = {};
   for (const plan of PAID_PLANS) {
     const configured = Deno.env.get(`STRIPE_${kind}_${plan.toUpperCase()}`)?.trim();
-    if (!configured && isLiveMode()) {
+    if (configured) ids[plan] = configured;
+    else if (!isLiveMode()) ids[plan] = fallback[plan];
+    else if (PLANS_ON_SALE.has(plan)) {
       throw new Error(`STRIPE_${kind}_${plan.toUpperCase()} is not set (required with a live Stripe key)`);
     }
-    ids[plan] = configured || fallback[plan];
   }
   return ids;
 }
@@ -53,7 +59,9 @@ export function isPaidPlan(value: unknown): value is PaidPlan {
 }
 
 export function checkoutPriceFor(plan: PaidPlan): string {
-  return catalogue("PRICE")[plan];
+  const price = catalogue("PRICE")[plan];
+  if (!price) throw new Error(`STRIPE_PRICE_${plan.toUpperCase()} is not set`);
+  return price;
 }
 
 export function planFromPriceId(priceId: string | null | undefined): PaidPlan | null {

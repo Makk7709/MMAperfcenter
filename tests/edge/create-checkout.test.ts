@@ -4,6 +4,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createCheckoutHandler } from "../../supabase/functions/create-checkout/handler.ts";
 import { PublicError } from "../../supabase/functions/_shared/http.ts";
+import { PLANS_ON_SALE } from "../../supabase/functions/_shared/stripe.ts";
 
 type Session = {
   id: string;
@@ -112,6 +113,7 @@ function fixture() {
     getOrCreateCustomerId: () => Promise.resolve("cus_test"),
     appBaseUrl: () => "https://app.test",
     checkoutPriceFor: (p: string) => "price_" + p,
+    plansOnSale: new Set(["pro", "elite"]),
   } as unknown as NonNullable<Dependencies>;
   return {
     handler: createCheckoutHandler(deps),
@@ -240,6 +242,22 @@ Deno.test("checkout creates a new attempt after expiration", async () => {
   f.sessions.get("cs_1")!.status = "expired";
   assertEquals((await f.handler(req())).status, 200);
   assertEquals(f.sessions.size, 2);
+});
+Deno.test("checkout refuses plans that are not on sale", async () => {
+  const f = fixture();
+  const handler = createCheckoutHandler({
+    ...f.deps,
+    plansOnSale: new Set(["pro"]),
+  } as typeof f.deps);
+  for (const plan of ["elite", "sensei"]) {
+    const res = await handler(req(plan));
+    assertEquals(res.status, 409);
+  }
+  assertEquals(f.sessions.size, 0);
+  assertEquals((await handler(req("pro"))).status, 200);
+});
+Deno.test("only plans whose features exist are on sale", () => {
+  assertEquals([...PLANS_ON_SALE], ["pro"]);
 });
 Deno.test("checkout requires consent and an authenticated user", async () => {
   const f = fixture();

@@ -72,6 +72,19 @@ test("checkout sends the selected plan only after consent", async ({
   await expect(page).toHaveURL(/payment-success/);
 });
 
+test("plans whose features are not built cannot be bought", async ({
+  page,
+  backend,
+}) => {
+  await signIn(page);
+  await page.goto("/pricing");
+  const soon = page.getByRole("button", { name: "Bientôt disponible" });
+  await expect(soon).toHaveCount(2);
+  for (const button of await soon.all()) await expect(button).toBeDisabled();
+  await expect(page.getByText(/Usage raisonnable/)).toBeVisible();
+  expect(backend.checkoutRequests).toHaveLength(0);
+});
+
 test("unknown route shows a real 404 message", async ({ page }) => {
   await page.goto("/nonexistent-page-audit");
   await expect(

@@ -236,7 +236,8 @@ supabase secrets set AI_GATEWAY_API_KEY=<key>
 supabase secrets set AI_GATEWAY_URL=<url chat/completions>
 supabase secrets set SITE_URL=https://<domaine-app>
 supabase secrets set ALLOWED_ORIGINS=https://<domaine-app>,https://www.<domaine-app>
-supabase secrets set STRIPE_PRICE_PRO=price_... STRIPE_PRICE_ELITE=price_... STRIPE_PRICE_SENSEI=price_...
+supabase secrets set STRIPE_PRICE_PRO=price_... STRIPE_PRODUCT_PRO=prod_...
+# Elite / Senseï : seulement à leur ouverture à la vente (PLANS_ON_SALE)
 supabase secrets set STRIPE_PRODUCT_PRO=prod_... STRIPE_PRODUCT_ELITE=prod_... STRIPE_PRODUCT_SENSEI=prod_...
 ```
 
@@ -250,7 +251,7 @@ supabase secrets set STRIPE_PRODUCT_PRO=prod_... STRIPE_PRODUCT_ELITE=prod_... S
 | `LEGACY_AI_GATEWAY_KEY` | Non | Ancien nom de la clé, lu si `AI_GATEWAY_API_KEY` est absent |
 | `SITE_URL` | Oui en production | URLs de retour Stripe (checkout, portail) |
 | `ALLOWED_ORIGINS` | Oui en production | Origines CORS autorisées (liste séparée par des virgules). Sans valeur, toutes les origines sont acceptées (développement). Lister le domaine nu **et** `www` : le `.htaccess` redirige `www` vers le domaine nu, mais une origine absente bloque toutes les fonctions. |
-| `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ELITE`, `STRIPE_PRICE_SENSEI` | **Oui avec une clé live** (`sk_live_` ou restreinte `rk_live_`) | Prix mensuels live. Sans eux, le checkout et la synchronisation échouent au lieu d'enregistrer un abonné payant en plan gratuit. En mode test, les IDs de test du code sont utilisés |
+| `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ELITE`, `STRIPE_PRICE_SENSEI` | **Oui avec une clé live** (`sk_live_` ou restreinte `rk_live_`) pour chaque offre en vente (`PLANS_ON_SALE`, aujourd'hui Pro seule) | Prix mensuels live. Sans eux, le checkout et la synchronisation échouent au lieu d'enregistrer un abonné payant en plan gratuit. En mode test, les IDs de test du code sont utilisés |
 | `STRIPE_PRODUCT_PRO`, `STRIPE_PRODUCT_ELITE`, `STRIPE_PRODUCT_SENSEI` | **Oui avec une clé live** | Produits live correspondants (webhook, `check-subscription`) |
 | `AI_MODEL_FAST`, `AI_MODEL_PRO` | Non | Modèles de la passerelle. Par défaut `google/gemini-2.5-flash` (coach, analyse de stats, PRISM rapide) et `google/gemini-2.5-pro` (PRISM complet). Permet de changer de modèle sans redéployer le code |
 
@@ -280,7 +281,7 @@ Quatre plans applicatifs mappés à des produits Stripe :
 | Elite | 29,90 € | `price_1SQSLMDLrTr0qdOpffTBpoJL` |
 | Senseï | 69 € | `price_1SQSM0DLrTr0qdOpYtZFR50d` |
 
-> Le frontend n'envoie plus d'ID de prix, seulement le plan (`pro`, `elite`, `sensei`) : `create-checkout` choisit le prix côté serveur. En live, créer les 3 produits et prix mensuels dans Stripe et renseigner les secrets `STRIPE_PRICE_*` / `STRIPE_PRODUCT_*` (§4.2) : aucun rebuild du frontend n'est nécessaire.
+> Le frontend n'envoie plus d'ID de prix, seulement le plan (`pro`, `elite`, `sensei`) : `create-checkout` choisit le prix côté serveur. Seules les offres de `PLANS_ON_SALE` (`_shared/stripe.ts` et `src/hooks/useSubscription.tsx`, aujourd'hui Pro) sont vendues : `create-checkout` refuse Elite et Senseï (409 `PLAN_NOT_ON_SALE`) tant que leurs fonctionnalités n'existent pas. En live, créer le produit et le prix mensuel de chaque offre en vente dans Stripe et renseigner les secrets `STRIPE_PRICE_*` / `STRIPE_PRODUCT_*` (§4.2) : aucun rebuild du frontend n'est nécessaire.
 >
 > `create-checkout` refuse aussi un paiement si le client Stripe a déjà un abonnement actif, en essai, en retard de paiement (`past_due`) ou impayé : il est renvoyé vers le portail.
 >
@@ -304,7 +305,7 @@ Quatre plans applicatifs mappés à des produits Stripe :
 Dashboard → Settings → Billing → Customer portal, **en mode live** :
 
 1. activer le portail ;
-2. « Subscriptions » → autoriser le changement de plan et y ajouter les 3 produits live avec leur prix mensuel. Un abonné actif qui veut changer d'offre y est renvoyé (`create-checkout` refuse un second abonnement) ; sans cette configuration, personne ne peut monter en gamme ;
+2. « Subscriptions » → n'y ajouter **que les produits en vente** (aujourd'hui Pro seul) : le portail permettrait sinon d'acheter Elite ou Senseï, dont les fonctionnalités promises n'existent pas encore. Tant qu'une seule offre est vendue, le changement de plan peut rester désactivé. Ajouter chaque offre au portail le jour de son ouverture ;
 3. autoriser l'annulation (fin de période) et la mise à jour du moyen de paiement ;
 4. renseigner les liens vers les CGV et la politique de confidentialité (`https://<domaine-app>/legal`).
 
@@ -442,7 +443,7 @@ Pipeline actuel (`.github/workflows/ci.yml`) :
 | 3 | Secrets Supabase configurés (dont `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*`, `ALLOWED_ORIGINS` avec et sans `www`) | ☐ |
 | 4 | Stripe produits/prix live créés | ☐ |
 | 5 | Webhook Stripe configuré + secret injecté | ☐ |
-| 6 | Customer Portal Stripe : changement de plan avec les 3 produits live, annulation, liens CGV | ☐ |
+| 6 | Customer Portal Stripe : uniquement les produits en vente (Pro), annulation, liens CGV | ☐ |
 | 6b | SMTP configuré, limite d'e-mails relevée, inscription testée avec une adresse externe | ☐ |
 | 6c | Plafond de dépense et alerte sur la passerelle IA | ☐ |
 | 7 | Admin provisionné (seed) | ☐ |

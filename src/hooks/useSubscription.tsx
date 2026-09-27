@@ -16,34 +16,45 @@ export interface Subscription {
   cancel_at_period_end?: boolean;
 }
 
+// Every line of a plan on sale is a commitment: it must match what the app
+// and the server quotas actually deliver.
 export const PLAN_FEATURES: Record<SubscriptionPlan, string[]> = {
   free: [
-    '3 plannings IA par mois',
-    'Scan code-barres limité',
-    'Journal d\'hydratation basique',
+    '3 échanges avec le coach IA par mois',
+    '3 analyses sparring PRISM par mois',
+    '3 scans code-barres par mois',
+    'Journal d\'entraînement et suivi nutritionnel',
+    'Tableau de performance',
   ],
   pro: [
-    'Plannings IA illimités',
-    'Calcul macros & repas automatique',
+    'Tout du plan Free',
+    'Coach IA illimité *',
+    'Analyses sparring PRISM illimitées *',
     'Scan code-barres illimité',
-    'Journal complet',
-    'Statistiques avancées',
+    'Analyse IA de tes statistiques et idées de repas *',
   ],
   elite: [
     'Tout du plan Pro',
-    'Vidéos explicatives IA',
-    'Analyse nutrition avancée',
-    'Suivi récupération',
-    'Support IA prioritaire',
+    'Suivi de la récupération',
+    'Analyse nutritionnelle avancée',
+    'Réponses IA prioritaires',
+    'Vidéos techniques commentées',
   ],
   sensei: [
-    'Tout du plan Elite',
-    'Gestion multi-athlètes',
-    'Statistiques collectif',
-    'Export PDF',
-    'IA de suivi collectif',
+    'Tout du plan Pro',
+    'Suivi de 10 athlètes, avec leur accord',
+    'Statistiques collectives',
+    'Export PDF des rapports athlètes',
+    'Synthèse IA de ton groupe',
   ],
 };
+
+/** Plans that can be bought today; the others are announced as coming soon. */
+export const PLANS_ON_SALE: ReadonlySet<SubscriptionPlan> = new Set<SubscriptionPlan>(['pro']);
+
+/** Server-side daily caps behind the "illimité" (*) lines. */
+export const FAIR_USE_NOTE =
+  '* Usage raisonnable : jusqu\'à 200 messages au coach IA et 20 analyses PRISM par jour.';
 
 export const PLAN_PRICES = {
   pro: { monthly: 14.90, yearly: 119 },

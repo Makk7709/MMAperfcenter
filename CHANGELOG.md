@@ -6,6 +6,10 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 **Nécessite Node 24 pour le build, les migrations `20260925220000` à `20260927190000` (après le pré-vol `supabase/preflight/20260927_preflight.sql`), le redéploiement de toutes les Edge Functions et les nouveaux secrets `STRIPE_PRICE_*`, `STRIPE_PRODUCT_*` (live). Voir `docs/development/DEPLOYMENT.md` §3.1.**
 
+### Modifié
+
+- Offres : seule Pro est en vente. Elite et Senseï sont affichées « Bientôt disponible » et refusées par `create-checkout` (`PLAN_NOT_ON_SALE`) tant que leurs fonctionnalités n'existent pas. Les listes Free et Pro décrivent exactement ce que l'app fournit ; l'usage raisonnable des mentions « illimité » (200 messages au coach IA et 20 analyses PRISM par jour) figure sur la page Tarifs, dans la fenêtre d'upgrade et dans les CGV (§7.1). En live, seuls les secrets Stripe des offres en vente sont requis.
+
 ### Ajouté
 
 - Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, en mode économie de données ou sur connexion lente, et sur les pages ouvertes depuis un e-mail (confirmation d'inscription comprise) ou un paiement.

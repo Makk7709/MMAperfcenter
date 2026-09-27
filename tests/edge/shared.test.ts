@@ -43,7 +43,15 @@ Deno.test("stripe: live key without live IDs is a configuration error", withEnv(
 }));
 
 Deno.test("stripe: a restricted live key is live too", withEnv({ STRIPE_SECRET_KEY: "rk_live_x" }, () => {
-  assertThrows(() => checkoutPriceFor("elite"), Error, "required with a live Stripe key");
+  assertThrows(() => checkoutPriceFor("pro"), Error, "required with a live Stripe key");
+}));
+
+Deno.test("stripe: plans not on sale need no live product", withEnv({
+  STRIPE_SECRET_KEY: "sk_live_x", STRIPE_PRICE_PRO: "price_live_pro", STRIPE_PRODUCT_PRO: "prod_live_pro",
+}, () => {
+  assertEquals(planFromSubscription(subscription("prod_live_pro", "price_live_pro")), "pro");
+  assertThrows(() => checkoutPriceFor("elite"), Error, "STRIPE_PRICE_ELITE is not set");
+  assertThrows(() => planFromSubscription(subscription("prod_other", "price_other")), Error, "Unknown Stripe product");
 }));
 
 Deno.test("stripe: live IDs come from the secrets", withEnv({
