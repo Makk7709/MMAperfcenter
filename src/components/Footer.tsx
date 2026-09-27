@@ -13,7 +13,7 @@ const Footer = () => {
               <span className="text-sm text-muted-foreground">AI</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Performance Center — Votre coach IA pour l'excellence en MMA
+              MMA Performance Center — Votre coach IA pour l'excellence en MMA
             </p>
           </div>
 

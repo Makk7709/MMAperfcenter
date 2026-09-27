@@ -172,7 +172,7 @@ export default function Auth() {
       <div className="relative mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-5 py-8 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-10">
         <section className="animate-korev-rise">
           <KorevLogo className="h-10 sm:h-14" />
-          <Eyebrow parts={["KOREV", "Performance Center"]} className="mt-6 sm:mt-10" />
+          <Eyebrow parts={["KOREV", "MMA Performance Center"]} className="mt-6 sm:mt-10" />
           <h1 className="korev-display mt-4 text-4xl sm:mt-5 sm:text-6xl lg:text-7xl">
             Entraînez-vous.
             <span className="korev-rule my-3 sm:my-4" aria-hidden />
