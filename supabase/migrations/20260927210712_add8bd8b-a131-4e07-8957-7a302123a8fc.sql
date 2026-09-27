@@ -1,0 +1,2 @@
+DO $$ DECLARE p record; BEGIN FOR p IN SELECT policyname FROM pg_policies WHERE schemaname='public' AND tablename='documents' AND cmd='SELECT' LOOP EXECUTE format('DROP POLICY %I ON public.documents', p.policyname); END LOOP; END $$;
+CREATE POLICY "Admins can read documents" ON public.documents FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
