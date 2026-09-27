@@ -14,6 +14,8 @@ import {
   Users
 } from "lucide-react";
 import { SparringDialog } from "@/components/sparring";
+import sparringImage from "@/assets/sparring-training.webp";
+import sparringImageSmall from "@/assets/sparring-training-480.webp";
 
 // Animated stats for demo
 const demoStats = {
@@ -167,9 +169,22 @@ export const SparringShowcase = () => {
               {/* Glow effect */}
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-3xl blur-2xl opacity-50" />
               
-              <div className="relative liquid-glass-solid border border-primary/20 rounded-2xl p-6 shadow-2xl">
+              <div className="relative liquid-glass-solid border border-primary/20 rounded-2xl p-6 shadow-2xl overflow-hidden">
+                <img
+                  src={sparringImage}
+                  srcSet={`${sparringImageSmall} 480w, ${sparringImage} 960w`}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  width={960}
+                  height={540}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.45]"
+                />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/20 via-background/50 to-background/90" />
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="relative flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
                     <div className="p-2 bg-primary/20 rounded-lg">
                       <Video className="h-5 w-5 text-primary" />
@@ -185,7 +200,7 @@ export const SparringShowcase = () => {
                 </div>
 
                 {/* Animated stats */}
-                <div className="space-y-4">
+                <div className="relative space-y-4">
                   <div className="p-4 bg-background/50 rounded-xl border border-border/50">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium">{statLabels[currentStat]}</span>

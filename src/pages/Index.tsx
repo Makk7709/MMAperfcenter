@@ -20,6 +20,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrainingProgress } from "@/hooks/useTraining";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import combatHero from "@/assets/combat-hero.webp";
+import combatHeroSmall from "@/assets/combat-hero-960.webp";
 import { useNavigate } from "react-router-dom";
 import { 
   Brain, 
@@ -68,8 +70,21 @@ const Index = () => {
       
       
       
-      {/* Hero Section - Uses video background, no additional image needed */}
+      {/* Decorative photography stays inside the existing hero footprint. */}
       <section className="relative overflow-hidden border-b border-border/50 h-[60vh] min-h-[450px]">
+        <img
+          src={combatHero}
+          srcSet={`${combatHeroSmall} 960w, ${combatHero} 1672w`}
+          sizes="100vw"
+          width={1672}
+          height={941}
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          decoding="async"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[65%_center] md:object-center"
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-background/10" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background" />
         
         {/* Gold accent line */}

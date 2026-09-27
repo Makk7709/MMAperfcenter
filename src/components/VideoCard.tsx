@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Play } from "lucide-react";
 import { TrainingVideo } from "@/hooks/useTrainingVideos";
 import { useState } from "react";
+import trainingCover from "@/assets/sparring-training-480.webp";
 
 interface VideoCardProps {
   video: TrainingVideo;
@@ -13,7 +14,10 @@ interface VideoCardProps {
 
 export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
   const [playing, setPlaying] = useState(false);
-  const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
+  const [failedThumbnails, setFailedThumbnails] = useState<string[]>([]);
+  const thumbnail = video.thumbnail_url && !failedThumbnails.includes(video.thumbnail_url)
+    ? video.thumbnail_url : trainingCover;
+  const hasThumbnail = thumbnail !== trainingCover;
 
   const getYoutubeEmbedUrl = (url: string) => {
     const videoId = /(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/.exec(url)?.[1];
@@ -98,16 +102,17 @@ export const VideoCard = ({ video, onDelete, canDelete }: VideoCardProps) => {
                 className="group relative w-full h-full flex items-center justify-center cursor-pointer bg-gradient-to-br from-red-500 to-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 onClick={() => setPlaying(true)}
               >
-                {video.thumbnail_url && failedThumbnail !== video.thumbnail_url && (
+                {!failedThumbnails.includes(thumbnail) && (
                   <img
-                    src={video.thumbnail_url}
+                    src={thumbnail}
                     alt=""
                     loading="lazy"
                     decoding="async"
-                    onError={() => setFailedThumbnail(video.thumbnail_url!)}
+                    onError={() => setFailedThumbnails(previous => [...previous, thumbnail])}
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 )}
+                {!hasThumbnail && <span className="absolute bottom-2 right-2 bg-background/80 px-2 py-0.5 text-[10px] text-muted-foreground">Illustration</span>}
                 <Play className="relative h-16 w-16 text-white drop-shadow-md motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-110 motion-safe:group-focus-visible:scale-110" />
               </button>
             )
