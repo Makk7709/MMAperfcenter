@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { brokeredPreviewStorage } from './previewAuthStorage';
 
 // Single source of truth for the Supabase client configuration.
 // Values come from Vite environment variables (VITE_* are public by design).
@@ -21,7 +22,7 @@ export const SUPABASE_PUBLISHABLE_KEY = ENV_KEY;
 //   import { supabase } from "@/integrations/supabase/client";
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: brokeredPreviewStorage(),
     persistSession: true,
     autoRefreshToken: true,
   },
