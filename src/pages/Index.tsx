@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrainingProgress } from "@/hooks/useTraining";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useNavigate } from "react-router-dom";
 import { 
   Brain, 
@@ -32,6 +33,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { isPaid: isPremium, isKnown: planKnown } = useSubscription();
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState("nutrition");
   const [scanRequested, setScanRequested] = useState(false);
   const handleScanHandled = useCallback(() => setScanRequested(false), []);
@@ -41,7 +43,7 @@ const Index = () => {
 
   const openTab = (tab: string) => {
     setActiveTab(tab);
-    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    tabsRef.current?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
   };
 
   const openScanner = () => {
@@ -50,7 +52,7 @@ const Index = () => {
   };
 
   const scrollToAICoach = () => {
-    aiCoachRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    aiCoachRef.current?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "center" });
   };
   
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Fighter';
@@ -74,7 +76,7 @@ const Index = () => {
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary" />
         
         <div className="relative container px-4 py-20">
-          <div className="max-w-3xl">
+          <div className="max-w-3xl korev-hero-enter">
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-primary tracking-tight mb-2">
                 KOREV AI

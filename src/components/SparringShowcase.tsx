@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -32,26 +33,37 @@ const demoStats = {
 
 export const SparringShowcase = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [animatedValue, setAnimatedValue] = useState(0);
   const [currentStat, setCurrentStat] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
 
-  // Animate stats cycling
+  // Keep real values on screen; animate the bar directly between values.
+  // Decorative updates stop offscreen, in background tabs and for reduced motion.
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAnimatedValue(0);
-      setTimeout(() => {
-        setAnimatedValue(100);
-        setCurrentStat(prev => (prev + 1) % 3);
-      }, 100);
-    }, 3000);
+    if (reducedMotion) return;
+    let visible = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const update = () => {
+      clearInterval(interval);
+      interval = undefined;
+      if (visible && !document.hidden) {
+        interval = setInterval(() => setCurrentStat(prev => (prev + 1) % 3), 3000);
+      }
+    };
+    const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      update();
+    });
+    if (observer && sectionRef.current) observer.observe(sectionRef.current);
+    else { visible = true; update(); }
+    document.addEventListener("visibilitychange", update);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  // Initial animation
-  useEffect(() => {
-    setTimeout(() => setAnimatedValue(100), 500);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [reducedMotion]);
 
   const statLabels = ["Précision coups de poing", "Précision coups de pied", "Taux de takedown"];
   const statValues = [
@@ -62,7 +74,7 @@ export const SparringShowcase = () => {
 
   return (
     <>
-      <section className="relative overflow-hidden border-y border-primary/20 bg-gradient-to-br from-background via-card to-background">
+      <section ref={sectionRef} className="relative overflow-hidden border-y border-primary/20 bg-gradient-to-br from-background via-card to-background">
         {/* Animated background effects */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
@@ -177,13 +189,14 @@ export const SparringShowcase = () => {
                   <div className="p-4 bg-background/50 rounded-xl border border-border/50">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium">{statLabels[currentStat]}</span>
-                      <span className="text-lg font-bold text-primary">
-                        {Math.round(statValues[currentStat] * (animatedValue / 100))}%
+                      <span className="text-lg font-bold text-primary tabular-nums">
+                        {statValues[currentStat]}%
                       </span>
                     </div>
                     <Progress 
-                      value={statValues[currentStat] * (animatedValue / 100)} 
-                      className="h-2 transition-all duration-1000"
+                      value={statValues[currentStat]}
+                      aria-label={statLabels[currentStat]}
+                      className="h-2"
                     />
                   </div>
 
@@ -215,7 +228,7 @@ export const SparringShowcase = () => {
                 </div>
 
                 {/* CTA overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent rounded-2xl flex items-end justify-center pb-6 opacity-0 hover:opacity-100 transition-opacity">
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent rounded-2xl flex items-end justify-center pb-6 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
                   <Button 
                     onClick={() => setIsDialogOpen(true)}
                     className="bg-primary text-primary-foreground shadow-lg"

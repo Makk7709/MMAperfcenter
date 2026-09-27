@@ -18,6 +18,10 @@ export function VideoBackground(_props: VideoBackgroundProps) {
         src={heroBackground}
         alt=""
         aria-hidden="true"
+        width={1672}
+        height={941}
+        fetchPriority="high"
+        decoding="async"
         className="absolute inset-0 h-full w-full object-cover object-bottom opacity-60"
       />
       {/* Depth: dark top for the header, vignette on the sides, gold halo above. */}
