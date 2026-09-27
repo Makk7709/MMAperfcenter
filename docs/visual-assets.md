@@ -1,5 +1,35 @@
 # Visuels de combat
 
+
+## Sections principales
+
+Quatre illustrations supplémentaires créées avec l’outil intégré image_gen. Fichiers enregistrés dans `src/assets/` :
+
+- `section-nutrition-480.webp` et `section-nutrition-960.webp` : Nutrition de combat.
+- `section-analysis-480.webp` et `section-analysis-960.webp` : Coach IA, analyse personnalisée et import de sparring.
+- `section-training-480.webp` et `section-training-960.webp` : préparation physique, séance nouvelle ou en cours.
+- `section-team-480.webp` et `section-team-960.webp` : carte Team.
+- La section Technique MMA réutilise `sparring-training.webp` et sa version 480 px.
+
+Les variantes 480 × 270 et 960 × 540 sont encodées en WebP qualité 76 et chargées à la demande. Le composant décoratif SectionArtwork ne prend aucune place dans la mise en page ; les illustrations du Coach et de l’analyse disparaissent lorsque les conversations ou résultats sont affichés.
+
+### Prompt nutrition
+
+Photorealistic premium editorial still life for the Nutrition section of a dark MMA performance dashboard. Wide landscape 16:9. A matte black bowl of grilled chicken, quinoa, avocado, spinach and roasted vegetables, a clear glass of water, on a charcoal worktop. Food clustered on the right two thirds, left third mostly quiet dark negative space for existing text. Authentic fresh food textures, restrained natural greens and warm brass highlights, blue-black charcoal shadows, soft directional light, no oversaturation. No text, labels, logos, supplements, interface, watermark. High-end sports nutrition photography, no health claims.
+
+### Prompt analysis
+
+Premium editorial photographic illustration for AI analysis and coaching in a dark MMA performance dashboard, landscape 16:9. On the right two thirds, close three-quarter view of a black tablet on a gym bench showing a small image of two adult fighters practicing sparring with fine muted gold pose-estimation lines connecting shoulders elbows hips and knees. A pair of black MMA gloves beside the tablet. No text, letters, numbers or logos anywhere on tablet or equipment. The left third is dark quiet negative space. Believable photography, refined blue-black and charcoal palette with subtle brass light, realistic materials and physically plausible screen. No neon, no robots, no sci-fi holograms, no watermark. Clearly illustrative concept of video analysis.
+
+### Prompt training
+
+Photorealistic premium sports editorial background, landscape 16:9, for physical preparation section in an MMA dashboard. Adult athlete in plain black training clothes on the right two thirds performing a controlled kettlebell deadlift, neutral spine, two hands correctly gripping one kettlebell, feet grounded, full torso and kettlebell visible. Dark professional strength gym with subtle racks in distance. Left third quiet charcoal negative space for existing headings. Restrained brass rim lighting, natural skin and fabric detail, blue-black shadows, serious calm training mood. No text, logos, watermark, injury, neon or UI.
+
+### Prompt team
+
+Photorealistic premium editorial photograph for the Team section of an MMA performance dashboard. Landscape 16:9. Three adult training partners, two women and one man, in unbranded black sportswear, relaxed group fist bump after practice in a dark professional MMA gym. Realistic hands and anatomy, friendly focused expressions. People mainly on right two thirds, quiet dark negative space on left. Warm muted brass rim light, charcoal blue-black background, natural skin tones, realistic fabric, subdued cinematic documentary aesthetic matching a premium combat sports brand. No writing, logos, badges, interface, watermarks or neon.
+
+
 Images créées avec l’outil intégré image_gen. Scènes fictives générées par IA, utilisées comme illustrations, jamais comme captures de vidéos d’utilisateurs.
 
 | Usage | Fichier | Dimensions |

@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -201,7 +202,8 @@ export function AIStatsAnalysis() {
       
       <CardContent className="p-0">
         {!analysis && !isLoading && (
-          <div className="p-8 text-center">
+          <div className="relative isolate p-8 text-center">
+            <SectionArtwork kind="analysis" />
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
               <Brain className="h-8 w-8 text-primary" />
             </div>
@@ -217,7 +219,8 @@ export function AIStatsAnalysis() {
         )}
         
         {isLoading && !analysis && (
-          <div className="p-8 text-center">
+          <div className="relative isolate p-8 text-center">
+            <SectionArtwork kind="analysis" />
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
               <Brain className="h-8 w-8 text-primary" />
             </div>

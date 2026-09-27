@@ -1,3 +1,4 @@
+import { SectionArtwork } from "@/components/brand/SectionArtwork";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,8 @@ export const MeuteCard = () => {
 
   if (loading) {
     return (
-      <Card className="liquid-glass-solid border-0 p-6">
+      <Card className="liquid-glass-solid isolate border-0 p-6">
+      <SectionArtwork kind="team" className="h-56" />
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Team</h3>
@@ -262,7 +264,8 @@ export const MeuteCard = () => {
 
   // Meutes List View
   return (
-    <Card className="liquid-glass-solid border-0 p-6">
+    <Card className="liquid-glass-solid isolate border-0 p-6">
+      <SectionArtwork kind="team" className="h-56" />
       <div className="flex items-center gap-2 mb-4">
         <Users className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Team</h3>
