@@ -108,7 +108,11 @@ const Index = () => {
             <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
               <span className="text-foreground">MMA</span>
               <span className="text-primary"> Performance</span>
-              <span className="align-baseline text-2xl md:text-3xl text-primary/80 font-semibold tracking-wide"> Center</span>
+              <span className="inline-flex flex-col items-center align-middle mx-1">
+                <span aria-hidden className="mb-1 h-px w-16 md:w-20 bg-primary/70" />
+                <span className="text-2xl md:text-3xl text-primary/80 font-semibold tracking-wide leading-none">Center</span>
+                <span aria-hidden className="mt-1 h-px w-16 md:w-20 bg-primary/70" />
+              </span>
               {isPremium && (
                 <Crown className="inline h-10 w-10 ml-3 text-primary drop-shadow-glow" />
               )}
