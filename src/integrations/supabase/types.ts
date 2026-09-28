@@ -297,6 +297,109 @@ export type Database = {
         }
         Relationships: []
       }
+      movement_contributions: {
+        Row: {
+          analysis_id: string | null
+          consent_version: string
+          consented_at: string
+          contributor_fighter: number
+          created_at: string
+          discipline: string | null
+          expires_at: string
+          fps: number
+          frame_count: number
+          id: string
+          invite_expires_at: string | null
+          invite_token_hash: string | null
+          landmark_set: string
+          partner_consent_version: string | null
+          partner_consented_at: string | null
+          partner_status: string
+          prism_labels: Json
+          user_id: string
+          user_labels: Json
+        }
+        Insert: {
+          analysis_id?: string | null
+          consent_version: string
+          consented_at?: string
+          contributor_fighter: number
+          created_at?: string
+          discipline?: string | null
+          expires_at?: string
+          fps: number
+          frame_count: number
+          id?: string
+          invite_expires_at?: string | null
+          invite_token_hash?: string | null
+          landmark_set: string
+          partner_consent_version?: string | null
+          partner_consented_at?: string | null
+          partner_status?: string
+          prism_labels?: Json
+          user_id: string
+          user_labels?: Json
+        }
+        Update: {
+          analysis_id?: string | null
+          consent_version?: string
+          consented_at?: string
+          contributor_fighter?: number
+          created_at?: string
+          discipline?: string | null
+          expires_at?: string
+          fps?: number
+          frame_count?: number
+          id?: string
+          invite_expires_at?: string | null
+          invite_token_hash?: string | null
+          landmark_set?: string
+          partner_consent_version?: string | null
+          partner_consented_at?: string | null
+          partner_status?: string
+          prism_labels?: Json
+          user_id?: string
+          user_labels?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movement_contributions_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "sparring_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movement_tracks: {
+        Row: {
+          contribution_id: string
+          data: string
+          subject: string
+          subject_user_id: string | null
+        }
+        Insert: {
+          contribution_id: string
+          data: string
+          subject: string
+          subject_user_id?: string | null
+        }
+        Update: {
+          contribution_id?: string
+          data?: string
+          subject?: string
+          subject_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movement_tracks_contribution_id_fkey"
+            columns: ["contribution_id"]
+            isOneToOne: false
+            referencedRelation: "movement_contributions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1068,6 +1171,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_movement_invite: {
+        Args: {
+          p_attests_adult: boolean
+          p_consent_version: string
+          p_token: string
+        }
+        Returns: string
+      }
       acquire_checkout_lock: {
         Args: { p_token: string; p_user_id: string }
         Returns: boolean
@@ -1095,6 +1206,21 @@ export type Database = {
         Args: { _feature: string; _user_id: string }
         Returns: string
       }
+      contribute_movement: {
+        Args: {
+          p_analysis_id: string
+          p_attests_adult: boolean
+          p_consent_version: string
+          p_contributor_fighter: number
+          p_contributor_track: string
+          p_fps: number
+          p_frame_count: number
+          p_landmark_set: string
+          p_partner_track?: string
+          p_user_labels?: Json
+        }
+        Returns: Json
+      }
       create_notification: {
         Args: {
           p_message: string
@@ -1104,6 +1230,7 @@ export type Database = {
         }
         Returns: string
       }
+      decline_movement_invite: { Args: { p_token: string }; Returns: undefined }
       get_daily_feature_cap: { Args: { _feature: string }; Returns: number }
       get_feature_limit: {
         Args: {
@@ -1119,6 +1246,16 @@ export type Database = {
       get_meute_member_role: {
         Args: { _meute_id: string; _user_id: string }
         Returns: string
+      }
+      get_movement_invite: {
+        Args: { p_token: string }
+        Returns: {
+          contributor_name: string
+          created_at: string
+          discipline: string
+          expires_at: string
+          status: string
+        }[]
       }
       get_my_team_invitations: {
         Args: never
@@ -1203,7 +1340,40 @@ export type Database = {
           similarity: number
         }[]
       }
+      movement_consent_version: { Args: never; Returns: string }
+      my_movement_contributions: {
+        Args: never
+        Returns: {
+          consent_version: string
+          consented_at: string
+          correction_count: number
+          created_at: string
+          discipline: string
+          expires_at: string
+          fps: number
+          frame_count: number
+          id: string
+          invite_expires_at: string
+          label_count: number
+          partner_status: string
+          prism_labels: Json
+          role: string
+          user_labels: Json
+        }[]
+      }
+      my_movement_tracks: {
+        Args: never
+        Returns: {
+          contribution_id: string
+          data_base64: string
+          fps: number
+          frame_count: number
+          landmark_set: string
+          subject: string
+        }[]
+      }
       public_display_name: { Args: { _user_id: string }; Returns: string }
+      purge_movement_contributions: { Args: never; Returns: number }
       refund_daily_feature_usage: {
         Args: { _feature: string; _user_id: string }
         Returns: undefined
@@ -1230,6 +1400,10 @@ export type Database = {
           p_stripe_subscription_id: string
           p_user_id: string
         }
+        Returns: undefined
+      }
+      withdraw_movement_contribution: {
+        Args: { p_id: string }
         Returns: undefined
       }
     }
