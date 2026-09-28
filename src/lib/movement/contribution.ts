@@ -120,7 +120,7 @@ export async function listMyContributions(): Promise<MyContribution[]> {
 // Movement RPCs come from migration 20260928100000, which the generated types
 // do not include until it is applied to the connected project.
 function movementRpc(fn: string, args?: Record<string, unknown>) {
-  return (supabase.rpc as unknown as (
+  return (supabase.rpc.bind(supabase) as unknown as (
     fn: string,
     args?: Record<string, unknown>,
   ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>)(fn, args);
