@@ -67,6 +67,15 @@ export async function exportAccountData(userId: string): Promise<Record<string, 
   data.sets = await fetchInChunks(exercises.map((e) => e.id as string), (chunk) => (from, to) =>
     supabase.from('sets').select('*').in('workout_exercise_id', chunk).range(from, to));
 
+  const [contributions, tracks] = await Promise.all([
+    supabase.rpc('my_movement_contributions'),
+    supabase.rpc('my_movement_tracks'),
+  ]);
+  if (contributions.error) throw new Error(contributions.error.message);
+  if (tracks.error) throw new Error(tracks.error.message);
+  data.movement_contributions = contributions.data;
+  data.movement_tracks = tracks.data;
+
   data.local_gamification = {
     xp: localStorage.getItem(`gamification_xp_${userId}`),
     badges: localStorage.getItem(`gamification_badges_${userId}`),

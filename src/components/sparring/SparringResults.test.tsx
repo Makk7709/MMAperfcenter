@@ -116,3 +116,10 @@ it("renders legacy analyses with missing optional information", async () => {
   await u.click(screen.getByRole("tab", { name: "Techniques" }));
   expect(screen.getByRole("tabpanel")).toHaveTextContent("Jab précis");
 });
+
+it("offers the movement contribution only while the video is on the device", () => {
+  const { rerender } = render(<SparringResults {...props} />);
+  expect(screen.queryByRole("button", { name: /Faire progresser PRISM/ })).toBeNull();
+  rerender(<SparringResults {...props} contribution={{ file: new File(["x"], "s.mp4"), analysisId: "an-1" }} />);
+  expect(screen.getByRole("button", { name: /Faire progresser PRISM/ })).toBeVisible();
+});

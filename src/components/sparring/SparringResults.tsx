@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, Play, RotateCcw, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowUp, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { MovementContributionDialog } from "./MovementContributionDialog";
 import { SparringPDFExport } from "./SparringPDFExport";
 import { SparringProgressTracker } from "./SparringProgressTracker";
 import {
@@ -38,6 +39,8 @@ interface SparringResultsProps {
   videoName: string;
   analysisDate: string;
   onNewAnalysis: () => void;
+  /** Set right after an analysis, while the video is still on the device. */
+  contribution?: { file: File; analysisId: string } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,9 +167,10 @@ const TargetSplit = ({ analysis, corner }: { analysis: SparringAnalysisData; cor
 
 // ---------------------------------------------------------------------------
 
-export const SparringResults = ({ analysis, videoUrl, videoName, analysisDate, onNewAnalysis }: SparringResultsProps) => {
+export const SparringResults = ({ analysis, videoUrl, videoName, analysisDate, onNewAnalysis, contribution }: SparringResultsProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [tab, setTab] = useState("moments");
+  const [contributing, setContributing] = useState(false);
 
   const applicable = analysis.applicable_metrics?.length ? analysis.applicable_metrics : ["striking", "grappling", "defense", "cardio"];
   const metrics = ["striking", "grappling", "defense", "cardio", "technique"].filter(
@@ -203,6 +207,12 @@ export const SparringResults = ({ analysis, videoUrl, videoName, analysisDate, o
         </div>
         <div className="flex flex-wrap gap-2">
           <SparringPDFExport analysis={analysis} videoName={videoName} analysisDate={analysisDate} />
+          {contribution && (
+            <Button variant="outline" onClick={() => setContributing(true)} className="gap-2">
+              <Activity className="h-4 w-4" />
+              Faire progresser PRISM
+            </Button>
+          )}
           <Button onClick={onNewAnalysis} className="gap-2">
             <RotateCcw className="h-4 w-4" />
             Nouvelle analyse
@@ -463,6 +473,16 @@ export const SparringResults = ({ analysis, videoUrl, videoName, analysisDate, o
           <SparringProgressTracker />
         </TabsContent>
       </Tabs>
+
+      {contribution && (
+        <MovementContributionDialog
+          open={contributing}
+          onOpenChange={setContributing}
+          file={contribution.file}
+          analysisId={contribution.analysisId}
+          analysis={analysis}
+        />
+      )}
     </div>
   );
 };

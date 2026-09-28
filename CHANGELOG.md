@@ -12,6 +12,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ### Ajouté
 
+- PRISM, « Faire progresser PRISM » (facultatif) : après une analyse, l'utilisateur peut partager le **mouvement** du sparring pour entraîner nos modèles d'analyse.
+  - Le téléphone en extrait le squelette (23 points par personne, sans le visage, 10 fois par seconde, 3 minutes au plus) ; aucune image, vidéo ni son n'est envoyé.
+  - Sont joints les moments et techniques repérés par PRISM, et les corrections éventuelles de l'utilisateur.
+  - Le consentement est horodaté ; les contributions sont réservées aux majeurs.
+  - Le partenaire filmé donne son propre accord via un lien, depuis son compte ; sans réponse sous 14 jours, son mouvement est effacé.
+  - Le profil gagne une rubrique « Mes contributions » (retrait en un clic), et l'export des données inclut les contributions.
+  - Conservation : 3 ans, avec purge quotidienne.
+  - Politique de confidentialité (§8) et CGU (§6) mises à jour ; [AIPD](docs/legal/AIPD_ANALYSE_MOUVEMENT.md) à faire valider.
+  - Nécessite la migration `20260928100000` et l'extension `pg_cron`.
 - Vidéo d'introduction KOREV (10 s, sans son, fondu au noir puis ouverture sur l'application), une fois par session, avec bouton « Passer » et touche Échap. Ignorée si l'utilisateur a demandé de réduire les animations, en mode économie de données ou sur connexion lente, et sur les pages ouvertes depuis un e-mail (confirmation d'inscription comprise) ou un paiement.
 - Team : invitation par e-mail qui fonctionne (la recherche de profil était bloquée par la sécurité), noms des membres et des activités, invitations reçues avec le nom de l'invitant, notification « Invitation Team », confirmation avant de supprimer ou de quitter une team.
 - Paiement : case de renonciation au droit de rétractation avant le paiement, horodatée chez Stripe. Page de paiement réussi qui vérifie réellement l'activation.
@@ -27,6 +36,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 - Team : les invitations ne permettent plus de savoir quelles adresses ont un compte (réponse uniforme, invitations en attente invisibles, 20 par jour, notification sans le nom de la team).
 - Stripe : IDs de prix et produits live en secrets serveur (clés `sk_live_` et restreintes `rk_live_`) ; un produit inconnu n'enregistre plus un abonné payant en plan gratuit. Événements Stripe conservés sans données personnelles. Corps du webhook limité en taille.
 - Longueurs maximales des textes libres, tables héritées fermées au client, plus de dépôt dans l'ancien bucket de sparring.
+- CGU §6 : la licence vague « à des fins d'amélioration du service » est remplacée par une licence limitée aux contributions volontaires, révocable. Politique de sécurité (mode rapport) : `'wasm-unsafe-eval'` autorisé pour l'extraction du mouvement.
 
 ### Corrigé
 

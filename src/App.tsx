@@ -3,13 +3,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth, PASSWORD_RESET_PATH } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { VideoBackground } from "@/components/VideoBackground";
 import { IntroSplash } from "@/components/IntroSplash";
 import { readIntroContext, shouldPlayIntro } from "@/lib/intro";
 import { SESSION_PATH } from "@/lib/training/session";
+import { INVITE_PATH } from "@/lib/movement/contribution";
+import { clearPendingInvite, pendingInvitePath } from "@/lib/movement/pendingInvite";
 import { Button } from "@/components/ui/button";
 
 const CHUNK_RELOAD_KEY = "korev_chunk_reload";
@@ -65,6 +67,7 @@ const AdminVideos = lazyPage(() => import("./pages/admin/AdminVideos"));
 const AdminSettings = lazyPage(() => import("./pages/admin/AdminSettings"));
 const PaymentSuccess = lazyPage(() => import("./pages/PaymentSuccess"));
 const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
+const MovementInvite = lazyPage(() => import("./pages/MovementInvite"));
 
 const SLOW_LOADING_MS = 10_000;
 
@@ -148,6 +151,21 @@ function PublicRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }
 
+// Brings a partner invited while signed out back to the invitation, once.
+function PendingInviteRedirect() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!user || location.pathname.startsWith(INVITE_PATH)) return;
+    const path = pendingInvitePath();
+    if (!path) return;
+    clearPendingInvite();
+    navigate(path, { replace: true });
+  }, [user, location.pathname, navigate]);
+  return null;
+}
+
 function AppContent() {
   const { loading } = useAuth();
   
@@ -158,6 +176,7 @@ function AppContent() {
     <>
       {/* Video background always visible */}
       <VideoBackground />
+      <PendingInviteRedirect />
       <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route 
@@ -234,6 +253,7 @@ function AppContent() {
           }
         />
         <Route path="/legal" element={<Legal />} />
+        <Route path={`${INVITE_PATH}/:token`} element={<MovementInvite />} />
         <Route path={PASSWORD_RESET_PATH} element={<ResetPassword />} />
         <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
         {/* Admin Routes */}

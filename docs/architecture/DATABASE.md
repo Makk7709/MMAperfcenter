@@ -149,6 +149,10 @@ Les bornes sont posées en `NOT VALID` : elles s'appliquent aux nouvelles lignes
 
 Résultats structurés d'analyse vidéo IA (JSON normalisé, métadonnées discipline, lien storage).
 
+#### `movement_contributions` / `movement_tracks`
+
+Contributions volontaires au jeu d'entraînement de l'analyse du mouvement (migration `20260928100000`, [AIPD](../legal/AIPD_ANALYSE_MOUVEMENT.md)). Aucune image : `movement_tracks.data` contient le squelette d'une personne, soit 23 points par image (nez et corps, sans les autres points du visage) en Int16 little-endian, 184 octets par image. Il y a une piste par personne filmée (`contributor`, `partner`) ; `subject_user_id` pointe vers la personne concernée, et la suppression de son compte efface sa piste. `movement_contributions` garde le consentement horodaté (`consent_version`), les étiquettes PRISM recopiées côté serveur (`prism_labels`), les verdicts de l'utilisateur (`user_labels`), le statut du partenaire (`none`, `pending`, `consented`, `withdrawn`, `expired`) et l'empreinte SHA-256 du lien d'invitation. Durée : `expires_at` = envoi + 3 ans.
+
 #### `training_videos`
 
 | Colonne | Description |
@@ -237,6 +241,11 @@ Compteur quotidien (`user_id`, `feature_name`, `day`) du plafond d'usage raisonn
 | `get_user_id_by_stripe_customer` | Résolution customer → user | SECURITY DEFINER |
 | `check_subscription_access` | Vérification accès plan | SECURITY DEFINER |
 | `update_updated_at_column` | Horodatage auto | SECURITY INVOKER |
+| `contribute_movement(...)` | Contribution : consentement à la version courante, majorité, analyse du compte et terminée, taille des pistes, verdicts sur des étiquettes existantes, 10 par jour ; renvoie le lien d'invitation du partenaire | SECURITY DEFINER |
+| `get_movement_invite` / `accept_movement_invite` / `decline_movement_invite` | Invitation du partenaire : prénom du contributeur (jamais un e-mail), accord depuis son propre compte, refus = effacement immédiat | SECURITY DEFINER |
+| `withdraw_movement_contribution(p_id)` | Retrait : le contributeur efface tout, le partenaire sa piste | SECURITY DEFINER |
+| `my_movement_contributions` / `my_movement_tracks` | Liste « Mes contributions » et export (pistes dont l'appelant est le sujet) | SECURITY DEFINER |
+| `purge_movement_contributions()` | Purge quotidienne (pg_cron, serveur uniquement) | SECURITY DEFINER |
 
 ---
 
@@ -286,7 +295,9 @@ supabase/migrations/
 ├── 20260926050000_*.sql    # effort perçu des séances (charge d'entraînement)
 ├── 20260926060000_*.sql    # une seule séance ouverte par utilisateur
 ├── 20260926070000_*.sql    # durée visée, exercices protégés, fil sans nom de séance, index
-└── 20260926080000_*.sql    # gardes d'autorisation, usage raisonnable IA, Team, longueurs, tables héritées
+├── 20260926080000_*.sql    # gardes d'autorisation, usage raisonnable IA, Team, longueurs, tables héritées
+├── …
+└── 20260928100000_*.sql    # contributions à l'analyse du mouvement (squelettes, consentements, purge)
 ```
 
 Les migrations en attente commencent par `SET lock_timeout = '5s'`. Avant de les appliquer en production, exécuter le pré-vol `supabase/preflight/20260927_preflight.sql` (lecture seule). `supabase/tests/run.sh` les rejoue sur un Postgres vierge et vérifie les règles d'accès (exécuté par la CI).
@@ -336,6 +347,7 @@ Documenté intégralement dans [`SCHEMA_DRIFT.md`](../audit/SCHEMA_DRIFT.md).
 | `feature_daily_usage` | **Interdit** | **Interdit** (serveur) |
 | Tables héritées (`documents`, `organizations*`, `render_usage`) | **Interdit** | **Interdit** |
 | `stripe_webhook_events` | Service role | Service role |
+| `movement_contributions`, `movement_tracks` | **Interdit** (fonctions `my_movement_*`) | **Interdit** (fonctions `contribute_movement`, `accept_/decline_movement_invite`, `withdraw_movement_contribution`) |
 
 ---
 

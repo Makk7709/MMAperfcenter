@@ -2,10 +2,17 @@ import { ArrowLeft, AlertTriangle, Shield, CreditCard, Scale, FileText } from "l
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const Legal = () => {
   const navigate = useNavigate();
+  const { hash } = useLocation();
+
+  // Links such as /legal#donnees-personnelles open on their section.
+  useEffect(() => {
+    if (hash) document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView();
+  }, [hash]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,8 +182,13 @@ const Legal = () => {
             </p>
             <p>
               <strong className="text-foreground">Données utilisateur :</strong> Les données sportives personnelles 
-              (performances, statistiques, analyses) restent la propriété de l'utilisateur. KOREV AI 
-              dispose d'une licence d'utilisation à des fins d'amélioration du service.
+              (performances, statistiques, analyses) restent la propriété de l'utilisateur. KOREV AI ne les
+              utilise que pour lui fournir le service. Elles ne servent à entraîner ses modèles que si
+              l'utilisateur y contribue volontairement (section 8, « Contributions à l'analyse du
+              mouvement ») : il concède alors à KOREV AI, pour chaque contribution, une licence gratuite et
+              non exclusive d'utilisation des données partagées, limitée à l'entraînement et à l'évaluation
+              de ses modèles et à la durée de conservation annoncée. Le retrait de la contribution met fin à
+              cette licence pour l'avenir.
             </p>
           </div>
         </section>
@@ -256,7 +268,7 @@ const Legal = () => {
         <Separator />
 
         {/* Section 8: RGPD */}
-        <section className="space-y-4">
+        <section id="donnees-personnelles" className="space-y-4 scroll-mt-24">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-bold">8. Données personnelles — RGPD</h2>
@@ -277,8 +289,47 @@ const Legal = () => {
             <p>
               <strong className="text-foreground">Finalités :</strong> fourniture du service, 
               personnalisation des recommandations sportives et nutritionnelles, suivi de 
-              progression, facturation des abonnements.
+              progression, facturation des abonnements et, uniquement avec l'accord explicite des
+              personnes concernées, amélioration des modèles d'analyse du mouvement (ci-dessous).
             </p>
+            <p>
+              <strong className="text-foreground">Contributions à l'analyse du mouvement (facultatif) :</strong>{" "}
+              après une analyse PRISM, l'utilisateur peut partager le mouvement du sparring pour faire
+              progresser nos modèles. Le téléphone en extrait le squelette : 23 points articulaires par
+              personne (épaules, coudes, poignets, hanches, genoux, chevilles et un seul point pour la tête),
+              10 fois par seconde, sur 3 minutes au plus. Seuls ces points sont envoyés, avec les moments et
+              techniques repérés par PRISM et, s'il le souhaite, ses corrections : aucune image, aucun son,
+              aucun trait du visage. Aucune reconnaissance faciale ni identification des personnes n'est
+              effectuée.
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>
+                Base légale : le consentement (article 6.1.a du RGPD), donné à chaque contribution par une case
+                non précochée, distincte des CGU, et horodaté avec la version du texte accepté. Le refuser
+                n'a aucune conséquence sur le service ou l'abonnement.
+              </li>
+              <li>
+                Réservé aux personnes majeures : le contributeur certifie que lui et les personnes filmées
+                sont majeurs ; un profil indiquant moins de 18 ans ne peut pas contribuer.
+              </li>
+              <li>
+                Partenaire filmé : son mouvement n'est utilisé qu'avec son propre accord, donné depuis son
+                compte via un lien envoyé par le contributeur. En attendant, il est conservé à part et
+                inutilisé ; s'il refuse, il est effacé immédiatement, et sans réponse sous 14 jours, il est
+                effacé automatiquement.
+              </li>
+              <li>
+                Conservation : 3 ans au plus à compter de la contribution, puis suppression automatique. Les
+                données sont stockées chez Supabase, dans des tables inaccessibles depuis l'application, et ne
+                sont transmises à aucun autre prestataire ; si un prestataire (annotation, calcul) devait y
+                accéder, il serait ajouté à la liste ci-dessous avant tout accès.
+              </li>
+              <li>
+                Retrait : à tout moment depuis la page Profil, rubrique « Mes contributions » ; les données
+                sont alors effacées et exclues des entraînements suivants. Un modèle déjà entraîné n'est pas
+                ré-entraîné immédiatement. La suppression du compte efface aussi les contributions.
+              </li>
+            </ul>
             <p>
               <strong className="text-foreground">Visibilité :</strong> les données sont privées par 
               défaut. Seuls sont partagés avec les autres membres le nom affiché et les séances 
@@ -314,7 +365,7 @@ const Legal = () => {
               <strong className="text-foreground">Durée de conservation :</strong> les données sont 
               conservées tant que le compte est actif. La suppression du compte efface immédiatement le 
               profil, les séances, le journal, les données nutritionnelles, les analyses et les vidéos de 
-              sparring. Les factures sont conservées par Stripe pendant la durée légale imposée par les 
+              sparring, ainsi que les contributions à l'analyse du mouvement. Les factures sont conservées par Stripe pendant la durée légale imposée par les 
               obligations comptables.
             </p>
             <p>

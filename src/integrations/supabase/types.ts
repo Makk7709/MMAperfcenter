@@ -1068,6 +1068,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_movement_invite: {
+        Args: { p_attests_adult: boolean; p_consent_version: string; p_token: string }
+        Returns: string
+      }
       acquire_checkout_lock: {
         Args: { p_token: string; p_user_id: string }
         Returns: boolean
@@ -1091,6 +1095,21 @@ export type Database = {
           status: string
         }[]
       }
+      contribute_movement: {
+        Args: {
+          p_analysis_id: string
+          p_attests_adult: boolean
+          p_consent_version: string
+          p_contributor_fighter: number
+          p_contributor_track: string
+          p_fps: number
+          p_frame_count: number
+          p_landmark_set: string
+          p_partner_track?: string
+          p_user_labels?: Json
+        }
+        Returns: Json
+      }
       consume_feature_quota: {
         Args: { _feature: string; _user_id: string }
         Returns: string
@@ -1104,6 +1123,7 @@ export type Database = {
         }
         Returns: string
       }
+      decline_movement_invite: { Args: { p_token: string }; Returns: undefined }
       get_daily_feature_cap: { Args: { _feature: string }; Returns: number }
       get_feature_limit: {
         Args: {
@@ -1119,6 +1139,16 @@ export type Database = {
       get_meute_member_role: {
         Args: { _meute_id: string; _user_id: string }
         Returns: string
+      }
+      get_movement_invite: {
+        Args: { p_token: string }
+        Returns: {
+          contributor_name: string
+          created_at: string
+          discipline: string
+          expires_at: string
+          status: string
+        }[]
       }
       get_my_team_invitations: {
         Args: never
@@ -1194,6 +1224,38 @@ export type Database = {
         Args: { p_event_id: string; p_event_type: string; p_payload: Json }
         Returns: undefined
       }
+      movement_consent_version: { Args: never; Returns: string }
+      my_movement_contributions: {
+        Args: never
+        Returns: {
+          consent_version: string
+          consented_at: string
+          correction_count: number
+          created_at: string
+          discipline: string
+          expires_at: string
+          fps: number
+          frame_count: number
+          id: string
+          invite_expires_at: string
+          label_count: number
+          partner_status: string
+          prism_labels: Json
+          role: string
+          user_labels: Json
+        }[]
+      }
+      my_movement_tracks: {
+        Args: never
+        Returns: {
+          contribution_id: string
+          data_base64: string
+          fps: number
+          frame_count: number
+          landmark_set: string
+          subject: string
+        }[]
+      }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -1204,6 +1266,7 @@ export type Database = {
         }[]
       }
       public_display_name: { Args: { _user_id: string }; Returns: string }
+      purge_movement_contributions: { Args: never; Returns: number }
       refund_daily_feature_usage: {
         Args: { _feature: string; _user_id: string }
         Returns: undefined
@@ -1218,6 +1281,7 @@ export type Database = {
       }
       reset_monthly_organization_quotas: { Args: never; Returns: undefined }
       session_type_label: { Args: { _session_type: string }; Returns: string }
+      withdraw_movement_contribution: { Args: { p_id: string }; Returns: undefined }
       sync_stripe_subscription: {
         Args: {
           p_cancel_at_period_end: boolean
