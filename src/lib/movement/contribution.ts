@@ -69,7 +69,7 @@ export async function contributeMovement(input: ContributionInput): Promise<{ id
   const frameCount = input.contributorTrack.length;
   const contributor = encodeTrack(input.contributorTrack);
   if (contributor.length !== frameCount * BYTES_PER_FRAME) throw new ContributionError("Mouvement incomplet.");
-  const { data, error } = await supabase.rpc("contribute_movement", {
+  const { data, error } = await movementRpc("contribute_movement", {
     p_analysis_id: input.analysisId,
     p_consent_version: MOVEMENT_CONSENT_VERSION,
     p_attests_adult: true,
@@ -87,13 +87,13 @@ export async function contributeMovement(input: ContributionInput): Promise<{ id
 }
 
 export async function getMovementInvite(token: string): Promise<MovementInvite> {
-  const { data, error } = await supabase.rpc("get_movement_invite", { p_token: token });
+  const { data, error } = await movementRpc("get_movement_invite", { p_token: token });
   if (error) fail(error, "Invitation introuvable.");
   return ((data as MovementInvite[] | null)?.[0] ?? { status: "unavailable" }) as MovementInvite;
 }
 
 export async function acceptMovementInvite(token: string): Promise<void> {
-  const { error } = await supabase.rpc("accept_movement_invite", {
+  const { error } = await movementRpc("accept_movement_invite", {
     p_token: token,
     p_consent_version: MOVEMENT_CONSENT_VERSION,
     p_attests_adult: true,
@@ -102,17 +102,26 @@ export async function acceptMovementInvite(token: string): Promise<void> {
 }
 
 export async function declineMovementInvite(token: string): Promise<void> {
-  const { error } = await supabase.rpc("decline_movement_invite", { p_token: token });
+  const { error } = await movementRpc("decline_movement_invite", { p_token: token });
   if (error) fail(error, "Invitation introuvable.");
 }
 
 export async function withdrawContribution(id: string): Promise<void> {
-  const { error } = await supabase.rpc("withdraw_movement_contribution", { p_id: id });
+  const { error } = await movementRpc("withdraw_movement_contribution", { p_id: id });
   if (error) fail(error, "Contribution déjà retirée.");
 }
 
 export async function listMyContributions(): Promise<MyContribution[]> {
-  const { data, error } = await supabase.rpc("my_movement_contributions");
+  const { data, error } = await movementRpc("my_movement_contributions");
   if (error) throw error;
   return (data ?? []) as MyContribution[];
+}
+
+// Movement RPCs come from migration 20260928100000, which the generated types
+// do not include until it is applied to the connected project.
+function movementRpc(fn: string, args?: Record<string, unknown>) {
+  return (supabase.rpc as unknown as (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>)(fn, args);
 }

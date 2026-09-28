@@ -68,8 +68,8 @@ export async function exportAccountData(userId: string): Promise<Record<string, 
     supabase.from('sets').select('*').in('workout_exercise_id', chunk).range(from, to));
 
   const [contributions, tracks] = await Promise.all([
-    supabase.rpc('my_movement_contributions'),
-    supabase.rpc('my_movement_tracks'),
+    movementRpc('my_movement_contributions'),
+    movementRpc('my_movement_tracks'),
   ]);
   if (contributions.error) throw new Error(contributions.error.message);
   if (tracks.error) throw new Error(tracks.error.message);
@@ -109,4 +109,13 @@ export async function deleteAccount(confirm: string): Promise<void> {
     const { message, code } = await readFunctionError(error, 'La suppression du compte a échoué');
     throw new DeleteAccountError(message, code);
   }
+}
+
+// Movement RPCs come from migration 20260928100000, which the generated types
+// do not include until it is applied to the connected project.
+function movementRpc(fn: string, args?: Record<string, unknown>) {
+  return (supabase.rpc as unknown as (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>)(fn, args);
 }
